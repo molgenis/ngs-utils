@@ -13,15 +13,15 @@ if [  ${1-:} ];
 then
 	echo "
 	Required:
-        -r|runid			Put here the runnumber
+        -r|--runid		Put here the runnumber
                         	e.g. OV10-0051
 
-        -d|--data			Give the type of Data (Unimputed,1000G,GONL,HapMap2)
+        -d|--data		Give the type of Data (Unimputed,1000G,GONL,HapMap2)
 
 	Optional:
-		-p|--pseudodir		Put here the absolute path of the directory of the pseudofile
-							pseudo example name: OV10-0051.txt
-							default: /gcc/groups/lifelines/home/rsnieders/GenoPseudo
+	-p|--pseudodir		Put here the absolute path of the directory of the pseudofile
+				pseudo example name: OV10-0051.txt
+				default: /gcc/groups/lifelines/home/rsnieders/GenoPseudo
 									
 	" 		 	
 	 
@@ -54,7 +54,7 @@ while true; do
 		"") shift 2 ;;
                 *) PseudoDir=$2 ; shift 2 ;;
             esac ;;
-   	-r|--RunId)
+   	-r|--runid)
 		case "$2" in
                 *) RunId=$2 ; shift 2 ;;
             esac ;;
