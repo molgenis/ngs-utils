@@ -401,7 +401,9 @@ done
 declare -a AVAILABLE_DESTINATION_ROOT_DIRS
 for (( i = 0 ; i < ${#DESTINATION_ROOT_DIRS[@]:-0} ; i++ ))
 do 
-  if [ -e ${DESTINATION_ROOT_DIRS[${i}]}/modules ] && [ -e ${DESTINATION_ROOT_DIRS[${i}]}/resources ] && [ -e ${DESTINATION_ROOT_DIRS[${i}]}/tools ]; then
+  if [ -e ${DESTINATION_ROOT_DIRS[${i}]}/modules ] && [ -e ${DESTINATION_ROOT_DIRS[${i}]}/resources ] && [ -e ${DESTINATION_ROOT_DIRS[${i}]}/tools ] \
+  && [ -r ${DESTINATION_ROOT_DIRS[${i}]}/modules ] && [ -r ${DESTINATION_ROOT_DIRS[${i}]}/resources ] && [ -r ${DESTINATION_ROOT_DIRS[${i}]}/tools ] \
+  && [ -w ${DESTINATION_ROOT_DIRS[${i}]}/modules ] && [ -w ${DESTINATION_ROOT_DIRS[${i}]}/resources ] && [ -w ${DESTINATION_ROOT_DIRS[${i}]}/tools ]; then
     if [ "${#AVAILABLE_DESTINATION_ROOT_DIRS[@]:-0}" -eq 0 ]; then
       AVAILABLE_DESTINATION_ROOT_DIRS=("${DESTINATION_ROOT_DIRS[${i}]}")
     else
