@@ -27,16 +27,11 @@ def filter(list,wkdir):
 
 def listbams(wkdir):
 	list=[]
-	list_dir = os.walk(str(wkdir)).next()[1]
-	if len(list_dir) != 0:
-		for item in list_dir:
-			if "_L0" not in item:
-				try:
-					for file in os.listdir(str(wkdir)+str(item)):
-						if "bam" in file and "bai" not in file and "temp" not in file and "subopt" not in file:
-							list+= [str(wkdir)+str(item)+"/"+str(file)]
-				except:
-					pass
+
+	for file in os.listdir(str(wkdir)):
+		if "bam" in file and "bai" not in file and "temp" not in file and "subopt" not in file and "sambam" not in file:
+        		list+= [str(wkdir)+"/"+str(file)]
+
 	if len(list) == 0:
 		print "No BAMs detected"
 		sys.exit()
