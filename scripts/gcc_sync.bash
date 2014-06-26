@@ -117,8 +117,8 @@ function createConfigTemplate () {
 #  * Group on SOURCE will be recursively changed to this one before sync.
 #  * These permissions will be applied recursively on SOURCE before sync.
 #
-#SYS_USER='gcc'
-#SYS_GROUP='gcc'
+#SYS_USER='envsync'
+#SYS_GROUP='depad'
 #SYS_FILE_PERMS='g+rwX,o+rX,o-w'
 #SYS_FOLDER_PERMS='g+rwXs,o+rX,o-w'
 
