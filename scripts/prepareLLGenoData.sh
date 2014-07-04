@@ -100,6 +100,21 @@ echo "INFO: Using runid     ${RunId}."
 echo "INFO: Using data      ${Data}."
 
 #
+# Go to directory to get the Geno Data.
+#
+cd ${PseudoDir}
+
+#
+# Copy the mapping file to a tmp* file system.
+#
+if [ -f ${RunId}.txt ]; then
+	cp ${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/
+else
+	echo "FATAL: ${PseudoDir}/${RunId}.txt does not exist."
+	exit 1
+fi
+
+#
 # Go to samplesheets on permanent storage.
 #
 cd "${SampleSheet}"
