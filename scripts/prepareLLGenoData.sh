@@ -9,7 +9,6 @@ set -e
 RunId=""
 Data=""
 PseudoDir="/gcc/groups/lifelines/home/rsnieders/GenoPseudo"
-GeneratedScript="/gcc/groups/lifelines/tmp03/lifelines/generatedscripts/${RunId}/"
 Compute5="/gcc/groups/lifelines/tmp03/lifelines/tools/molgenis_compute5/molgenis-compute-core-0.0.1-SNAPSHOT-20130920/"
 SampleSheet="/gcc/groups/lifelines/prm02/samplesheets/"
 
@@ -87,6 +86,8 @@ if [[ -z "${RunId-}" || -z "${Data-}" ]]; then
 	exit 1
 fi
 
+GeneratedScript="/gcc/groups/lifelines/tmp03/lifelines/generatedscripts/${RunId}/"
+
 if [[ "${Data}" == "Unimputed" || "${Data}" == "HapMap2" || "${Data}" == "GONL" || "${Data}" == "1000G" ]]; then 
 	echo "Requested data type is: ${Data}."
 else
@@ -99,6 +100,11 @@ echo "INFO: Using pseudodir ${PseudoDir}."
 echo "INFO: Using runid     ${RunId}."
 echo "INFO: Using data      ${Data}."
 
+#copy pseudofile to tmp
+if [ ! -f "/gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt" ]; 
+then
+	cp /gcc/groups/lifelines/prm02/pseudoFiles/${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt
+fi
 #
 # Go to samplesheets on permanent storage.
 #
