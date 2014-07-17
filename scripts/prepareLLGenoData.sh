@@ -147,18 +147,21 @@ else
 	WORKFLOW="workflow.csv"
 fi
 
+Jobs="/gcc/groups/lifelines/tmp03/lifelines/projects/lifelines_${RunId}/${Data}/jobs/"
+
+
 #
 # Generate jobs.
 #
 sh ${Compute5}/molgenis_compute.sh -b pbs -p ${SampleSheet}/${RunId}_${Data}.csv \
 -p ${Compute5}/pipelines/LifeLines_update_genotype_data/parameters.csv \
 -w ${Compute5}/pipelines/LifeLines_update_genotype_data/${WORKFLOW} \
--rundir ${GeneratedScript}/${Data}/
+-rundir ${Jobs}
 
 #
-# Go to the generatedscripts folder.
+# Go to the jobs folder.
 #
-cd "${GeneratedScript}/${Data}/"
+cd ${Jobs}
 
 #
 # Now change the queue from ‘PBS’ to ‘devel’ since you are on scheduler02.
@@ -168,5 +171,5 @@ perl -pi -e 's/#PBS -q gaf/#PBS -q devel/g' *.sh
 #
 # Signal success.
 #
-echo "INFO: Finished generating jobs, you may now run ${GeneratedScript}/${Data}/submit.sh..."
+echo "INFO: Finished generating jobs, you may now run ${Jobs}/submit.sh..."
 exit 0
