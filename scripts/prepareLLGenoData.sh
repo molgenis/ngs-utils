@@ -9,7 +9,6 @@ set -e
 RunId=""
 Data=""
 PseudoDir="/gcc/groups/lifelines/home/rsnieders/GenoPseudo"
-GeneratedScript="/gcc/groups/lifelines/tmp03/lifelines/generatedscripts/${RunId}"
 Compute5="/gcc/groups/lifelines/tmp03/lifelines/tools/molgenis_compute5/molgenis-compute-core-0.0.1-SNAPSHOT-20130920/"
 SampleSheet="/gcc/groups/lifelines/prm02/samplesheets/"
 
@@ -87,6 +86,8 @@ if [[ -z "${RunId-}" || -z "${Data-}" ]]; then
 	exit 1
 fi
 
+GeneratedScript="/gcc/groups/lifelines/tmp03/lifelines/generatedscripts/${RunId}/"
+
 if [[ "${Data}" == "Unimputed" || "${Data}" == "HapMap2" || "${Data}" == "GONL" || "${Data}" == "1000G" ]]; then 
 	echo "Requested data type is: ${Data}."
 else
@@ -99,21 +100,11 @@ echo "INFO: Using pseudodir ${PseudoDir}."
 echo "INFO: Using runid     ${RunId}."
 echo "INFO: Using data      ${Data}."
 
-#
-# Go to directory to get the Geno Data.
-#
-cd ${PseudoDir}
-
-#
-# Copy the mapping file to a tmp* file system.
-#
-if [ -f ${RunId}.txt ]; then
-	cp ${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/
-else
-	echo "FATAL: ${PseudoDir}/${RunId}.txt does not exist."
-	exit 1
+#copy pseudofile to tmp
+if [ ! -f "/gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt" ]; 
+then
+	cp /gcc/groups/lifelines/prm02/pseudoFiles/${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt
 fi
-
 #
 # Go to samplesheets on permanent storage.
 #
@@ -156,18 +147,21 @@ else
 	WORKFLOW="workflow.csv"
 fi
 
+Jobs="/gcc/groups/lifelines/tmp03/lifelines/projects/lifelines_${RunId}/${Data}/jobs/"
+
+
 #
 # Generate jobs.
 #
 sh ${Compute5}/molgenis_compute.sh -b pbs -p ${SampleSheet}/${RunId}_${Data}.csv \
 -p ${Compute5}/pipelines/LifeLines_update_genotype_data/parameters.csv \
 -w ${Compute5}/pipelines/LifeLines_update_genotype_data/${WORKFLOW} \
--rundir ${GeneratedScript}/${Data}/
+-rundir ${Jobs}
 
 #
-# Go to the generatedscripts folder.
+# Go to the jobs folder.
 #
-cd "${GeneratedScript}/${Data}/"
+cd ${Jobs}
 
 #
 # Now change the queue from ‘PBS’ to ‘devel’ since you are on scheduler02.
@@ -177,5 +171,5 @@ perl -pi -e 's/#PBS -q gaf/#PBS -q devel/g' *.sh
 #
 # Signal success.
 #
-echo "INFO: Finished generating jobs, you may now run ${GeneratedScript}/${Data}/submit.sh..."
+echo "INFO: Finished generating jobs, you may now run ${Jobs}/submit.sh..."
 exit 0
