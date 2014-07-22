@@ -80,10 +80,10 @@ export EXOME_TARGET_BED_FILE_PREFIX=SS_V5_fragment_targets
 
 mkdir -p ${ASS5_DIR}/originals/
 cd ${ASS5_DIR}/originals/
-# Copy S04380110.zip to ${ROOT_SS5_DIR}/originals/
+# Copy S04380110.zip to ${ASS5_DIR}/originals/
 unzip S04380110.zip
 mv S04380110/* ./; rmdir S04380110
-# Copy SS_V5_fragment_targets.bed to ${ROOT_SS5_DIR}/originals/ dir.
+# Copy SS_V5_fragment_targets.bed to ${ASS5_DIR}/originals/ dir.
 mkdir -p ${ASS5_DIR}/gcc_version_indexed_for_human_g1k_v37/
 cd ${ASS5_DIR}/gcc_version_indexed_for_human_g1k_v37/
 cp ${ROOT_BED_FILE_DIR}/human_g1k_v37.genome ./
@@ -169,11 +169,11 @@ awk -F "\t" 'BEGIN {OFS=FS} {print $1,$2,$3,"Agilent_SS_AllExonV5"}' \
 # Rename final file for consistency and readability.
 #
 mv ${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed \
-   Agilent_SureSelect_Human_All_Exon_V5_S04380110.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
+   Agilent_SureSelect_Human_All_Exon_V5_S04380110_Padded.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
 
 ###########################################################################################################
 # Final BED file used in Exome Seq experiments:
-# Agilent_SureSelect_Human_All_Exon_V5_S04380110.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
+# Agilent_SureSelect_Human_All_Exon_V5_S04380110_Padded.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
 ###########################################################################################################
 
 

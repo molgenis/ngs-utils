@@ -83,7 +83,7 @@ export EXOME_PADDED_BED_FILE_PREFIX=S04380110_Padded
 # Targets do not need additional flanking bases.
 # 
 export SCA_TARGET_BED_FILE_PREFIX="Agilent_SureSelect_Human_Custom_SCA_0655301"
-export EXOME_PLUS_SCA_BED_FILE_PREFIX="Agilent_SureSelect_Human_All_Exon_V5_S04380110_plus_Custom_SCA_0655301"
+export EXOME_PLUS_SCA_BED_FILE_PREFIX="Agilent_SureSelect_Human_All_Exon_V5_S04380110_PADDED_plus_Custom_SCA_0655301"
 
 mkdir -p ${ASS5_PLUS_SCA_DIR}/originals/
 cd ${ASS5_PLUS_SCA_DIR}/originals/
@@ -168,7 +168,7 @@ perl -F'\t' -lane \
  
 ###########################################################################################################
 # Final BED file used in Exome Seq experiments:
-# Agilent_SureSelect_Human_All_Exon_V5_S04380110_plus_Custom_SCA_0655301.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
+# Agilent_SureSelect_Human_All_Exon_V5_S04380110_PADDED_plus_Custom_SCA_0655301.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
 ###########################################################################################################
 
 
