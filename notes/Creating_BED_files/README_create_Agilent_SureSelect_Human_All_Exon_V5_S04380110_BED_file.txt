@@ -68,7 +68,7 @@ perl -pi -e 's/LN://g' ${ROOT_BED_FILE_DIR}/human_g1k_v37.genome
 #   S04380110_Covered.bed      (Regions covered by probes)
 #   S04380110_Padded.bed       (*_Coverage.bed flanked with 100 bp)
 #
-# Received via email from Pierre Bourbon, PhD – Sequencing Applications Support Specialist <pbourbon@agilent.com>:
+# Received via email from Pierre Bourbon, PhD - Sequencing Applications Support Specialist <pbourbon@agilent.com>:
 #   SS_V5_fragment_targets.bed (Target regions selected to design the probes)
 #
 # NOTE1: *_fragment_targets.bed has only partial overlap with *_Covered.bed:
@@ -80,10 +80,10 @@ export EXOME_TARGET_BED_FILE_PREFIX=SS_V5_fragment_targets
 
 mkdir -p ${ASS5_DIR}/originals/
 cd ${ASS5_DIR}/originals/
-# Copy S04380110.zip to ${ROOT_SS5_DIR}/originals/
+# Copy S04380110.zip to ${ASS5_DIR}/originals/
 unzip S04380110.zip
 mv S04380110/* ./; rmdir S04380110
-# Copy SS_V5_fragment_targets.bed to ${ROOT_SS5_DIR}/originals/ dir.
+# Copy SS_V5_fragment_targets.bed to ${ASS5_DIR}/originals/ dir.
 mkdir -p ${ASS5_DIR}/gcc_version_indexed_for_human_g1k_v37/
 cd ${ASS5_DIR}/gcc_version_indexed_for_human_g1k_v37/
 cp ${ROOT_BED_FILE_DIR}/human_g1k_v37.genome ./
@@ -165,13 +165,16 @@ awk -F "\t" 'BEGIN {OFS=FS} {print $1,$2,$3,"Agilent_SS_AllExonV5"}' \
    ${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.bed \
  > ${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
 
-#################################################################################
-# Used in Exome Seq experiments for:	File:
-#################################################################################
-# 1. Variant calling + Coverage BEDs	${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
-# 2. QC metrics Targets					${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
-# 3. QC metrics capt. kit performance	${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.regionMerged.bed
-#################################################################################
+#
+# Rename final file for consistency and readability.
+#
+mv ${EXOME_PADDED_BED_FILE_PREFIX}.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed \
+   Agilent_SureSelect_Human_All_Exon_V5_S04380110_Padded.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
+
+###########################################################################################################
+# Final BED file used in Exome Seq experiments:
+# Agilent_SureSelect_Human_All_Exon_V5_S04380110_Padded.sorted.stripped.flanked0-20bp.regionMerged.labelled.bed
+###########################################################################################################
 
 
 
