@@ -53,7 +53,7 @@ MakeControlFile <- function(controlFiles, sample)
    avgFile <- avgFile + correctedFiles[[i]]
   }
   avgFile <- avgFile / length(correctedFiles)
-  endFile <- avgFile / (autosomeReadsTotalReads / 62217)
+  endFile <- avgFile / (autosomeReadsTotalReads / 57614)
   test <- which.max(endFile[1,])
   goodBinFilter <- matrix(FALSE, nrow=24, ncol=4985) 
   goodBinFilter[endFile < 1.5] <- TRUE
