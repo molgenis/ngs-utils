@@ -11,6 +11,7 @@ Data=""
 PseudoDir="/gcc/groups/lifelines/home/rsnieders/GenoPseudo"
 Compute5="/gcc/groups/lifelines/tmp03/lifelines/tools/molgenis_compute5/molgenis-compute-core-0.0.1-SNAPSHOT-20130920/"
 SampleSheet="/gcc/groups/lifelines/prm02/samplesheets/"
+makedir="mkdir -p -m 770"
 
 #
 # Load tools into environment.
@@ -124,15 +125,15 @@ perl -pi -e "s|example|${RunId}|g" "${RunId}_${Data}.csv"
 # Make directory in generatedscripts.
 #
 if [ ! -e "${GeneratedScript}" ]; then
-	mkdir ${GeneratedScript}
+	${makedir} ${GeneratedScript}
 	echo "created folder: ${GeneratedScript}"
 	cd ${GeneratedScript}
-	mkdir ${Data}
+	${makedir} ${Data}
 elif [[ -d "${GeneratedScript}" && -r "${GeneratedScript}" && -w "${GeneratedScript}" && -x "${GeneratedScript}" ]]; then
 	echo "INFO: Directory already exists, and we have rwx permissions."
 	cd "${GeneratedScript}"
 	if [ ! -d "${Data}" ]; then
-		mkdir -p "${Data}"
+		${makedir} "${Data}"
 	fi
 else
 	echo "FATAL: The ${GeneratedScript} folder already exists, but you don't have read, write or execute rights."
