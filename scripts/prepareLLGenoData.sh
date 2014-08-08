@@ -12,6 +12,7 @@ PseudoDir="/gcc/groups/lifelines/home/rsnieders/GenoPseudo"
 Compute5="/gcc/groups/lifelines/tmp03/lifelines/tools/molgenis_compute5/molgenis-compute-core-0.0.1-SNAPSHOT-20130920/"
 SampleSheet="/gcc/groups/lifelines/prm02/samplesheets/"
 makedir="mkdir -p -m 770"
+SNPSubset="all"
 
 #
 # Load tools into environment.
@@ -35,13 +36,15 @@ function usage () {
         -d|--data		Give the type of Data (Unimputed,1000G,GONL or HapMap2)
 
 	Optional:
+	-s|--snpsubset		You can choose if you only want to select a subset of snps that needs analyzed. Complete path to the file
+
 	-p|--pseudodir		Absolute path of the directory of the pseudofile
 				Pseudo file name must be: \${runid}.txt
 				Pseudo files are usually located in /gcc/groups/lifelines/home/\${datamanager}/GenoPseudo/
 	"
 }
 
-PARSED_OPTIONS=$(getopt -n "$0"  -o r:d:p: --long "runid:,data:,pseudodir:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o r:d:p:s: --long "runid:,data:,pseudodir:,snpsubset:"  -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
@@ -68,6 +71,10 @@ while true; do
    	-r|--runid)
 		case "$2" in
                 *) RunId=$2 ; shift 2 ;;
+            esac ;;
+	-s|--snpsubset)
+                case "$2" in
+                *) SNPSubset=$2 ; shift 2 ;;
             esac ;;
    	-d|--data)
 		case "$2" in 
@@ -100,6 +107,7 @@ fi
 echo "INFO: Using pseudodir ${PseudoDir}."
 echo "INFO: Using runid     ${RunId}."
 echo "INFO: Using data      ${Data}."
+echo "INFO: Using snpsubset ${SNPSubset}."
 
 #copy pseudofile to tmp
 if [ ! -f "/gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt" ]; 
@@ -114,7 +122,19 @@ cd "${SampleSheet}"
 #
 # Copy an already existing old run mapping file.
 #
-cp "example_${Data}.csv" "${RunId}_${Data}.csv"
+if [ ${SNPSubset} != "all" ];
+then
+	if [ ! -f ${SNPSubset} ];
+	then
+		echo "The file does not exist!"
+		return -1
+	else
+		cp "${SampleSheet}/example_${Data}_subset.csv" "${SampleSheet}/${RunId}_${Data}.csv"
+		perl -pi -e "s|,subset|,${SNPSubset}|g" ${SampleSheet}/${RunId}_${Data}.csv
+	fi
+else
+	cp "${SampleSheet}/example_${Data}.csv" "${SampleSheet}/${RunId}_${Data}.csv"
+fi 
 
 #
 # Rename the old run number in the file.
@@ -157,7 +177,8 @@ Jobs="/gcc/groups/lifelines/tmp03/lifelines/projects/lifelines_${RunId}/${Data}/
 sh ${Compute5}/molgenis_compute.sh -b pbs -p ${SampleSheet}/${RunId}_${Data}.csv \
 -p ${Compute5}/pipelines/LifeLines_update_genotype_data/parameters.csv \
 -w ${Compute5}/pipelines/LifeLines_update_genotype_data/${WORKFLOW} \
--rundir ${Jobs}
+-rundir ${Jobs} \
+-weave
 
 #
 # Go to the jobs folder.
