@@ -8,13 +8,14 @@ removeCols <- function(transposedMatrix, chromo)
 }
 GetSampleFracs <- function(sample)
 {
+  autoChromosomes <-c(1:12, 14:17, 19:20, 22) 
   sampleF <- read.delim(paste(sample, ".forward.corrected.bins.table.tsv", sep = ""), header = TRUE, sep = "\t", quote = "\"",
                         dec = ".", fill = TRUE)
   
   sampleR <- read.delim(paste(sample, ".reverse.corrected.bins.table.tsv", sep = ""), header = TRUE, sep = "\t", quote = "\"",
                         dec = ".", fill = TRUE)
-  totalF <- sum(sampleF[1:22,])
-  totalR <- sum(sampleR[1:22,])
+  totalF <- sum(sampleF[autoChromosomes,])
+  totalR <- sum(sampleR[autoChromosomes,])
   totalReadsChrFocus <<- sum(sampleF[chromo.focus,]) + sum(sampleR[chromo.focus, ])
   sampleFracs <- matrix(0, nrow=44, ncol=1)
   for (i in 1:22)
@@ -71,13 +72,10 @@ GetSD <- function(matrixRow)
 {
   return(sd(as.matrix(matrixRow)))
 }
-MakeTable <- function()
+MakeTable <- function(colls)
 {
-  table <- matrix(0, nrow=4, ncol=6) 
-  
-  
-  colls <- c("Sample PS", "Observed Sample", "Mean Control PS", "Standard Deviation Control PS", "NCV", "Theoretical Coefficent")
-  
+  table <- matrix(0, nrow=4, ncol=length(colls)) 
+
   rowws <- c("Set 1", "Set 2", "Set 3", "Set 4")
   colnames(table) <- colls
   rownames(table) <- rowws
@@ -128,7 +126,7 @@ PrepareRegressionTableForPrint <- function(regressionTable, chromo.focus)
 
 DetermineNCV <- function(totalReadsChrFocus)
 {
-  cv <- (1.15 * (1 / sqrt(totalReadsChrFocus)))
+  cv <<- (1.15 * (1 / sqrt(totalReadsChrFocus)))
   if(sd(normControls) < (1.15 * (1 / sqrt(totalReadsChrFocus))))
   {
     Zvalues <- (normControls - mean(normControls)) / (1.15*(1 / sqrt(totalReadsChrFocus)))
@@ -167,6 +165,9 @@ args<-commandArgs(TRUE)
 
 #Gets the chromosome (13, 18 or 21) as a numeric
 chromo.focus = as.numeric(args[6])
+colsNcvTable <- c("Sample PS", "Observed Sample", "Observed / Predicted", "Mean Control", "SD Control", "Practical VC",
+                  "Reads", "Theoretical VC", "Theoretical Used", "P-Value Shapiro", "Zscore")
+colsDiagnosticTable <- c("VC (%)", "Normal Distributed", "Zscore")
 #Reads the chromosomal fraction table
 setwd(args[5])
 allmatrix <- read.delim(args[1], header = TRUE, sep = "\t", quote = "\"",
@@ -176,8 +177,12 @@ transposedSamples <- as.data.frame(t(allmatrix))
 chrFocusF <- paste("Chr", chromo.focus, "F", sep="")
 chrFocusR <- paste("Chr", chromo.focus, "R", sep="")
 chrFocusReads <- transposedSamples[[chrFocusF]] + transposedSamples[[chrFocusR]]
-transposedSamples <- removeCols(transposedSamples, chromo = chrFocusF)
-transposedSamples <- removeCols(transposedSamples, chromo = chrFocusR)
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 13, "F", sep=""))
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 13, "R", sep=""))
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 18, "F", sep=""))
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 18, "R", sep=""))
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 21, "F", sep=""))
+transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 21, "R", sep=""))
 transposedSamplesControl <- transposedSamples
 #Sets the filename for the file containing the predictor data 
 filename <- paste(chromo.focus, args[2], sep="")
@@ -190,9 +195,13 @@ totalReadsChrFocus <- vector(mode = "numeric")
 
 sampleFracs <- GetSampleFracs(args[3])
 
-NCVTable <- MakeTable()
+NCVTable <- MakeTable(colsNcvTable)
+DiagnosticsTable <- MakeTable(colsDiagnosticTable)
 for (i in 1:4)
 {
+
+cv <- 1  
+  
 moden <- GetModel(i)
 
 corcof <- "Undetermined"
@@ -212,21 +221,47 @@ predictedControls <- predict(moden, predictControl)
 
 normControls <- (chrFocusReads) / predictedControls
 
+print(mean(normControls))
+
 Zvalues <- DetermineNCV(totalReadsChrFocus)
 
 controlAv <- round(mean(Zvalues[1:50]), digits = 2)
 predictors$ncv[i] <- round(Zvalues[51], 3)
 
-NCVTable[i,] <- c(round(predictedSample,5), round(observedSample,5), round(mean(predictedControls),5), round(sd(predictedControls),6), 
-                  round(Zvalues[51], 3), corcof )
+NCVTable[i,] <- c(round(predictedSample,5), round(observedSample,5), round(predictedSample / observedSample,5), round(mean(normControls),5), round(sd(normControls),6), 
+                  round(sd(normControls) / mean(normControls),5), round(totalReadsChrFocus,0),  round(cv,4), corcof, round(shapiro.test(Zvalues[1:50])$p.value,3), round(Zvalues[51], 3))
+normalDistributed <- "Yes"
+if(shapiro.test(Zvalues[1:50])$p.value < 0.05)
+{
+  normalDistributed <- "No"
+}
+
+cvUsed <- round(sd(normControls) / mean(normControls),5) * 100
+
+if(corcof == "Yes")
+{
+  cvUsed <- round(cv,4) * 100
+}
+
+DiagnosticsTable[i,] <- c(cvUsed, normalDistributed, round(Zvalues[51], 3)) 
 
 WritePSSetsPDFs(Zvalues, i)
 }
 
+write.table(NCVTable,paste(args[3], "_Chromosome", chromo.focus, "_NCVTable.csv", sep =""), quote = FALSE, sep ="\t", row.names = TRUE,
+            col.names = TRUE)
+write.table(regressionTable,paste(args[3], "_Chromosome", chromo.focus, "_RegressionTable.csv", sep =""), quote = FALSE, sep ="\t", row.names = TRUE,
+            col.names = TRUE)
+write.table(t(sampleFracs),paste(args[3], "_samplefractions.csv", sep =""), quote = FALSE, sep ="\t", row.names = TRUE,
+            col.names = TRUE)
+write.table(DiagnosticsTable,paste(args[3], "_Chromosome", chromo.focus, "_DiagnostiekOutput.csv", sep =""), quote = FALSE, sep =",", 
+            col.names = TRUE, row.names = FALSE)
 write.table(predictors,paste(chromo.focus, args[4], sep =""), quote = FALSE, sep ="\t", row.names = TRUE,
             col.names = TRUE)
-pdf(paste(args[3], "_Chromosome", chromo.focus, "_NCVTable.pdf", sep =""), height=5, width=12)
-grid.table(NCVTable)
+
+nv <- PrepareRegressionTableForPrint(NCVTable, chromo.focus)
+pdf(paste(args[3], "_Chromosome", chromo.focus, "_NCVTable.pdf", sep =""), height=5, width=14)
+grid.draw(nv)
 dev.off()
 
 gt <- PrepareRegressionTableForPrint(regressionTable, chromo.focus)
