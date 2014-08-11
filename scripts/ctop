@@ -1,8 +1,11 @@
 #!/usr/bin/env perl
 
 # ============================================================================
-#  Original Copyright 2002, 2003, 2004 University of Southern California
-#  Later modifications Copyright 2014 University Medical Center Groningen
+#  This is ctop copyright 2014 University Medical Center Groningen.
+#  Partially based on pbstop copyright 2002, 2003, 2004 University of Southern California.
+#      http://www-rcf.usc.edu/~garrick/perl-PBS
+#      Please send comments to garrick@usc.edu.
+#      Site appears to be down...
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -11,24 +14,20 @@
 #
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+#  See the GNU General Public License for more details.
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
-#  Original version of this software may be found at:
-#      http://www-rcf.usc.edu/~garrick/perl-PBS
-#      Please send comments to garrick@usc.edu.
-#      Site appears to be down...
 # ============================================================================
 
 #
 # Configurable defaults.
 #
 # Don't change the defaults here.
-# Make a config file instead; see qtop(1).
+# Make a config file instead; see ctop(1).
 #
 my $columns         = 46;       # Columns in grid
 my $sleeptime       = 30;       # Seconds between refreshes
@@ -37,7 +36,6 @@ my $color_by        = 'job';    # Assign color per job, user or queue.
 my $show_summary    = 1;        # 1 or 0
 my $compact_summary = 1;        # 1 or 0
 my $show_grid       = 1;        # 1 or 0
-my $sorted_grid     = 1;        # 1 or 0
 my $show_queue      = 1;        # 1 or 0
 my $show_qqueue     = 1;        # 1 or 0
 my $show_jobs       = 1;        # 1 or 0
@@ -49,12 +47,10 @@ my @host            = ();       # Hostname of your scheduler
                                 # on which you login to monitor/submit jobs. When empty we will try
                                 # $ENV{"PBS_DEFAULT"}, SERVERHOST from showconfig or localhost.
 my $maxrows         = 3000;     # maximum number of rows
-my $maxcolumns      = 145;      # maximum number of columns
-my $maxnodegrid     = 2;        # maximum number of CPUs on a node before it gets its own grid.
+my $maxcolumns      = 137;      # maximum number of columns
 
 my $qmgr     = "/usr/local/pbs/bin/qmgr";
 my $qstat    = "/usr/local/pbs/bin/qstat";
-my $pbsnodes = "/usr/local/pbs/bin/pbsnodes";
 
 #########################################################
 #   Nothing else to adjust below here
@@ -98,35 +94,44 @@ my $underline     = 0;
 
 my ($y, $x, $Y, $X, $py, $px, $ly, $lx, $subY, $subX) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-readrc("/etc/qtoprc");
-readrc("$ENV{HOME}/.qtoprc");
+readrc("/etc/ctoprc");
+readrc("$ENV{HOME}/.ctoprc");
 
 #
 # Configure and find commandline utils.
 #
 -e $qmgr     or chomp($qmgr     = `which qmgr 2>/dev/null`);
--e $qmgr     or die "qmgr: Command not found\n";
+-e $qmgr     or die "FATAL: Cannot find qmgr.\n";
 -e $qstat    or chomp($qstat    = `which wqstat 2>/dev/null`);
 -e $qstat    or chomp($qstat    = `which qstat 2>/dev/null`);
--e $qstat    or die "qstat: Command not found\n";
--e $pbsnodes or chomp($pbsnodes = `which pbsnodes 2>/dev/null`);
--e $pbsnodes or die "pbsnodes: Command not found\n";
+-e $qstat    or die "FATAL: Cannot find (w)qstat.\n";
 
-# argument processing
+#
+#  Process commndline arguments.
+#
 my @argvhosts = ();
 while (my $arg = shift @ARGV) {
-	if ($arg eq '-c') {
-		$columns = shift @ARGV;
-		$columns =~ /^\d+$/ or $ARGV[0] = '-h';
-		$columns > 0 or $ARGV[0] = '-h';
-	} elsif ($arg eq '-s') {
-		$sleeptime = shift @ARGV;
-		$sleeptime =~ /^\d+$/ or $ARGV[0] = '-h';
-		$sleeptime > 0 or $ARGV[0] = '-h';
-	} elsif ($arg eq '-m') {
-		$maxnodegrid = shift @ARGV;
-		$maxnodegrid =~ /^\d+$/ or $ARGV[0] = '-h';
-		$maxnodegrid > 0 or $ARGV[0] = '-h';
+	if ($arg eq '-u') {
+		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
+			$show_user = join(' ', split(',', shift));
+		} else {
+			usage();
+			exit(1);
+		}
+	} elsif ($arg eq '-n') {
+		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
+			$show_node = join(' ', split(',', shift));
+		} else {
+			usage();
+			exit(1);
+		}
+	} elsif ($arg eq '-c') {
+		if (defined $ARGV[0] and $ARGV[0] =~ /((job)|(node)|(queue))/) {
+			$color_by = $1;
+		} else {
+			usage();
+			exit(1);
+		}
 	} elsif ($arg eq '-C') {
 		$colorize = !$colorize;
 	} elsif ($arg eq '-S') {
@@ -137,58 +142,48 @@ while (my $arg = shift @ARGV) {
 		$show_queue = !$show_queue;
 	} elsif ($arg eq '-t') {
 		$show_qqueue = !$show_qqueue;
-	} elsif ($arg eq '-J') {
+	} elsif ($arg eq '-j') {
 		$show_jobs = !$show_jobs;
-	} elsif ($arg eq '-u') {
-		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
-			$show_user = join(' ', split(',', shift));
-		} else {
-			$ARGV[0] = '-h';
+	} elsif ($arg eq '-s') {
+		$sleeptime = shift @ARGV;
+		unless ($sleeptime =~ /^\d+$/ && $sleeptime > 0) {
+			usage();
+			exit(1);
 		}
-	} elsif ($arg eq '-n') {
-		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
-			$show_node = join(' ', split(',', shift));
-		} else {
-			$ARGV[0] = '-h';
+	} elsif ($arg eq '-w') {
+		$columns = shift @ARGV;
+		unless ($columns =~ /^\d+$/ && $columns > 0) {
+			usage();
+			exit(1);
 		}
-	} elsif ($arg =~ /^-(\d+)$/) {
-		@show_cpu = split(//, $1);
+#	} elsif ($arg =~ /^-(\d+)$/) {
+#		@show_cpu = split(//, $1);
 	} elsif ($arg =~ /^@(.*)/) {
 		push(@argvhosts, $1);
 	} elsif ($arg eq '-V') {
-		print "qtop (p.k.a. pbstop) $VERSION\nCopyright 2002, 2003, 2004 University of Southern California\n";
+		print "ctop (p.k.a. pbstop) $VERSION\n";
+		exit(0);
+	} elsif ($arg eq '-h') {
+		usage();
 		exit(0);
 	} else {
-		print "Usage:  qtop [-c columns] [-s seconds] [-m numcpus] [options] [\@host ...]\n";
-		print "   Version: $VERSION\n";
-		print "   Copyright 2002, 2003, 2004 University of Southern California\n";
-		print "   garrick\@usc.edu http://www-rcf.usc.edu/~garrick/pbstop\n";
-		print "   grep FIXME `which qtop` if you want to help out\n\n";
-		print "   -s  seconds between refreshes\n";
-		print "   -c  number of columns to display in the grid\n";
-		print "   -m  max number of cpus in a node before it gets its own grid\n";
-		print "   -u  show only a user's jobs\n";
-		print "   -n  show only a node's jobs\n";
-		print "   -C  toggle colorization\n";
-		print "   -S  toggle state summary display\n";
-		print "   -G  toggle grid display\n";
-		print "   -Q  toggle queue display\n";
-		print "   -t  toggle showing queued jobs in queue display\n";
-
-		#print "   -[0-9]...  cpu numbers for grid display\n";
-		print "   -J  toggle jobs in grid display\n";
-		print "   -V  print version and exit\n";
+		usage();
 		exit(1);
 	}
 }
+
+#
+# TODO: fix crash on search.
+#
+
 if (scalar @argvhosts > 0) {
 	@host = @argvhosts;
 }
 undef @argvhosts;
 
 #
-# If the scheduler was not specified,
-# try to get it's name from the evironment, defaults, usual suspects, etc.
+# If the scheduler a.k.a. PBS server was not specified,
+# try to get it's name from the evironment, defaults or localhost.
 #
 unless (defined($host[0])) {
 	if (defined($ENV{"PBS_DEFAULT"})) {
@@ -241,7 +236,7 @@ my $pr = 0;
 # If your eyes disagree with my eyes, you are free to play around with this list.
 # But don't forget... only the first $COLOR_PAIRS uncommented combos apply.
 # $COLOR_PAIRS is set by your curses implementation.
-# qtop's help screen (hit 'h' in qtop) will tell you the value of $COLOR_PAIRS.
+# ctop's help screen (hit 'h' in ctop) will tell you the value of $COLOR_PAIRS.
 #
 init_pair(++$pr, COLOR_RED,     COLOR_BLACK);
 init_pair(++$pr, COLOR_GREEN,   COLOR_BLACK);
@@ -321,7 +316,7 @@ my $subwin = 0;
 
 main_loop(\@host);
 
-#   The original color set that I actually spent some time planning
+#   The original color set.
 #        "\033[07;34m",    "\033[07;35m",    "\033[07;36m",
 #        "\033[07;37m",    "\033[01;37m",    "\033[35m",
 #        "\033[36m",       "\033[37m",       "\033[34m",
@@ -361,6 +356,29 @@ main_loop(\@host);
 #    In the meantime, it does everything the user requests,
 #    including griding through the main data structures looking for stuff.
 #    All of the code responsible for moving around the giant pad is here.
+
+sub usage {
+	print "Usage:  ctop [options] [\@host ...]\n";
+	print "  Version: $VERSION\n";
+	print "  Options: \n";
+	print "  -u [user] Show only jobs for a subset of users.\n";
+	print "            Comma separated list.\n";
+	print "  -n [node] Show only jobs for a subset of nodes.\n";
+	print "            Comma separated list.\n";
+	print "  -c [type] Color cores in grid display by type.\n";
+	print "            Type must be one of 'job', 'node' or 'queue'.\n";
+	print "  -C        Toggle colorization.\n";
+	print "  -S        Toggle state summary display.\n";
+	print "  -G        Toggle grid display.\n";
+	print "  -Q        Toggle queue display.\n";
+	print "  -t        Toggle showing queued jobs in queue display.\n";
+	#print "  -[0-9]...  cpu numbers for grid display.\n";
+	print "  -j        Toggle jobs in grid display.\n";
+	print "  -s [0-9]+ Seconds between refreshes.\n";
+	print "  -w [0-9]+ With of grid in number of cores to display.\n";
+	print "  -V        Print version and exit.\n";
+	print "  -h        Print this help and exit.\n";
+}
 
 sub main_loop {
 	my $host = shift;
@@ -424,127 +442,32 @@ sub main_loop {
 	}
 }
 
-#sub get_info_modPBS {
-#	my ( $server, $Nodes, $Jobs, $State_count ) = @_;
-#
-#	my $con = pbs_connect($server);
-#	if ( $con <= 0 ) {
-#		printwarning("Connect to $server failed: $PBS::pbs_errno\n");
-#		return;
-#	}
-#	my $qmgr = pbs_statnode( $con, undef, undef, undef );
-#	my $qstat = pbs_statjob( $con, undef, undef, undef );
-#	pbs_disconnect($con);
-#
-#	my $jobs;
-#	my $status;
-#	my $statuses;
-#	my $node;
-#	my $job;
-#	my $name;
-#	my $value;
-#
-#	my $node = "";
-#
-#	foreach ( @{$qmgr} ) {
-#		$node = $_->{name};
-#		delete $Nodes->{$server}{$node};
-#		$Nodes->{$server}{$node}{seen} = 1;
-#		$State_count->{_nodes}++;
-#
-#		foreach ( @{ $_->{attribs} } ) {
-#			$name  = $_->{name};
-#			$value = $_->{value};
-#
-#			$name eq $PBS::ATTR_NODE_np and do {
-#				$Nodes->{$server}{$node}{np} = $value;
-#				$State_count->{_procs} += $value;
-#				$State_count->{_mprocs} =
-#				    $State_count->{_mprocs} > $value
-#				  ? $State_count->{_mprocs}
-#				  : $value;
-#			};
-#			$name eq $PBS::ATTR_NODE_state and do {
-#				$Nodes->{$server}{$node}{state} = $value;
-#				$State_count->{$value}++;
-#			};
-#			$name eq $PBS::ATTR_NODE_properties
-#			  and $Nodes->{$server}{$node}{properties} = $value;
-#			$name eq $PBS::ATTR_NODE_ntype
-#			  and $Nodes->{$server}{$node}{ntype} = $value;
-#			$name eq $PBS::ATTR_NODE_jobs and do {
-#				$State_count->{"_anodes"}++;
-#				foreach my $job ( split( /, /, $value ) ) {
-#					if ( $job =~ m{(\d+)/(\d+)} ) {
-#						$Nodes->{$server}{$node}{job}{$1} = $2;
-#						$State_count->{"_aprocs"}++;
-#					}
-#				}
-#			};
-#			$name eq $PBS::ATTR_NODE_status and do {
-#				foreach my $status ( split( /,/, $value ) ) {
-#					if ( $status =~ m{(.+)=(.+)} ) {
-#						$Nodes->{$server}{$node}{status}{$1} = $2;
-#					}
-#				}
-#			};
-#		}
-#	}
-#
-#	my $job;
-#	foreach ( @{$qstat} ) {
-#		( $job = $_->{name} ) =~ s/\..*//;
-#		$Jobs->{$job}{seen} = 1;
-#		foreach ( @{ $_->{attribs} } ) {
-#			$_->{name} eq $PBS::ATTR_server
-#			  and $Jobs->{$job}{server} = $_->{value};
-#			$_->{name} eq $PBS::ATTR_owner
-#			  and ( $Jobs->{$job}{user} = $_->{value} ) =~ s/\@.*//;
-#			$_->{name} eq $PBS::ATTR_queue
-#			  and $Jobs->{$job}{queue} = $_->{value};
-#			$_->{name} eq $PBS::ATTR_N and $Jobs->{$job}{jname} = $_->{value};
-#			$_->{name} eq "$PBS::ATTR_l.nodect"
-#			  and $Jobs->{$job}{ncount} = $_->{value};
-#			$_->{name} eq "$PBS::ATTR_l.walltime"
-#			  and $Jobs->{$job}{reqt} = $_->{value};
-#			$_->{name} eq $PBS::ATTR_state
-#			  and $Jobs->{$job}{state} = $_->{value};
-#			$_->{name} eq "$PBS::ATTR_used.walltime"
-#			  and $Jobs->{$job}{elpt} = $_->{value};
-#		}
-#		if ( exists $Jobs->{$job}{state} and $Jobs->{$job}{state} eq "R" ) {
-#			$State_count->{"_rjobs"}++;
-#		}
-#		$State_count->{"_njobs"}++;
-#	}
-#}
-
 sub get_info_cmdline {
-
+	
 	my ($server, $Nodes, $Jobs, $State_count) = @_;
-
+	
 	#
 	# Use qmgr and qstat commands to get all data.
 	#
 	my @qmgr = `$qmgr -c 'l n \@$server' $server 2>/dev/null`;
 	$? and do { printwarning("Connection to $server failed.") };
-
+	
 	my @qstat_f = `$qstat -f \@$server 2>/dev/null`;
 	$? and do { printwarning("Connection to $server failed.") };
-
+	
 	my $jobs;
 	my $eatingjobs = 0;
 	my $status;
 	my $statuses;
 	my $eatingstatus = 0;
 	my $node         = "";
-
+	
 	#
 	# Parse qmgr output.
 	#
 	foreach (@qmgr) {
 		chomp;
-
+		
 		if (/^Node /) {
 			$node = $';
 			$node =~ s/^targetgcc//;
@@ -582,7 +505,7 @@ sub get_info_cmdline {
 			$eatingstatus = 0;
 			$jobs         = $1;
 			$State_count->{"_anodes"}++;
-
+			
 			#
 			# Reset list of jobs on this node.
 			#
@@ -647,7 +570,7 @@ sub get_info_cmdline {
 			}
 		}
 	}
-
+	
 	#
 	# Parse qstat output.
 	#
@@ -719,7 +642,7 @@ sub get_info_cmdline {
 			}
 		}
 	}
-
+	
 	#
 	# Revisit info about all nodes and copy some details to the data structure indexed by job.
 	#
@@ -739,28 +662,17 @@ sub get_info_cmdline {
 }
 
 sub update_display {
-
+	
 	my ($state_count, $mprocs, $maxlen, $nodes, $jobs, $users, $queues) = @_;
-
+	
 	my $foo;
 	move($pad, 0, 0);
 	getmaxyx($Y, $X);
-
+	
 	$y = 0, $x = 0;
-
+	
 	$show_summary and show_state_summary($state_count);
-	if ($show_grid) {
-		show_grid($jobs, $nodes, $users, $queues, $maxlen, $mprocs);
-		my $legend = "[$state_characters{'unknown'}] unknown";
-		$legend .= "  [$state_characters{'busy'}] busy";
-		$legend .= "  [$state_characters{'down'}] down";
-		$legend .= "  [$state_characters{'idle'}] idle";
-		$legend .= "  [$state_characters{'offline'}] offline";
-		$legend .= "  [$state_characters{'other'}] other";
-		addstr($pad, $y, 0, $legend);
-		clrtoeol($pad);
-		move($pad, ++$y, $x = 0);
-	}
+	$show_grid and show_grid($jobs, $nodes, $users, $queues, $maxlen, $mprocs);
 	$show_queue and show_queue($jobs, $nodes, $users, $queues);
 	
 	getyx($pad, $ly, $foo);
@@ -774,163 +686,103 @@ sub update_display {
 }
 
 sub show_state_summary {
-	my $t  = 1;
-	my $t2 = 1;
-
-	addstr $pad, sprintf("Usage Totals: %d/%d %s, %d/%d %s, %d/%d %s", ${ $_[0] }{_aprocs}, ${ $_[0] }{_procs}, "Procs", ${ $_[0] }{_anodes}, ${ $_[0] }{_nodes}, "Nodes", ${ $_[0] }{_rjobs}, ${ $_[0] }{_njobs}, "Jobs Running");
-
+	
+	#
+	# Usage summary.
+	#
+	addstr($pad, sprintf("Usage Totals: %d/%d %s | %d/%d %s | %d/%d %s", 
+		${ $_[0] }{_aprocs}, ${ $_[0] }{_procs}, 'Cores', 
+		${ $_[0] }{_anodes}, ${ $_[0] }{_nodes}, 'Nodes', 
+		${ $_[0] }{_rjobs},  ${ $_[0] }{_njobs}, 'Jobs Running'));
+	
+	#
+	# Show time stamp.
+	#
 	my ($y1, $x1);
 	getyx($pad, $y1, $x1);
-	addstr $pad, " " x ($X - $x1 - 8);
-
-	# Asbed asked for the time
-	addstr $pad, sprintf("%02d:%02d:%02d", (localtime())[ 2, 1, 0 ]);
-
+	my $max_state_line_length = $X < $maxcolumns ? $X : $maxcolumns;
+	addstr($pad, ' ' . ' ' x ($max_state_line_length - $x1 - 22));
+	#printwarning("DEBUG: X = $X | Y = $Y | x1 = $x1 | y1 = $y1 | current x = $x | current y = $y");
+	#addstr($pad, sprintf("%02d:%02d:%02d", (localtime())[ 2, 1, 0 ]));
+	addstr($pad, `date "+%Y-%m-%d-T%H:%M:%S"`);
+	clrtoeol($pad);
+	move($pad, ++$y, $x = 0);
+	
+	#
+	# Node summary.
+	#
 	my $line;
 	my @states = sort grep !/^_/, keys %{ $_[0] };
-
+	
 	if ($compact_summary) {
-		move($pad, ++$y, $x = 0);
-		addstr($pad, 1, 0, "Node States:");
+		addstr($pad, 1, 0, 'Node States:');
 		for (my $i = 0 ; defined $states[$i] ; $i++) {
-			$line = " " . ${ $_[0] }{ $states[$i] } . " " . $states[$i];
-			$line .= defined $states[ $i + 1 ] ? "," : "";
+			$line = ' ' . ${$_[0]}{$states[$i]} . ' ' . $states[$i];
+			$line .= defined $states[$i + 1] ? ' |' : '';
 			getyx($pad, $y1, $x1);
 			if ($X - $x1 - 1 < length($line)) {
 				clrtoeol($pad);
 				move($pad, ++$y, $x = 0);
-				addstr($pad, " " x 12);
+				addstr($pad, ' ' x 12);
 			}
 			addstr($pad, $line);
 		}
 		move($pad, ++$y, $x = 0);
 		clrtoeol($pad);
-
 	} else {
-
 		for (my $i = 0 ; defined $states[$i] ; $i++) {
 			move($pad, ++$y, $x = 0);
-			$line = " " x 14;
-			$line .= sprintf("%4s %-20s", ${ $_[0] }{ $states[$i] }, $states[$i]);
-
+			$line = ' ' x 14;
+			$line .= sprintf("%4s %-20s", ${$_[0]}{$states[$i]}, $states[$i]);
 			$i++;
-			$line .= sprintf("%4s %-20s", ${ $_[0] }{ $states[$i] }, $states[$i])
+			$line .= sprintf("%4s %-20s", ${$_[0]}{$states[$i]}, $states[$i])
 			  if defined $states[$i];
-			$line .= " " x ($X - (length($line) + 14));
+			$line .= ' ' x ($X - (length($line) + 14));
 			clrtoeol($pad);
 			addstr $pad, $line;
 		}
-		addstr($pad, 1, 0, "Node States:");
+		addstr($pad, 1, 0, 'Node States:');
 		move($pad, ++$y, $x = 0);
 	}
 }
 
 sub show_grid {
+	
 	my ($jobs, $allnodes, $users, $queues, $maxlen, $maxprocs) = @_;
+	
 	my ($foo, $tmpx);
 	$lx = 0;
-
+	
+	#
+	# Keep track of columns.
+	#  * Column 0 contains the node name.
+	#  * Column 1 - ... contains the cores / job slots on that node.
+	#
+	my $col = 0;
+	my $headerspaces = 1;
+	
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
-
+	
 	if (!scalar @show_cpu) {
-
 		#addstr $pad, "  No CPUs selected!";
 		#clrtoeol($pad);
 		#return;
 		$show_cpu[0] = "0";
 	}
-
+	
 	#printvcpuline($maxlen);
-
-	foreach my $server (keys %$allnodes) {
-
-		my (@cluster, @ts);
-		foreach my $node (sort keys %{ $allnodes->{$server} }) {
-			$$allnodes{$server}{$node}{np} > $maxnodegrid
-			  ? push(@ts,      $node)
-			  : push(@cluster, $node);
-		}
-
-		# loop through each node, in lines and columns
-		my $col = 0;
-
-		#		if ( defined $cluster[0] ) {
-		#			my $headerspaces = scalar @show_cpu;
-		#			printnumberline( $maxlen, $headerspaces, $columns );
-		#			printdashline( $maxlen, $headerspaces, $columns );
-		#
-		#			foreach my $node (@cluster) {
-		#				$col = 0 if $col >= $columns;
-		#				( addstr $pad, sprintf "  %${maxlen}s ", $node ) if $col == 0;
-		#
-		#				addstr $pad, "  " if ( $col != 0 and $col % 10 == 0 );
-		#
-		#				foreach my $this_cpu (@show_cpu) {
-		#					if ( $this_cpu > $$allnodes{$server}{$node}{np} - 1 ) {
-		#						addstr $pad, " ";
-		#
-		#					}
-		#					else {
-		#						my $state = $$allnodes{$server}{$node}{state};
-		#						if ( exists $$allnodes{$server}{$node}{job}{$this_cpu} )
-		#						{
-		#							my $job =
-		#							  $$allnodes{$server}{$node}{job}{$this_cpu};
-		#							if (
-		#								    exists $$jobs{$job}
-		#								and exists $$jobs{$job}{letter}
-		#								and ( $show_user
-		#									? $show_user =~ /\b$$jobs{$job}{user}\b/
-		#									: 1 )
-		#							  )
-		#							{
-		#								my $letter    = $$jobs{$job}{letter};
-		#								my $color     = $$jobs{$job}{color};
-		#								my $underline = $jobs->{$job}{underline};
-		#								printcpustate( $job, $letter, $state, $color,
-		#									$underline );
-		#							}
-		#							else {
-		#
-		#						   # The job was deleted in between the time we captured
-		#						   # the node info and the job info from pbs.
-		#								printcpustate( 0, 0, $state, 0, 0 );
-		#							}
-		#						}
-		#						else {
-		#							printcpustate( 0, 0, $state, 0, 0 );
-		#						}
-		#
-		#					}
-		#				}
-		#
-		#				addstr $pad, " ";
-		#				$col++;
-		#				getyx( $pad, $foo, $tmpx );
-		#				$lx = $lx > $tmpx ? $lx : $tmpx;
-		#
-		#				clrtoeol($pad);
-		#				move( $pad, ++$y, $x = 0 ) if $col >= $columns;
-		#
-		#				#return if $y >= $Y;
-		#			}
-		#			clrtoeol($pad);
-		#			move( $pad, ++$y, $x = 0 ) if $col != $columns;
-		#			printdashline( $maxlen, $headerspaces, $columns );
-		#			clrtoeol($pad);
-		#			move( $pad, ++$y, $x = 0 );
-		#		}
-
-		my $headerspaces = 1;
+	
+	foreach my $server (sort(keys(%$allnodes))) {
+		
 		printnumberline($maxlen, $headerspaces, $columns);
-
-		foreach my $node (@ts) {
-
+		
+		foreach my $node (sort(keys(%{${$allnodes}{$server}}))) {
+			
 			unless ($show_node ? $show_node =~ /\b$node\b/ : 1) {
 				next;
 			}
-
+			
 			printdashline($maxlen, $headerspaces, $columns);
 			my $col = 0;
 			my $load =
@@ -940,69 +792,51 @@ sub show_grid {
 			my $node_state      = $$allnodes{$server}{$node}{state};
 			my $available_cores = $$allnodes{$server}{$node}{np};
 			my $used_cores      = 0;
-
-			if ($sorted_grid == 1) {
-
-				#
-				# Grid display sorted by job.
-				#
-				foreach my $job (sort(keys(%{ ${$allnodes}{$server}{$node}{jobs} }))) {
-
-					my $letter    = 0;
-					my $color     = 0;
-					my $underline = 0;
-					my $job_id    = 0;
-					my $cpu_state = 'busy';
-
-					if (
-						    exists $$jobs{$job}
-						and exists $$jobs{$job}{letter}
-						and exists $$jobs{$job}{node}
-						and (
-							$show_user ? $show_user =~ /\b$$jobs{$job}{user}\b/
-							: 1
-						)
-						and (
-							$show_node ? $show_node =~ /\b$$jobs{$job}{node}\b/
-							: 1
-						)
-					  )
-					{
-						$job_id    = $job;
-						$letter    = $jobs->{$job}{letter};
-						$color     = $jobs->{$job}{color};       # By default color by job.
-						$underline = $jobs->{$job}{underline};
-						my $user  = $jobs->{$job}{user};
-						my $queue = $jobs->{$job}{queue};
-
-						if ($color_by eq 'user') {
-							$color = $users->{$user}{color};
-						} elsif ($color_by eq 'queue') {
-							$color = $queues->{$queue}{color};
-						}
-					}
-
-					for (my $slots = 1 ; $slots <= ${$allnodes}{$server}{$node}{jobs}{$job} ; $slots++) {
-						if ($col >= $columns) {
-							move($pad, ++$y, $x = 0);
-							$col = 0;
-						}
-						if ($col == 0) {
-							addstr($pad, sprintf "  %${maxlen}s ", $node);
-						} elsif ($col != 0 and $col % 10 == 0) {
-							addstr $pad, "  ";
-						}
-						printcpustate($job_id, $letter, $cpu_state, $color, $underline);
-						addstr $pad, " ";
-						getyx($pad, $foo, $tmpx);
-						$lx = $lx > $tmpx ? $lx : $tmpx;
-						clrtoeol($pad);
-						$col++;
-						$used_cores++;
+			
+			#
+			# Grid display sorted by job.
+			#
+			foreach my $job (sort(keys(%{ ${$allnodes}{$server}{$node}{jobs} }))) {
+				
+				my $letter    = 0;
+				my $color     = 0;
+				my $underline = 0;
+				my $job_id    = 0;
+				my $cpu_state = 'busy';
+				
+				if (
+					    exists $$jobs{$job}
+					and exists $$jobs{$job}{letter}
+					and exists $$jobs{$job}{node}
+					and (
+						$show_user ? $show_user =~ /\b$$jobs{$job}{user}\b/
+						: 1
+					)
+					and (
+						$show_node ? $show_node =~ /\b$$jobs{$job}{node}\b/
+						: 1
+					)
+				  ) {
+					
+					#
+					# Get job details.
+					# By default color by job.
+					#
+					$job_id    = $job;
+					$letter    = $jobs->{$job}{letter};
+					$color     = $jobs->{$job}{color};
+					$underline = $jobs->{$job}{underline};
+					my $user  = $jobs->{$job}{user};
+					my $queue = $jobs->{$job}{queue};
+					
+					if ($color_by eq 'user') {
+						$color = $users->{$user}{color};
+					} elsif ($color_by eq 'queue') {
+						$color = $queues->{$queue}{color};
 					}
 				}
-
-				while ($used_cores < $$allnodes{$server}{$node}{np}) {
+				
+				for (my $slots = 1 ; $slots <= ${$allnodes}{$server}{$node}{jobs}{$job} ; $slots++) {
 					if ($col >= $columns) {
 						move($pad, ++$y, $x = 0);
 						$col = 0;
@@ -1012,146 +846,153 @@ sub show_grid {
 					} elsif ($col != 0 and $col % 10 == 0) {
 						addstr $pad, "  ";
 					}
-					printcpustate(0, 0, $node_state, 0, 0);
+					printcpustate($job_id, $letter, $cpu_state, $color, $underline);
 					addstr $pad, " ";
+					getyx($pad, $foo, $tmpx);
+					$lx = $lx > $tmpx ? $lx : $tmpx;
+					clrtoeol($pad);
 					$col++;
 					$used_cores++;
-					getyx($pad, $foo, $tmpx);
-					$lx = $lx > $tmpx ? $lx : $tmpx;
-					clrtoeol($pad);
-				}
-
-				while ($col < $columns) {
-					addstr $pad, "  " if ($col != 0 and $col % 10 == 0);
-					addstr $pad, "  ";
-					$col++;
-					getyx($pad, $foo, $tmpx);
-					$lx = $lx > $tmpx ? $lx : $tmpx;
-					clrtoeol($pad);
-				}
-				addstr($pad, sprintf "%6s ", $load);
-				move($pad, ++$y, $x = 0);
-
-			} else {
-
-				#
-				# Grid display unsorted (disply in CPU/core order).
-				#
-				foreach my $this_cpu (0 .. $$allnodes{$server}{$node}{np} - 1) {
-
-					$col = 0 if $col >= $columns;
-
-					if ($col == 0) {
-						addstr($pad, sprintf "  %${maxlen}s ", $node);
-					}
-
-					addstr $pad, "  " if ($col != 0 and $col % 10 == 0);
-
-					#my $state = $$allnodes{$server}{$node}{state};
-
-					if (exists $$allnodes{$server}{$node}{job}{$this_cpu}) {
-
-						my $job = $$allnodes{$server}{$node}{job}{$this_cpu};
-						if (
-							    exists $$jobs{$job}
-							and exists $$jobs{$job}{letter}
-							and exists $$jobs{$job}{node}
-							and (
-								$show_user ? $show_user =~ /\b$$jobs{$job}{user}\b/
-								: 1
-							)
-							and (
-								$show_node ? $show_node =~ /\b$$jobs{$job}{node}\b/
-								: 1
-							)
-						  )
-						{
-							my $letter    = $jobs->{$job}{letter};
-							my $color     = $jobs->{$job}{color};
-							my $underline = $jobs->{$job}{underline};
-							my $cpu_state = 'busy';
-							my $user      = $jobs->{$job}{user};
-							my $queue     = $jobs->{$job}{queue};
-
-							if ($color_by eq 'user') {
-								$color = $users->{$user}{color};
-							} elsif ($color_by eq 'queue') {
-								$color = $queues->{$queue}{color};
-							}
-
-							printcpustate($job, $letter, $cpu_state, $color, $underline);
-						} else {
-							printcpustate(0, 0, $node_state, 0, 0);
-						}
-					} else {
-						printcpustate(0, 0, $node_state, 0, 0);
-					}
-
-					addstr $pad, " ";
-					$col++;
-					getyx($pad, $foo, $tmpx);
-					$lx = $lx > $tmpx ? $lx : $tmpx;
-
-					clrtoeol($pad);
-
-					if ($col >= $columns) {
-						addstr($pad, sprintf "%6s ", $load);
-						move($pad, ++$y, $x = 0);
-					}
 				}
 			}
-
+			
+			#
+			# When not all cores are used: fill the remaining ones in the grid with the node state.
+			#
+			my $listed_cores = $used_cores;
+			while ($listed_cores < $$allnodes{$server}{$node}{np}) {
+				if ($col >= $columns) {
+					move($pad, ++$y, $x = 0);
+					$col = 0;
+				}
+				if ($col == 0) {
+					addstr($pad, sprintf "  %${maxlen}s ", $node);
+				} elsif ($col != 0 and $col % 10 == 0) {
+					addstr $pad, "  ";
+				}
+				printcpustate(0, 0, $node_state, 0, 0);
+				addstr $pad, " ";
+				$col++;
+				$listed_cores++;
+				getyx($pad, $foo, $tmpx);
+				$lx = $lx > $tmpx ? $lx : $tmpx;
+				clrtoeol($pad);
+			}
+			
+			while ($col < $columns) {
+				addstr $pad, "  " if ($col != 0 and $col % 10 == 0);
+				addstr $pad, "  ";
+				$col++;
+				getyx($pad, $foo, $tmpx);
+				$lx = $lx > $tmpx ? $lx : $tmpx;
+				clrtoeol($pad);
+			}
+			
+			#
+			# Print node load and health.
+			# Health will warn if the load is inefficiently low or dangerously high.
+			#
+			addstr($pad, sprintf "%6s ", $load);
+			my $health = '= ? ';
+			my $color = 3;
+			if ($load =~ m/^(\d*\.)?\d+$/) {
+				if ($load < $used_cores - 3) {
+					$health = '= too low!';
+					$color  = 3;
+				} elsif ($load > $used_cores + 3) {
+					$health = '= TOO HIGH!';
+					$color = 1;
+				} else {
+					$health = '= Ok';
+					$color = 2;
+				}
+			}
+			$colorize and attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+			addstr($pad, $health);
+			$colorize and attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+			move($pad, ++$y, $x = 0);
+			
 			clrtoeol($pad);
 			move($pad, ++$y, $x = 0) if $col != $columns;
 		}
-
+		
 		printdashline($maxlen, 1, $columns);
-		clrtoeol($pad);
-		move($pad, ++$y, $x = 0);
-
+		
 	}
-
+	
+	#
+	# Print legend underneath grid.
+	#
+	my $legend = sprintf "  %${maxlen}s ", ' ';
+	$legend .= 'legend:';
+	$legend .= " $state_characters{'unknown'} unknown";
+	$legend .= " | $state_characters{'busy'} busy";
+	$legend .= " | $state_characters{'down'} down";
+	$legend .= " | $state_characters{'idle'} idle";
+	$legend .= " | $state_characters{'offline'} offline";
+	$legend .= " | $state_characters{'other'} other";
+	addstr($pad, $y, 0, $legend);
 	clrtoeol($pad);
-
+	move($pad, ++$y, $x = 0);
+	clrtoeol($pad);
+	
 }
 
-# Print out the job queue
+#
+# Print the job queue.
+#
 sub show_queue {
+	
 	my ($jobs, $allnodes, $users, $queues) = @_;
-	my $format = "%-6s %-15.15s  %-12.12s  %-40.40s  %1s  %7.7s %7.7s  %8.8s %8.8s  %9.9s %9.9s";
+	
+	my $format_base     = "%-6s %-15.15s %-12.12s %-40.40s %1s";
+	my $format_cpu      = " %6.6s";
+	my $format_mem      = " %8.8s";
+	my $format_walltime = " %9.9s";
+	
 	move($pad, ++$y, $x = 0);
-
 	#return if $y >= $Y;
 	attron($pad, A_BOLD);
 	addstr($pad, '      ');
-	addstr($pad, sprintf($format, 'JobID', 'Username', 'Queue', 'Jobname', 'S', '~CPU(%)', 'CPU(%)', 'Mem(GiB)', 'Mem(GiB)', 'Walltime', 'Walltime'));
+	addstr($pad, sprintf($format_base, 'JobID', 'Username', 'Queue', 'Jobname', 'S'));
+	addstr($pad, sprintf($format_cpu, 'CPU(%)'));
+	addstr($pad, sprintf($format_cpu, 'CPU(%)'));
+	addstr($pad, sprintf($format_mem, 'Mem(GiB)'));
+	addstr($pad, sprintf($format_mem, 'Mem(GiB)'));
+	addstr($pad, sprintf($format_walltime, 'Walltime'));
+	addstr($pad, sprintf($format_walltime, 'Walltime'));
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
 	addstr($pad, '      ');
-	addstr($pad, sprintf($format, '', '', '', '', '', 'Used', 'Req', 'Used', 'Req', 'Used', 'Req'));
+	addstr($pad, sprintf($format_base, '', '', '', '', ''));
+	addstr($pad, sprintf($format_cpu, '~used'));
+	addstr($pad, sprintf($format_cpu, 'req.'));
+	addstr($pad, sprintf($format_mem, 'used'));
+	addstr($pad, sprintf($format_mem, 'req.'));
+	addstr($pad, sprintf($format_walltime, 'used'));
+	addstr($pad, sprintf($format_walltime, 'requested'));
 	clrtoeol($pad);
 	attroff($pad, A_BOLD);
 	move($pad, ++$y, $x = 0);
-
-	# Note: we never print our the server name, it is expected that the user will
-	# recognize jobs by their jobid or queue name.
-
-	foreach my $job (
-
-		# Sort first by server, then by queue, last by jobid
-		sort { defined $jobs->{$a}{server} && defined $jobs->{$b}{server} && $jobs->{$a}{server} cmp $jobs->{$b}{server} or defined $jobs->{$a}{queue} && defined $jobs->{$b}{queue} && $jobs->{$a}{queue} cmp $jobs->{$b}{queue} or $a <=> $b } keys %{$jobs}
-	  )
-	{
-
+	
+	# TODO: Note: we never print the server name as we expected users will recognize their jobs by jobID or queue name.
+	
+	#
+	# Print jobs sorted by Server followed by JobID.
+	#
+	foreach my $job (sort{defined($jobs->{$a}{server}) && defined($jobs->{$b}{server}) && $jobs->{$a}{server} cmp $jobs->{$b}{server} or $a <=> $b} keys(%{$jobs})) {
+		
 		my $l         = $jobs->{$job}{letter};
 		my $color     = $jobs->{$job}{color};
 		my $underline = $jobs->{$job}{underline};
 		my $user      = $jobs->{$job}{user};
 		my $queue     = $jobs->{$job}{queue};
 		my $node      = 'NAmissingUndefined';
-		my $cores_u;
+		my $cpu_u;
+		my $cpu_r;
 		my $mem_u;
-
+		my $mem_r;
+		
 		if (defined($jobs->{$job}{node})) {
 			$node = $jobs->{$job}{node};
 		}
@@ -1160,88 +1001,169 @@ sub show_queue {
 		} elsif ($color_by eq 'queue') {
 			$color = $queues->{$queue}{color};
 		}
-
+		
 		next
 		  unless $show_user ? $show_user =~ /\b$jobs->{$job}{user}\b/ : 1;
-
+		
 		next
 		  unless $show_node ? $show_node =~ /\b$node\b/ : 1;
-
+		
 		if (!($jobs->{$job}{state} =~ /Q|H/ and !$show_qqueue)) {
-			addstr $pad, "  ";
+			addstr($pad, "  ");
 			if (defined $l and $jobs->{$job}{state} eq "R") {
 				print_colored_letter($l, $color, $underline);
-				addstr $pad, " = ";
+				addstr($pad, " = ");
 			} else {
-				addstr $pad, "    ";
+				addstr($pad, "    ");
 			}
-
-			# The job is erroring, grab an eyeball
-			if ($jobs->{$job}{state} eq "E") {
-				attron($pad, A_REVERSE);
-			}
-
+			
 			if (defined($jobs->{$job}{cputime_u}) && defined($jobs->{$job}{walltime_u})) {
 				my @cputime = reverse(split(':', $jobs->{$job}{cputime_u}));
 				my $cputime_sec = $cputime[0] + ($cputime[1] * 60) + ($cputime[2] * 3600);
 				my @walltime = reverse(split(':', $jobs->{$job}{walltime_u}));
 				my $walltime_sec = $walltime[0] + ($walltime[1] * 60) + ($walltime[2] * 3600);
 				if ($walltime_sec > 0) {
-					$cores_u = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
+					$cpu_u = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
 				}
 				#printwarning("DEBUG: walltime_sec = $walltime[0] | $walltime[1] | $walltime[2]");
 				#printwarning("DEBUG: cputime = $jobs->{$job}{cputime_u} | walltime = $jobs->{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
 			}
-
-			if (exists($jobs->{$job}{mem_u})) {
+			
+			if (defined($jobs->{$job}{cores_r})) {
+				$cpu_r = $jobs->{$job}{cores_r} * 100;
+			}
+			
+			if (defined($jobs->{$job}{mem_u})) {
 				$mem_u = sprintf("%.1f", $jobs->{$job}{mem_u});
 			}
-
-			addstr $pad, sprintf($format, $job, $jobs->{$job}{user}, $jobs->{$job}{queue}, $jobs->{$job}{jname}, $jobs->{$job}{state}, defined $cores_u ? $cores_u : "", exists $jobs->{$job}{cores_r} ? $jobs->{$job}{cores_r} * 100 : "", defined $mem_u ? $mem_u : "", exists $jobs->{$job}{mem_r} ? $jobs->{$job}{mem_r} : "", exists $jobs->{$job}{walltime_u} ? $jobs->{$job}{walltime_u} : "", exists $jobs->{$job}{walltime_r} ? $jobs->{$job}{walltime_r} : "");
-
-			if ($jobs->{$job}{state} eq "E") {
-				attroff($pad, A_REVERSE);
+			
+			if (defined($jobs->{$job}{mem_r})) {
+				$mem_r = $jobs->{$job}{mem_r};
 			}
+			
+			#
+			# Print base job info.
+			#
+			addstr($pad, sprintf($format_base, 
+				$job, 
+				$jobs->{$job}{user}, 
+				$jobs->{$job}{queue}, 
+				$jobs->{$job}{jname}, 
+				$jobs->{$job}{state}, 
+			));
+			
+			#
+			# Print job's CPU info.
+			#
+			if (defined($cpu_u)) {
+				if ($colorize && defined($cpu_r)) {
+					my $color = 7; # white on black.
+					if (($cpu_u / $cpu_r) < 0.8) {
+						$color  = 3;
+					} elsif (($cpu_u / $cpu_r) > 1.06) {
+						$color = 1;
+					} else {
+						$color = 2;
+					}
+					attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+					addstr($pad, sprintf($format_cpu, $cpu_u));
+					attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+				} else {
+					addstr($pad, sprintf($format_cpu, $cpu_u));
+				}
+			} else {
+				addstr($pad, sprintf($format_cpu, ''));
+			}
+			addstr($pad, sprintf($format_cpu, 
+				defined($cpu_r) ? $cpu_r : ''
+			));
+			
+			#
+			# Print job's memory info.
+			#
+			$color = 7; # reset to white on black.
+			if (defined($mem_u)) {
+				if ($colorize && defined($mem_r)) {
+					my $color = 7; # white on black.
+					if (($mem_u / $mem_r) < 0.8) {
+						$color  = 3;
+					} elsif (($mem_u / $mem_r) > 1.06) {
+						$color = 1;
+					} else {
+						$color = 2;
+					}
+					attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+					addstr($pad, sprintf($format_mem, $mem_u));
+					attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+				} else {
+					addstr($pad, sprintf($format_mem, $mem_u));
+				}
+			} else {
+				addstr($pad, sprintf($format_mem, ''));
+			}
+			addstr($pad, sprintf($format_mem, 
+				defined($mem_r) ? $mem_r : ''
+			));
+			
+			#
+			# Print job's walltime info.
+			#
+			addstr($pad, sprintf($format_walltime, 
+				defined($jobs->{$job}{walltime_u}) ? $jobs->{$job}{walltime_u} : ''
+			));
+			addstr($pad, sprintf($format_walltime, 
+				defined($jobs->{$job}{walltime_r}) ? $jobs->{$job}{walltime_r} : ''
+			));
+			
 			clrtoeol($pad);
 			move($pad, ++$y, $x = 0);
 		}
 	}
-
+	
 	clrtoeol($pad);
 }
 
-# Pass in a reference to all jobs, and we'll assign a letter to each one.
+#
+# Assign a letter to each job.
+#
 sub letterize {
+	
 	my $Jobs = shift;
-
-	# The original qtop only used one letter per job, and this info was held in %Job_of_letter.
-	# Now that we've thrown out that limitation, it is only used to note the fact that _someone_ is using that letter.
-	# If a job gets a letter that is already assigned, the second one will be noted in %Job_of_letter,
-	# but that's ok because we don't care _who_ has that letter.
-
-	# remove info about old jobs and jobs already assigned a letter
+	
+	#
+	# %Job_of_letter is only used to note the fact that _someone_ is using that letter.
+	# If a job gets a letter that is already assigned, 
+	# the second one will be noted in %Job_of_letter,
+	# which is Ok because we don't care _who_ has that letter.
+	
+	#
+	# Remove info about old jobs and jobs already assigned a letter.
+	#
 	foreach my $l (keys %Job_of_letter) {
 		delete $Job_of_letter{$l}
 		  if (exists $Jobs->{ $Job_of_letter{$l} }{user});
 	}
-
-	# pick a letter if not already choosen
+	
+	#
+	# Pick a letter if not already choosen.
+	#
 	foreach my $job (keys %{$Jobs}) {
 		next if !defined $Jobs->{$job}{state};
 		next if $Jobs->{$job}{state} eq "Q";
 		my $user = $Jobs->{$job}{user};
 		if (!exists $Jobs->{$job}{letter}) {
-
-			# find a letter that isn't already taken
+			#
+			# Find a letter that isn't already taken.
+			#
 			my $l = substr($user, 0, 1);
 			if (exists $Job_of_letter{$l}) {
 				$l = uc($l);
 				if (exists $Job_of_letter{$l}) {
 					if (length $letters <= 0) {
-
-						# replenish our supply of letters
-						$colorize
-						  or printwarning("Reusing letters on B&W terminal.");
+						#
+						# Replenish our supply of letters.
+						#
+						$colorize or printwarning("WARN: Reusing letters on B&W terminal.");
 						$letters   = $masterletters;
 						$underline = !$underline;
 					}
@@ -1265,14 +1187,14 @@ sub letterize {
 #
 sub colorize {
 	my ($Jobs, $Users, $Queues) = @_ or return;
-
+	
 	foreach my $job (keys %{$Jobs}) {
 		next if defined $Jobs->{$job}{color};
-
+		
 		scalar @Colors == 0 and @Colors = init_colors();
 		my $color = shift @Colors;
 		$Jobs->{$job}{color} = $color;
-
+		
 		my $user  = $Jobs->{$job}{user};
 		my $queue = $Jobs->{$job}{queue};
 		$Users->{$user}{color}   = $color unless defined($Users->{$user}{color});
@@ -1286,10 +1208,8 @@ sub colorize {
 sub print_colored_letter {
 	my ($letter, $color, $underline) = @_;
 	$colorize or do { addstr $pad, $letter; return };
-
-	attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
-
 	#printwarning("DEBUG: color = $color");
+	attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
 	addstr $pad, $letter;
 	attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
 }
@@ -1313,18 +1233,18 @@ sub getmaxkeylen {
 # Prints each character representing each core in the node grid.
 #
 sub printcpustate {
-
+	
 	my ($job, $letter, $state, $color, $underline) = @_;
-
+	
 	if ($job) {
 		printwarning("WARN: $job has no letter.") unless $letter;
 		$letter = '&' unless $letter;
 	}
-
+	
 	#
-	#FIXME# I'm ignoring job-sharing here because I've never seen it used.
-	#FIXME# It would be more correct to use the constants defined in pbs_ifl.h,
-	#FIXME# but that would break compatibility with non-perl-PBS environments.
+	# TODO: I'm ignoring job-sharing here because I've never seen it used.
+	# TODO: It would be more correct to use the constants defined in pbs_ifl.h,
+	# TODO: but that would break compatibility with non-perl-PBS environments.
 	#
 	if ($state =~ /down/ and $job) {
 		print_colored_letter($letter, $color, $underline);
@@ -1350,19 +1270,19 @@ sub printcpustate {
 	}
 }
 
+#
 # Print the list of visible CPUs above the node grid.
+#
 sub printvcpuline {
+	
 	my $maxlen = shift;
-
+	
 	# inform the user of the visible CPUs.
 	if (scalar @show_cpu == 1) {
 		addstr $pad, "  CPU $show_cpu[0]" . " " x ($maxlen - 4);
-	}
-
-	#elsif ( scalar @show_cpu == $maxprocs ) {
+	#} elsif ( scalar @show_cpu == $maxprocs ) {
 	#addstr "   " . " " x ($maxlen);
-	#}
-	else {
+	} else {
 		addstr $pad, " " x ($X - 1);
 		move($pad, $y, 0);
 		addstr $pad, " visible CPUs: " . join(",", @show_cpu);
@@ -1373,10 +1293,11 @@ sub printvcpuline {
 
 # Print the line of dashes above and below the node grid.
 sub printdashline {
+	
 	my $maxlen  = shift;
 	my $spaces  = shift;
 	my $columns = shift;
-
+	
 	my $line = "   " . " " x $maxlen;
 	for (my $i = 0 ; $i < $columns ; $i++) {
 		$line .= "--" if ($i != 0 and $i % 10 == 0);
@@ -1393,7 +1314,7 @@ sub printnumberline {
 	my $maxlen  = shift;
 	my $spaces  = shift;
 	my $columns = shift;
-
+	
 	my $line = '  ' . 'node' . ' ' x ($maxlen - 4) . ' ';
 	for (my $i = 0, my $j = 0 ; $i < $columns ; $i++, $j++) {
 		if ($i != 0 and $i % 10 == 0) {
@@ -1406,7 +1327,7 @@ sub printnumberline {
 	addstr($pad, sprintf "%6s ", 'load');
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
-
+	
 }
 
 # This is used in top_sleep to annoy the user.
@@ -1428,14 +1349,13 @@ sub getstring {
 	refresh($cmdwin);
 	echo;
 	nodelay($cmdwin, 0);
-
+	
 	#getstr( $cmdwin,  $input );
 	$ch = getch($cmdwin);
 	while (1) {
 		$ch = getch($cmdwin);
 		if ($ch eq ERR) {    # ERR returned on timeout
 			next;
-
 			# why is this so freaking complicated??
 		} elsif ($ch eq KEY_BACKSPACE or $ch eq KEY_DC or $ch eq $CTRL_H) {
 			if (length $input) {
@@ -1469,7 +1389,7 @@ sub print_serverstatus_window {
 	destroy_subwin();
 	printwarning("TODO: This information is not available without perl-PBS");
 	return;
-
+	
 	my $con = pbs_connect($server);
 	if ($con <= 0) {
 		destroy_subwin();
@@ -1489,17 +1409,17 @@ sub print_jobstatus_window {
 	destroy_subwin();
 	printwarning("TODO: This information is not available without perl-PBS");
 	return;
-
+	
 	my $con = pbs_connect($server);
 	if ($con <= 0) {
 		destroy_subwin();
 		printwarning("Connect to $server failed: $PBS::pbs_errno\n");
 		return;
 	}
-
+	
 	my $ref = pbs_statjob($con, "$job.$server", undef, undef);
 	pbs_disconnect($con);
-
+	
 	print_status_window("$job.$server", $ref->[0]->{attribs}, "'l' for node load report");
 
 }
@@ -1508,7 +1428,7 @@ sub print_jobloadstatus_window {
 	my $job      = shift;
 	my $server   = shift;
 	my $allnodes = shift;
-
+	
 	my @loads;
 	my $value;
 	my $freephys;
@@ -1529,12 +1449,12 @@ sub print_jobloadstatus_window {
 							  ($allnodes->{$server}{$node}{status}{nsessions} =~ /^\?/)
 							  ? 0
 							  : $allnodes->{$server}{$node}{status}{nsessions};
-
+							
 							#: scalar (split / /,$allnodes->{$server}{$node}{status}{sessions});
 							$value .= "  physmem: " . int($allnodes->{$server}{$node}{status}{physmem} / 1024) . "MB";
 							$value .= " avail: ${freephys}MB";
 							$value .= "  sessions: $sessions";
-
+							
 						}
 						push(
 							@loads,
@@ -1549,7 +1469,7 @@ sub print_jobloadstatus_window {
 			}
 		}
 	}
-
+	
 	if (scalar @loads < 1) {
 		push(
 			@loads,
@@ -1568,7 +1488,7 @@ sub print_jobloadstatus_window {
 sub print_nodestatus_window {
 	my $nodename = shift or return;
 	my $ref      = shift or return;
-
+	
 	my (@attrs, $name, $value);
 	while (($name, $value) = each %{ $ref->{status} }) {
 		push(@attrs, { name => $name, value => $value });
@@ -1578,7 +1498,7 @@ sub print_nodestatus_window {
 	if (exists $ref->{properties}) {
 		push(@attrs, { name => "properties", value => $ref->{properties} });
 	}
-
+	
 	#FIXME# only offer the 'j' option when only one job running, and not just on CPU0
 	my $multiplejob = 0;
 	foreach my $cpu (
@@ -1588,29 +1508,30 @@ sub print_nodestatus_window {
 	{
 		push(@attrs, { name => "CPU$cpu: job#", value => $ref->{job}{$cpu} });
 	}
-
+	
 	#push(@attrs, { name => "multiple", value => $multiplejob });
 	print_status_window("$nodename", \@attrs, "'j' for job details on CPU0");
-
+	
 }
 
 #
 # This is used by the subs above to actually paint the subpad.
 #
 sub print_status_window {
+	
 	my $title    = shift;
 	my $ref      = shift;
 	my $epilogue = shift;
-
+	
 	my $line = 1;
 	my $string;
 	my $maxlinelen;
 	my $pat;
 	my $indent;
-
+	
 	my $name;
 	my $value;
-
+	
 	#
 	# Subwin's width is 8 fewer than the main win, and with 2 chars padding inside,
 	# each line will be 10 chars less wide than the main window.
@@ -1631,30 +1552,30 @@ sub print_status_window {
 	} else {
 		$subpad_heigth = $Y - 5;
 	}
-
+	
 	#
 	#FIXME# do we need to properly destroy the subpads?
 	#
 	$subwin = subpad($pad, $subpad_heigth, $subpad_width, 2, 5);
-
+	
 	$subwin or die "FATAL: Failed to print_status_window. X = $X | Y = $Y | maxcolumns = $maxcolumns | maxrows = $maxrows";
 	move($subwin, $line, 0);
 	clrtoeol($subwin);
 	move($subwin, $line, 2);
-
+	
 	foreach my $attr (@{$ref}) {
 		$name       = $attr->{name};
 		$value      = $attr->{value};
 		$indent     = length($name) + 2 + 3;     # 2 for padding, 3 for " = "
 		$maxlinelen = $subpad_width - $indent;
 		$pat        = ".{1,$maxlinelen}";
-
+		
 		addstr($subwin, $name . " = ");
 		$string = $value;
-
+		
 		if ((length($string) + $indent) > $maxlinelen) {
 			while (length($string)) {
-
+				
 				move($subwin, $line, $indent);
 				$string =~ s/($pat)// or die "FATAL: Cannot truncate '$string' using regex '$pat'";
 				addstr $subwin, "$1";
@@ -1662,9 +1583,9 @@ sub print_status_window {
 				move($subwin, ++$line, 0);
 				clrtoeol($subwin);
 				move($subwin, $line, 2);
-
+				
 				$indent = 7;
-
+				
 			}
 			move($subwin, $line, 0);
 			clrtoeol($subwin);
@@ -1677,7 +1598,7 @@ sub print_status_window {
 			move($subwin, $line, 2);
 		}
 	}
-
+	
 	move($subwin, ++$line, 0);
 	clrtoeol($subwin);
 	move($subwin, $line, 2);
@@ -1688,7 +1609,7 @@ sub print_status_window {
 	}
 	move($subwin, ++$line, 0);
 	clrtoeol($subwin);
-
+	
 	# make a nice box window border for our output
 	resize($subwin, $line + 2, $X - 10);
 	attron($subwin, COLOR_PAIR(1));
@@ -1698,10 +1619,11 @@ sub print_status_window {
 	addstr $subwin, "$title";
 	addch($subwin, &ACS_LTEE);
 	attroff($subwin, COLOR_PAIR(1));
-
+	
 	# currently not used (since the subwin is always smaller than the terminal)
 	$subY = $line + 4;
 	$subX = $X - 10;
+
 }
 
 sub update_subwin {
@@ -1731,12 +1653,13 @@ sub destroy_subwin {
 	}
 }
 
-#FIXME#  top_sleep() is a kludge, I know it... It just keeps growing
-#FIXME#  as I add new commands.  *shrug*
+#
+# TODO: top_sleep() is a kludge that just keeps growing...
+#
 sub top_sleep {
-
+	
 	my $targettime = time() + $sleeptime;
-
+	
 	while (time() < $targettime) {
 		halfdelay(1);
 		my $input = getch($cmdwin);
@@ -1755,20 +1678,18 @@ sub top_sleep {
 					endwin;
 					exit(0);
 				}
-			}
-
-			# why doesn't curses do this automatically??
-			elsif ($input eq $CTRL_L) {
+			} elsif ($input eq $CTRL_L) {
+				# Why doesn't curses do this automatically?
 				clear($pad);
 				clrtoeol($cmdwin);
 				update_display(@_);
-			}
-
-			#FIXME# $helpwin should be a scrollable pad
-			elsif ($input eq "h" || $input eq "?") {
+			} elsif ($input eq "h" || $input eq "?") {
+				#
+				# TODO: $helpwin should be a scrollable pad.
+				#
 				my $helpwin = newwin(0, 0, 0, 0);
 				attron($helpwin, A_REVERSE | COLOR_PAIR(6));
-				addstr $helpwin, "qtop v$VERSION";
+				addstr $helpwin, "ctop v$VERSION";
 				attroff($helpwin, A_REVERSE | COLOR_PAIR(6));
 				move($helpwin, 2, 0);
 				addstr $helpwin, "Seconds Refresh ";
@@ -1783,7 +1704,6 @@ sub top_sleep {
 				attron($helpwin, A_BOLD);
 				addstr $helpwin, $colorize ? "on" : "off";
 				attroff($helpwin, A_BOLD);
-
 				if ($colorize) {
 					addstr $helpwin, "\nColor by ";
 					attron($helpwin, A_BOLD);
@@ -1802,7 +1722,6 @@ sub top_sleep {
 				attron($helpwin, A_BOLD);
 				addstr $helpwin, $show_jobs ? "on" : "off";
 				attroff($helpwin, A_BOLD);
-
 				#addstr $helpwin, "\nShow CPU Number ";
 				#attron( $helpwin, A_BOLD );
 				#addstr $helpwin, join( " ", @show_cpu );
@@ -1823,7 +1742,6 @@ sub top_sleep {
 				attron($helpwin, A_BOLD);
 				addstr $helpwin, $COLOR_PAIRS;
 				attroff($helpwin, A_BOLD);
-
 				if ($show_user) {
 					addstr $helpwin, "\nLimiting job view to user(s) ";
 					attron($helpwin, A_BOLD);
@@ -1836,61 +1754,38 @@ sub top_sleep {
 					addstr $helpwin, $show_node;
 					attroff($helpwin, A_BOLD);
 				}
-
-				#				addstr $helpwin, <<"__EOHELP__";
-				#
-				#
-				#Interactive commands are:
-				#
-				# space   Update Display
-				# /       Search for a server, node, or job and display details
-				# q       Quit
-				# h       Print this help
-				# c       Grid Columns
-				# u       Limit view to specific users' jobs
-				# s       Seconds to refresh,
-				#            accepts math operators (ie: 2*60)
-				# C       Toggle Colorization
-				# S       Toggle State Summary
-				# G       Toggle Grid Display
-				# Q       Toggle Queue Display
-				# t       Toggle Queued Jobs in Queue Display
-				# J       Toggle Show Jobs in Grid
-				# 0-9     CPU number to display
-				# l       Node load report
-				#
-				#Press any key to continue...
-				#__EOHELP__
 				addstr $helpwin, <<"__EOHELP__";
-
 
 Interactive commands are:
 
- space   Update Display.
+ [space] Update Display.
  /       Search for a server, node, or job and display details.
  q       Quit.
- h       Print this help.
- c       Grid Columns.
- u       Limit view to specific users' jobs.
- n       Limit view to specific nodes.
+ h       Print this Help.
+ u       Show only jobs for a subset of Users.
+            Accepts comma seprated list for multiple users.
+ n       Show only jobs for a subset of Nodes.
+            Accepts comma seprated list for multiple nodes.
+ c       Color cores in grid display by job, node or queue.
  s       Seconds to refresh.
-            Accepts math operators (ie: 2*60)
+            Accepts math operators (ie: 2*60).
+ w       With of grid display in number of cores.
  C       Toggle Colorization.
- S       Toggle State Summary.
- G       Toggle Grid Display.
- Q       Toggle Queue Display.
- t       Toggle Queued Jobs in Queue Display.
+ S       Toggle State summary.
+ G       Toggle Grid display.
+ Q       Toggle Queue display.
+ t       Toggle display of queued jobs in queue display.
             When view is limited to specific nodes, 
             only jobs running on those nodes are displayed, 
-            queued jobs are not displayed and t has no effect.
- J       Toggle Show Jobs in Grid.
- l       Node load report.
+            queued jobs are not displayed and 't' has no effect.
+ j       Toggle display of Jobs in grid display.
 
 Press any key to continue...
 __EOHELP__
 				refresh($helpwin);
-
-				# wait for the user to hit the any key.
+				#
+				# Wait for the user to hit the any key.
+				#
 				cbreak;
 				nodelay($helpwin, 0);
 				getch($helpwin);
@@ -1899,33 +1794,26 @@ __EOHELP__
 				move($cmdwin, 0, 0);
 				clrtoeol($cmdwin);
 				refresh($cmdwin);
-
 				delwin($helpwin);
-			}
-
-			# change the visible CPUs
-			#FIXME# Don't allow the user to display CPUs that don't exist on any node
-			elsif ($input =~ /^\d$/) {
-				if (grep /^$input$/, @show_cpu) {
-					@show_cpu = grep !/$input$/, @show_cpu;
-				} else {
-					my %seen = ();
-					foreach (@show_cpu, $input) {
-						$seen{$_} = 1;
-					}
-					@show_cpu = sort keys %seen;
-				}
-
-				update_display(@_);
-			}
-
-			elsif ($input eq "s") {
+#			} elsif ($input =~ /^\d$/) {
+#				# Change the visible CPUs.
+#				# TODO: Don't allow the user to display CPUs that don't exist on any node.
+#				# TDOD: Currently disabled as we have only one (virtual) CPU with many cores.
+#				if (grep /^$input$/, @show_cpu) {
+#					@show_cpu = grep !/$input$/, @show_cpu;
+#				} else {
+#					my %seen = ();
+#					foreach (@show_cpu, $input) {
+#						$seen{$_} = 1;
+#					}
+#					@show_cpu = sort keys %seen;
+#				}
+#				update_display(@_);
+			} elsif ($input eq "s") {
 				$input = getstring("Number of seconds for refresh[$sleeptime]? ");
-
 				if ($input) {
 					my $tmp;
-
-					# *grin* I love this use of eval
+					# TODO: I hate this use of eval
 					if ($tmp = eval $input and $tmp > 0) {
 						$sleeptime  = $tmp;
 						$targettime = time() + $sleeptime;
@@ -1933,12 +1821,8 @@ __EOHELP__
 						printwarning("Invalid number!");
 					}
 				}
-
-			}
-
-			elsif ($input eq "c") {
-				$input = getstring("Number of columns[$columns]? ");
-
+			} elsif ($input eq "w") {
+				$input = getstring("Width of grid display in number of cores [$columns]? ");
 				if ($input) {
 					if ($input =~ /^\d+$/ and $input > 0) {
 						$columns = $input;
@@ -1947,11 +1831,8 @@ __EOHELP__
 						printwarning("Invalid number!");
 					}
 				}
-
 			} elsif ($input eq "u") {
-
 				$input = getstring("Limit view to \"all\", \"me\", a or username? ");
-
 				if ($input) {
 					if ($input eq "all" or $input eq "a") {
 						$show_user = 0;
@@ -1978,11 +1859,8 @@ __EOHELP__
 					}
 					update_display(@_);
 				}
-
 			} elsif ($input eq "n") {
-
 				$input = getstring("Limit view to \"all\", a or nodename? ");
-
 				if ($input) {
 					if ($input eq "all" or $input eq "a") {
 						$show_node = 0;
@@ -2001,21 +1879,94 @@ __EOHELP__
 					}
 					update_display(@_);
 				}
-			}
-
-			#			elsif ( $input eq "n" ) {
-			#				$input = getstring("Node name? ");
-			#
-			#				if ($input) {
-			#					foreach my $server ( %{ $_[1] } ) {
-			#						if ( exists $_[1]->{$server}{$input} ) {
-			#							print_nodestatus_window( $input,
-			#								$_[1]->{$server}{$input} );
-			#						}
-			#					}
-			#				}
-			#			}
-			elsif ( $input eq "j"
+			} elsif ($input eq "c") {
+				if (!has_colors()) {
+					printwarning("Terminal doesn't support colors");
+					$colorize = 0;
+				} else {
+					# Toggle colorize if color was disabled.
+					$colorize = !$colorize unless ($colorize);
+					# Get item type to group by for coloring nodes in grid display 
+					$input = getstring("Color jobs by \"j\" (job), \"u\" (user) or \"q\" (queue)? ");
+					if ($input) {
+						if ($input eq 'job' or $input eq 'j') {
+							$color_by = 'job';
+						} elsif ($input eq 'user' or $input eq 'u') {
+							$color_by = 'user';
+						} elsif ($input eq 'queue' or $input eq 'q') {
+							$color_by = 'queue';
+						} else {
+							printwarning("Unsupported color by value.");
+						}
+						update_display(@_);
+					}
+				}
+			} elsif ($input eq "C") {
+				$colorize = !$colorize;
+				if ($colorize && !has_colors()) {
+					printwarning("Terminal doesn't support colors");
+					$colorize = 0;
+				}
+				update_display(@_);
+			} elsif ($input eq "S") {
+				$show_summary = !$show_summary;
+				update_display(@_);
+			} elsif ($input eq "G") {
+				$show_grid = !$show_grid;
+				update_display(@_);
+			} elsif ($input eq "Q") {
+				$show_queue = !$show_queue;
+				update_display(@_);
+			} elsif ($input eq "t") {
+				$show_qqueue = !$show_qqueue;
+				update_display(@_);
+			} elsif ($input eq "j") {
+				$show_jobs = !$show_jobs;
+				update_display(@_);
+			} elsif ($input eq KEY_HOME or $input eq KEY_SHOME or $input eq KEY_FIND) {
+				$py = 0;
+				$px = 0;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq KEY_END or $input eq KEY_SEND or $input eq KEY_SELECT) {
+				$py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
+				$px = 0;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq KEY_PPAGE or $input eq KEY_SPREVIOUS or $input eq $CTRL_B) {
+				$py -= $Y - 2;
+				$py <= 0 and $py = 0;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq KEY_NPAGE or $input eq KEY_SNEXT or $input eq $CTRL_F) {
+				$py += $Y - 2;
+				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2
+				  and $py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq "8" or $input eq KEY_UP) {
+				$py <= 0 and $py = 0, next;
+				$py--;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq "2" or $input eq KEY_DOWN) {
+				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2 and next;
+				$py++;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq "4" or $input eq KEY_LEFT) {
+				$px <= 0 and $px = 0, next;
+				$px -= 2;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq "6" or $input eq KEY_RIGHT) {
+				$px >= $lx - $X + 1 and next;
+				$px += 2;
+				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+			} elsif ($input eq " ") {
+				addstr $cmdwin, 0, 0, "Updating...";
+				clrtoeol($cmdwin);
+				refresh($cmdwin);
+				move($cmdwin, 0, 0);
+				clrtoeol($cmdwin);
+				return;
+#
+# TODO: below are various search options with logic that needs a major update.
+#
+			} elsif ( $input eq "j"
 				and $subwin
 				and $searchobject{TYPE} eq "NODE")
 			{
@@ -2188,148 +2139,10 @@ __EOHELP__
 						doupdate();
 					}
 				}
+			} else {
+				printwarning("ERROR: unsupported command.");
 			}
-
-			#FIXME# had to remove the offline/clear options when I started
-			#FIXME# to support multiple servers.  I haven't figured out
-			#FIXME# a decent replacement interface yet
-			#elsif ( $input eq "o" ) {
-			#$input=getstring("Node to mark offline? ");
-			#
-			#if ($input) {
-			#if ( exists $_[1]->{$input} ) {
-			#system( $pbsnodes, "-o", "$input", "-s", "$host" );
-			#}
-			#else {
-			#printwarning("Invalid nodename!");
-			#}
-			#}
-			#}
-			#elsif ( $input eq "r" ) {
-			#$input=getstring("Node to clear offline? ");
-			#
-			#if ($input) {
-			#if ( exists $_[1]->{$input} ) {
-			#system( $pbsnodes, "-r", "$input", "-s", "$host" );
-			#}
-			#else {
-			#printwarning("Invalid nodename!");
-			#}
-			#}
-			#}
-
-			# all of these toggles should be self-explanatory
-			elsif ($input eq "C") {
-				$colorize = !$colorize;
-				if ($colorize && !has_colors()) {
-					printwarning("Terminal doesn't support colors");
-					$colorize = 0;
-				}
-				update_display(@_);
-			} elsif ($input eq "b") {
-				if (!has_colors()) {
-					printwarning("Terminal doesn't support colors");
-					$colorize = 0;
-				} else {
-					if (!$colorize) {
-
-						# Toggle colorize if color was disabled.
-						$colorize = !$colorize;
-					}
-					$input = getstring("Color jobs by \"j\" (job), \"u\" (user) or \"q\" (queue)? ");
-					if ($input) {
-						if ($input eq 'job' or $input eq 'j') {
-							$color_by = 'job';
-						} elsif ($input eq 'user' or $input eq 'u') {
-							$color_by = 'user';
-						} elsif ($input eq 'queue' or $input eq 'q') {
-							$color_by = 'queue';
-						} else {
-							printwarning("Unsupported color by value.");
-						}
-						update_display(@_);
-					}
-				}
-			} elsif ($input eq "G") {
-				$show_grid = !$show_grid;
-				update_display(@_);
-			} elsif ($input eq "S") {
-				$show_summary = !$show_summary;
-				update_display(@_);
-			} elsif ($input eq "Q") {
-				$show_queue = !$show_queue;
-				update_display(@_);
-			} elsif ($input eq "t") {
-				$show_qqueue = !$show_qqueue;
-				update_display(@_);
-			} elsif ($input eq "J") {
-				$show_jobs = !$show_jobs;
-				update_display(@_);
-			}
-
-			#FIXME# my home keyboard sends FIND and SELECT instead of HOME and END, weird?
-			elsif ($input eq KEY_HOME
-				or $input eq KEY_SHOME
-				or $input eq KEY_FIND)
-			{
-				$py = 0;
-				$px = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_END
-				or $input eq KEY_SEND
-				or $input eq KEY_SELECT)
-			{
-				$py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
-				$px = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_PPAGE
-				or $input eq KEY_SPREVIOUS
-				or $input eq $CTRL_B)
-			{
-				$py -= $Y - 2;
-				$py <= 0 and $py = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_NPAGE
-				or $input eq KEY_SNEXT
-				or $input eq $CTRL_F)
-			{
-				$py += $Y - 2;
-				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2
-				  and $py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "k" or $input eq KEY_UP) {
-				$py <= 0 and $py = 0, next;
-				$py--;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "j" or $input eq KEY_DOWN) {
-				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2 and next;
-				$py++;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "h" or $input eq KEY_LEFT) {
-				$px <= 0 and $px = 0, next;
-				$px -= 2;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "l" or $input eq KEY_RIGHT) {
-				$px >= $lx - $X + 1 and next;
-				$px += 2;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			}
-
-			elsif ($input eq " ") {
-				addstr $cmdwin, 0, 0, "Updating...";
-				clrtoeol($cmdwin);
-				refresh($cmdwin);
-				move($cmdwin, 0, 0);
-				clrtoeol($cmdwin);
-				return;
-			}
-
-			#else {
-			#addstr $cmdwin, 0, 0, ord($input);
-			#}
-
 		}
-
 	}
 }
 
@@ -2364,11 +2177,11 @@ __END__
 
 =head1 NAME
 
-qtop - monitoring utility for OpenPBS or Torque
+ctop - cluster monitoring utility for OpenPBS or Torque
 
 =head1 SYNOPSIS
 
-qtop [OPTION]... [@hostname]...
+ctop [OPTION]... [@hostname]...
 
 =head1 DESCRIPTION
 
@@ -2396,15 +2209,11 @@ seconds between refreshes
 
 number of columns to display in the grid
 
-=item   B<-m> num
-
-max number of cpus in a node before it gets its own grid
-
 =item   B<-u>
 
 usernames for limiting the view of the grid and job list.  Can be a
 comma-seperated list of usernames or C<all>.  C<me> is a pseudonym for the
-username running qtop(1).
+username running ctop(1).
 
 =item   B<-C>
 
@@ -2442,7 +2251,7 @@ print version and exit
 
 =head1 INTERACTIVE COMMANDS
 
-Several single-key commands are recognized while qtop(1) is running.  The
+Several single-key commands are recognized while ctop(1) is running.  The
 arrow keys, PageUp, and PageDown keys will scroll the display if it doesn't fit
 in your terminal.
 
@@ -2456,7 +2265,7 @@ Immediately update display
 
 =item B<q>
 
-Quit qtop(1)
+Quit ctop(1)
 
 =item B<h>
 
@@ -2474,7 +2283,7 @@ Prompts for the number of seconds to wait between display updates
 
 Prompts for a username.  The grid and job listing will be limited to the named
 user.  Input C<all> will remove all limitations (the default), and C<me> will
-limit to the current username running qtop(1).  If the username or C<me> is
+limit to the current username running ctop(1).  If the username or C<me> is
 prefixed with a C<+> or C<->, the username will be added or removed from the
 list of usernames to be limited.  C<a> and C<m> are shortcuts for C<all> and
 C<me>.
@@ -2484,7 +2293,7 @@ C<me>.
 Prompts the user for a search string, for displaying the details of.  The
 search can optionally begin with one of the following pattern specifiers
 (think: mutt): C<~s> for a server, C<~n> for a node, or C<~j> for a job number.
-If no pattern specifier is found, qtop will attempt to find the object that
+If no pattern specifier is found, ctop will attempt to find the object that
 best matches the search string. The string can be a server name, nodename, or a
 job number.  Nodenames can optionally be followed by a space and the server
 name.  Job numbers may optionally be followed by a dot and the server name.
@@ -2551,10 +2360,10 @@ see which nodes are not yet "busy" that have jobs.
 
 =head1 STARTUP
 
-qtop(1) has many configuration variables that can set on the command line,
-interactively, or from configuration files.  When qtop(1) starts, it first
+ctop(1) has many configuration variables that can set on the command line,
+interactively, or from configuration files.  When ctop(1) starts, it first
 initializes these variables with built-in defaults, then reads in
-F</etc/qtoprc>, the reads F<~/.qtoprc>, and finally parses the command line
+F</etc/ctoprc>, the reads F<~/.ctoprc>, and finally parses the command line
 arguments.  Note that several of the command line arguments and interactive
 commands are toggles, they don't directly set the value of the configuration.
 In contrast, the configuration files are not toggles.
@@ -2610,11 +2419,11 @@ Show job and color information in the node grid, 1 or 0
 Usernames to limit the view in the grid and job list.  Can be a comma-seperated
 list of users, C<all>, or C<me>.
 
-It might be reasonable for a site to have C<show_user=me> in F</etc/qtoprc>
-and for admin users to have C<show_user=all> in their own F<~/.qtoprc>.
+It might be reasonable for a site to have C<show_user=me> in F</etc/ctoprc>
+and for admin users to have C<show_user=all> in their own F<~/.ctoprc>.
 
 Members of a group might want all of their teammate's usernames in their own
-F<~/.qtoprc>.
+F<~/.ctoprc>.
 
 =item B<host>
 
@@ -2647,10 +2456,10 @@ A sample configuration file:
 
 =head1 SMP ENVIRONMENTS
 
-qtop(1) was developed with three specific clusters in mind, these are a 1000
+ctop(1) was developed with three specific clusters in mind, these are a 1000
 node cluster of dual SMP machines, a 64 proc SMP with 16 single node machines,
 and a 21 node cluster of single procs without nicely numbered hostnames.  With
-this kind of pedigree, qtop(1) is fairly flexible.
+this kind of pedigree, ctop(1) is fairly flexible.
 
 By default, the node grid will show the state of the first CPU of 30 nodes in
 each row.  The number of columns in the grid can be shrunk or expanded on the
@@ -2666,11 +2475,11 @@ third is typically displayed with the number of columns set to "1".
 
 =over 4
 
-=item F</etc/qtoprc>
+=item F</etc/ctoprc>
 
 The global configuration file  
 
-=item F<~/.qtoprc>
+=item F<~/.ctoprc>
 
 The personal configuration file.
 
@@ -2700,11 +2509,11 @@ The large Job structure uses the servername supplied by the user, the Job
 structure uses the servername returned by the server... so they don't match up
 (this makes the jobloadreport imprecise).  
 The curses code is very ineffecient, the screen flickers too much.
-grep FIXME from qtop for more!
+grep FIXME from ctop for more!
 
 =head1 AUTHOR
 
-qtop(1) was originally written by Garrick Staples E<lt>garrick@usc.eduE<gt>.
+ctop(1) was originally written by Garrick Staples E<lt>garrick@usc.eduE<gt>.
 The node grid and lettering concept is from Dennis Smith.  Thanks to Egan Ford
 and the xCAT mailing list for testing and feedback.
 
