@@ -1692,93 +1692,94 @@ sub top_sleep {
 				addstr $helpwin, "ctop v$VERSION";
 				attroff($helpwin, A_REVERSE | COLOR_PAIR(6));
 				move($helpwin, 2, 0);
-				addstr $helpwin, "Seconds Refresh ";
+				addstr $helpwin, "Current settings: \n\n";
+				addstr $helpwin, "  Refresh ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, "$sleeptime";
+				addstr $helpwin, "$sleeptime seconds\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nGrid Columns ";
+				addstr $helpwin, "  Grid width ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, "$columns";
+				addstr $helpwin, "$columns cores\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nColorization ";
+				addstr $helpwin, "  Colorization ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $colorize ? "on" : "off";
+				addstr $helpwin, $colorize ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
 				if ($colorize) {
-					addstr $helpwin, "\nColor by ";
+					addstr $helpwin, "  Color by ";
 					attron($helpwin, A_BOLD);
-					addstr $helpwin, $color_by;
+					addstr $helpwin, "$color_by\n";
 					attroff($helpwin, A_BOLD);
 				}
-				addstr $helpwin, "\nState Summary Display ";
+				addstr $helpwin, "  State summary display ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $show_summary ? "on" : "off";
+				addstr $helpwin, $show_summary ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nGrid Display ";
+				addstr $helpwin, "  Grid display ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $show_grid ? "on" : "off";
+				addstr $helpwin, $show_grid ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nGrid Job Display ";
+				addstr $helpwin, "  Display jobs in grid ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $show_jobs ? "on" : "off";
+				addstr $helpwin, $show_jobs ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
-				#addstr $helpwin, "\nShow CPU Number ";
+				#addstr $helpwin, "  Show CPU Number ";
 				#attron( $helpwin, A_BOLD );
-				#addstr $helpwin, join( " ", @show_cpu );
+				#addstr $helpwin, join( " ", @show_cpu ) . "\n";
 				#attroff( $helpwin, A_BOLD );
-				addstr $helpwin, "\nShowing jobs from: ";
+				addstr $helpwin, "  Showing jobs from: ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, join(" ", @host);
+				addstr $helpwin, join(" ", @host) . "\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nQueue Display ";
+				addstr $helpwin, "  Queue display ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $show_queue ? "on" : "off";
+				addstr $helpwin, $show_queue ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nShow Queued Jobs ";
+				addstr $helpwin, "  Show queued jobs ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $show_qqueue ? "on" : "off";
+				addstr $helpwin, $show_qqueue ? "on\n" : "off\n";
 				attroff($helpwin, A_BOLD);
-				addstr $helpwin, "\nNumber of possible colors ";
+				addstr $helpwin, "  Number of possible colors ";
 				attron($helpwin, A_BOLD);
-				addstr $helpwin, $COLOR_PAIRS;
+				addstr $helpwin, "$COLOR_PAIRS\n";
 				attroff($helpwin, A_BOLD);
 				if ($show_user) {
-					addstr $helpwin, "\nLimiting job view to user(s) ";
+					addstr $helpwin, "  Limiting job view to user(s) ";
 					attron($helpwin, A_BOLD);
-					addstr $helpwin, $show_user;
+					addstr $helpwin, "$show_user\n";
 					attroff($helpwin, A_BOLD);
 				}
 				if ($show_node) {
-					addstr $helpwin, "\nLimiting job view to node(s) ";
+					addstr $helpwin, "  Limiting job view to node(s) ";
 					attron($helpwin, A_BOLD);
-					addstr $helpwin, $show_node;
+					addstr $helpwin, "$show_node\n";
 					attroff($helpwin, A_BOLD);
 				}
 				addstr $helpwin, <<"__EOHELP__";
 
 Interactive commands are:
 
- [space] Update Display.
- /       Search for a server, node, or job and display details.
- q       Quit.
- h       Print this Help.
- u       Show only jobs for a subset of Users.
-            Accepts comma seprated list for multiple users.
- n       Show only jobs for a subset of Nodes.
-            Accepts comma seprated list for multiple nodes.
- c       Color cores in grid display by job, node or queue.
- s       Seconds to refresh.
-            Accepts math operators (ie: 2*60).
- w       With of grid display in number of cores.
- C       Toggle Colorization.
- S       Toggle State summary.
- G       Toggle Grid display.
- Q       Toggle Queue display.
- t       Toggle display of queued jobs in queue display.
-            When view is limited to specific nodes, 
-            only jobs running on those nodes are displayed, 
-            queued jobs are not displayed and 't' has no effect.
- j       Toggle display of Jobs in grid display.
+  [space] Update Display.
+  /       Search for a server, node, or job and display details.
+  q       Quit.
+  h       Print this Help.
+  u       Show only jobs for a subset of Users.
+             Accepts comma seprated list for multiple users.
+  n       Show only jobs for a subset of Nodes.
+             Accepts comma seprated list for multiple nodes.
+  c       Color cores in grid display by job, node or queue.
+  s       Seconds to refresh.
+             Accepts math operators (ie: 2*60).
+  w       With of grid display in number of cores.
+  C       Toggle Colorization.
+  S       Toggle State summary.
+  G       Toggle Grid display.
+  Q       Toggle Queue display.
+  t       Toggle display of queued jobs in queue display.
+             When view is limited to specific nodes, 
+             only jobs running on those nodes are displayed, 
+             queued jobs are not displayed and 't' has no effect.
+  j       Toggle display of Jobs in grid display.
 
 Press any key to continue...
 __EOHELP__
@@ -2052,6 +2053,8 @@ __EOHELP__
 			# Just about all of this should be moved out of here
 			#FIXME# need to unify these searches somehow
 			elsif ($input eq "/") {
+				printwarning("WARN: search functionality disabled pending major rewrite of search logic.");
+				return;
 				$input = getstring("Search string? ");
 
 				if ($input) {
@@ -2139,8 +2142,9 @@ __EOHELP__
 						doupdate();
 					}
 				}
-			} else {
-				printwarning("ERROR: unsupported command.");
+			} elsif ($input ne '-1') {
+				printwarning("ERROR: unsupported command $input.");
+				return;
 			}
 		}
 	}
