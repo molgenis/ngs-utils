@@ -34,13 +34,13 @@ my $sleeptime          = 30;       # Seconds between refreshes
 my $colorize           = 1;        # 1 or 0
 my $color_by           = 'job';    # Assign color per job, user or queue.
 my $show_summary       = 1;        # 1 or 0
-my $compact_summary    = 1;        # 1 or 0
 my $show_grid          = 1;        # 1 or 0
 my $show_queue         = 1;        # 1 or 0
 my $show_qqueue        = 1;        # 1 or 0
 my $show_jobs          = 1;        # 1 or 0
-my $show_user          = "all";    # Show only jobs for specific users
-my $show_node          = "all";    # Show only jobs for specific nodes jobs
+my $show_user          = 'all';    # Show only jobs for specific users.
+my $show_node          = 'all';    # Show only jobs for specific nodes jobs.
+my $show_job_id        = 'all';    # Show only jobs with specific job IDs.
 my @show_cpu           = ("0");    # List of cpu numbers. No longer used and hardcoded to CPU0.
 my @host               = ();       # Hostname of your scheduler
                                    # This is not necessarily the same as the user interface (UI) host
@@ -60,22 +60,18 @@ my $qstat    = "/usr/local/pbs/bin/qstat";
 #   Nothing else to adjust below here
 #########################################################
 
-# enable warnings if running under testing.
-if (-d $INC[0]) {
-	$^W = 1;
-}
-
 use strict;
+use warnings;
 use vars qw/$VERSION/;
 use Curses;
 
-$VERSION = "5.3";
+$VERSION = "5.5.2";
 
 #
 # Initialize global vars.
 #
-my %Job_of_letter;
-my @Colors = ();
+my %job_of_letter;
+my @colors = ();
 my %searchobject  = ();
 
 #
@@ -98,8 +94,8 @@ my $underline     = 0;
 
 my ($y, $x, $Y, $X, $py, $px, $ly, $lx, $subY, $subX) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-readrc("/etc/ctoprc");
-readrc("$ENV{HOME}/.ctoprc");
+_LoadConfig("/etc/ctoprc");
+_LoadConfig("$ENV{HOME}/.ctoprc");
 
 #
 # Configure and find commandline utils.
@@ -111,7 +107,7 @@ readrc("$ENV{HOME}/.ctoprc");
 -e $qstat    or die "FATAL: Cannot find (w)qstat.\n";
 
 #
-#  Process commndline arguments.
+#  Process commandline arguments.
 #
 my @argvhosts = ();
 while (my $arg = shift @ARGV) {
@@ -119,21 +115,21 @@ while (my $arg = shift @ARGV) {
 		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
 			$show_user = join(' ', split(',', shift));
 		} else {
-			usage();
+			_Usage();
 			exit(1);
 		}
 	} elsif ($arg eq '-n') {
 		if (defined $ARGV[0] and $ARGV[0] =~ /^([^-]+)/) {
 			$show_node = join(' ', split(',', shift));
 		} else {
-			usage();
+			_Usage();
 			exit(1);
 		}
 	} elsif ($arg eq '-c') {
-		if (defined $ARGV[0] and $ARGV[0] =~ /((job)|(node)|(queue))/) {
+		if (defined $ARGV[0] and $ARGV[0] =~ /((job)|(user)|(queue)|(resources))/) {
 			$color_by = $1;
 		} else {
-			usage();
+			_Usage();
 			exit(1);
 		}
 	} elsif ($arg eq '-C') {
@@ -151,13 +147,13 @@ while (my $arg = shift @ARGV) {
 	} elsif ($arg eq '-s') {
 		$sleeptime = shift @ARGV;
 		unless ($sleeptime =~ /^\d+$/ && $sleeptime > 0) {
-			usage();
+			_Usage();
 			exit(1);
 		}
 	} elsif ($arg eq '-w') {
 		$columns = shift @ARGV;
 		unless ($columns =~ /^\d+$/ && $columns > 0) {
-			usage();
+			_Usage();
 			exit(1);
 		}
 #	} elsif ($arg =~ /^-(\d+)$/) {
@@ -168,10 +164,10 @@ while (my $arg = shift @ARGV) {
 		print "ctop (p.k.a. pbstop) $VERSION\n";
 		exit(0);
 	} elsif ($arg eq '-h') {
-		usage();
+		_Usage();
 		exit(0);
 	} else {
-		usage();
+		_Usage();
 		exit(1);
 	}
 }
@@ -196,6 +192,9 @@ unless (defined($host[0])) {
 }
 chomp(@host);
 
+if ($show_job_id eq "all") {
+	$show_job_id = 0;
+}
 if ($show_user eq "all") {
 	$show_user = 0;
 } elsif ($show_user =~ /\bme\b/) {
@@ -214,7 +213,9 @@ $SIG{'TERM'} = sub { endwin; exit(0); };
 # TODO: Can someone tell me how to use filter() correctly?
 -t STDOUT or filter();
 
-# Is this portable?
+#
+# TODO: check if definition of control characters like this is portable.
+#
 my $CTRL_B = chr(ord("B") - ord("@"));
 my $CTRL_F = chr(ord("F") - ord("@"));
 my $CTRL_L = chr(ord("L") - ord("@"));
@@ -305,16 +306,18 @@ init_pair(++$pr, COLOR_CYAN,  COLOR_GREEN);
 init_pair(++$pr, COLOR_WHITE, COLOR_GREEN);
 init_pair(++$pr, COLOR_BLACK, COLOR_GREEN);
 
-sub init_colors {
-	return (1 .. ($COLOR_PAIRS - 1 > $pr ? $pr : $COLOR_PAIRS - 1));
-}
+my %resource_usage_state_colors = (
+	'<' => 3,
+	'=' => 2,
+	'>' => 1
+);
 
 my $pad = newpad($maxrows, $maxcolumns);
 my $cmdwin = newwin(1, $X - 1, $Y - 1, 0);
 keypad($cmdwin, 1);
 my $subwin = 0;
 
-main_loop(\@host);
+_MainLoop(\@host);
 
 #   The original color set.
 #        "\033[07;34m",    "\033[07;35m",    "\033[07;36m",
@@ -330,34 +333,31 @@ main_loop(\@host);
 ## All subroutines below here
 ###############################################################
 
-# main_loop() will 1) gather all of our data from pbs_server, 2) prep it a bit
-# in letterize() and colorize(), 3) call update_display to draw our pretty
-# grids and stuff, and finally calls 4) top_sleep which is where we spend most
+# _MainLoop() will 1) gather all of our data from pbs_server, 2) prep it a bit
+# in _Letterize() and _Colorize(), 3) call _UpdateDisplay to draw our pretty
+# grids and stuff, and finally calls 4) _TopSleep which is where we spend most
 # of our time.
 
 # 1) We gather data by parsing the output of tools like qmgr and qstat.
 #    Since this data is kept between cycles around the main loop, we take some care to remove old data.
 #    The result is two large structures, one for Jobs and one for Nodes, which are used in the rest of the program.
 
-# 2) letterize() and colorize() are fairly unexciting,
+# 2) _Letterize() and _Colorize() are fairly unexciting,
 #    but they do assign letters and colors to each running job.
 #    This info is stored in the large Job structure.
-#    letterize() has probably the only original code left.
+#    _Letterize() has probably the only original code left.
 
-# 3) update_display(), by itself, is pretty coring.
-#    It calls the functions responsible for the summary, colorful grid, and the job listing at the bottom.
-#    show_grid() is pretty exciting; it first finds every node over $maxnodegrid,
-#    calls them "timesharing" and shoves them aside, draws a big colorful grid for what's left,
-#    and draws another colorful grid for the timesharing nodes.
+# 3) _UpdateDisplay() calls the functions responsible for the summary, colorful grid, and the job listing at the bottom.
+#    _PrintGrid() draws a big colorful grid for each core of each node.
 
-# 4) top_sleep() is a big giant mess. It is far too monolithic.
+# 4) _TopSleep() is a big mess. It is far too monolithic.
 #    If anyone wants chop it up a bit, feel free to send patches!
-#    Anyways, it loops around on user input until the time expires and it is time to return back up to main_loop().
+#    It loops around on user input until the time expires and it is time to return back up to _MainLoop().
 #    In the meantime, it does everything the user requests,
 #    including griding through the main data structures looking for stuff.
 #    All of the code responsible for moving around the giant pad is here.
 
-sub usage {
+sub _Usage {
 	print "Usage:  ctop [options] [\@host ...]\n";
 	print "  Version: $VERSION\n";
 	print "  Options: \n";
@@ -366,7 +366,7 @@ sub usage {
 	print "  -n [node] Show only jobs for a subset of nodes.\n";
 	print "            Comma separated list.\n";
 	print "  -c [type] Color cores in grid display by type.\n";
-	print "            Type must be one of 'job', 'node' or 'queue'.\n";
+	print "            Type must be one of 'job', 'node', 'queue' or resources.\n";
 	print "  -C        Toggle colorization.\n";
 	print "  -S        Toggle state summary display.\n";
 	print "  -G        Toggle grid display.\n";
@@ -380,97 +380,108 @@ sub usage {
 	print "  -h        Print this help and exit.\n";
 }
 
-sub main_loop {
+sub _MainLoop {
 	my $host = shift;
-	my %Nodes;
-	my %Jobs;
-	my %Users;
-	my %Queues;
-	my %State_count;
+	my %nodes;
+	my %jobs;
+	my %users;
+	my %queues;
+	my %state_count;
 	my $max_server_length;
 	my $max_node_length;
 	
-	# Main event loop.
 	while (1) {
 		
-		%State_count          = ();
-		$State_count{_nodes}  = 0;
-		$State_count{_anodes} = 0;
-		$State_count{_procs}  = 0;
-		$State_count{_aprocs} = 0;
-		$State_count{_mprocs} = 0;
-		$State_count{_rjobs}  = 0;
-		$State_count{_njobs}  = 0;
+		%state_count          = ();
+		$state_count{'_nodes'}  = 0;
+		$state_count{'_anodes'} = 0;
+		$state_count{'_procs'}  = 0;
+		$state_count{'_aprocs'} = 0;
+		$state_count{'_mprocs'} = 0;
+		$state_count{'_rjobs'}  = 0;
+		$state_count{'_njobs'}  = 0;
 		
 		foreach my $server (@$host) {
+			#
+			# Get updated intel'.
+			#
+			_GetInfo($server, \%nodes, \%jobs, \%state_count);
 			
-			get_info_cmdline($server, \%Nodes, \%Jobs, \%State_count);
-			
-			# trim out old nodes that are no longer seen
-			foreach my $node (keys(%{$Nodes{$server}})) {
-				if ($Nodes{$server}{$node}{seen} != 1) {
-					delete $Nodes{$server}{$node};
+			#
+			# Remove old nodes that are no longer seen.
+			#
+			foreach my $node (keys(%{$nodes{$server}})) {
+				if ($nodes{$server}{$node}{'seen'} != 1) {
+					delete $nodes{$server}{$node};
 				} else {
-					$Nodes{$server}{$node}{seen} = 0;
+					$nodes{$server}{$node}{'seen'} = 0;
 				}
 			}
 		}
 		
-		# trim out old jobs that are no longer seen
-		foreach my $job (keys(%Jobs)) {
-			if (   !exists $Jobs{$job}{seen}
-				or !defined $Jobs{$job}{seen}
-				or $Jobs{$job}{seen} != 1)
+		#
+		# Remove old jobs that are no longer seen.
+		#
+		foreach my $job (keys(%jobs)) {
+			if (   !exists $jobs{$job}{'seen'}
+				or !defined $jobs{$job}{'seen'}
+				or $jobs{$job}{'seen'} != 1)
 			{
-				delete $Jobs{$job};
+				delete $jobs{$job};
 			} else {
-				$Jobs{$job}{seen} = 0;
+				$jobs{$job}{'seen'} = 0;
 			}
 		}
 		
-		($max_server_length) = get_max_key_len(\%Nodes);
+		#
+		# Determine max length of certain names, 
+		# so we can adjust column widths accordingly.
+		#
+		($max_server_length) = _GetMaxKeyLength(\%nodes);
 		$max_node_length = 0;
-		foreach my $server (keys(%Nodes)) {
-			my ($max_node_length_for_this_server) = get_max_key_len($Nodes{$server});
+		foreach my $server (keys(%nodes)) {
+			my ($max_node_length_for_this_server) = _GetMaxKeyLength($nodes{$server});
 			$max_node_length = 
 			    $max_node_length_for_this_server > $max_node_length
 			  ? $max_node_length_for_this_server
 			  : $max_node_length;
 		}
-		
 		#
 		# Width of server and node columns must be at least as long as their column labels: 'scheduler'(9) and 'node'(4.)
 		#
 		$max_server_length = $max_server_length > 9 ? $max_server_length : 9;
 		$max_node_length = $max_node_length > 4 ? $max_node_length : 4;
 		
-		letterize(\%Jobs);
-		colorize(\%Jobs, \%Users, \%Queues);
+		#
+		# Assign characters and color pairs to jobs, users and queues.
+		#
+		_Letterize(\%jobs);
+		_Colorize(\%jobs, \%users, \%queues);
 		
-		update_display(\%State_count, $State_count{"_mprocs"}, $max_server_length, $max_node_length, \%Nodes, \%Jobs, \%Users, \%Queues);
+		_UpdateDisplay(\%state_count, $max_server_length, $max_node_length, \%nodes, \%jobs, \%users, \%queues);
 		-t STDOUT or do { endwin; exit; };
-		top_sleep(\%State_count, $State_count{"_mprocs"}, $max_server_length, $max_node_length, \%Nodes, \%Jobs, \%Users, \%Queues);
+		_TopSleep(\%state_count, $max_server_length, $max_node_length, \%nodes, \%jobs, \%users, \%queues);
 	}
 }
 
-sub get_info_cmdline {
+sub _GetInfo {
 	
-	my ($server, $Nodes, $Jobs, $State_count) = @_;
+	my ($server, $nodes, $jobs, $state_count) = @_;
 	
 	#
 	# Use qmgr and qstat commands to get all data.
 	#
 	my @qmgr = `$qmgr -c 'l n \@$server' $server 2>/dev/null`;
-	$? and do { printwarning("Connection to $server failed.") };
+	$? and do { _PrintWarning("Connection to $server failed.") };
 	
 	my @qstat_f = `$qstat -f \@$server 2>/dev/null`;
-	$? and do { printwarning("Connection to $server failed.") };
+	$? and do { _PrintWarning("Connection to $server failed.") };
 	
-	my $jobs;
-	my $eatingjobs = 0;
+	my $active_jobs;
+	my $eating_jobs = 0;
 	my $status;
 	my $statuses;
-	my $eatingstatus = 0;
+	my $eating_status = 0;
 	my $node         = "";
 	
 	#
@@ -484,100 +495,100 @@ sub get_info_cmdline {
 			$node =~ s/^targetgcc//;
 			$node =~ s/-mgmt$//;
 			$node =~ s/\s//g;
-			delete $Nodes->{$server}{$node};
-			$Nodes->{$server}{$node}{seen} = 1;
-			$State_count->{_nodes}++;
-			$eatingjobs   = 0;
-			$eatingstatus = 0;
+			delete $nodes->{$server}{$node};
+			$nodes->{$server}{$node}{'seen'} = 1;
+			$state_count->{'_nodes'}++;
+			$eating_jobs   = 0;
+			$eating_status = 0;
 		} elsif (/\s+np = (.*)/) {
-			$Nodes->{$server}{$node}{np} = $1;
-			$State_count->{_procs} += $1;
-			$State_count->{_mprocs} =
-			    $State_count->{_mprocs} > $1
-			  ? $State_count->{_mprocs}
+			$nodes->{$server}{$node}{'np'} = $1;
+			$state_count->{'_procs'} += $1;
+			$state_count->{'_mprocs'} =
+			    $state_count->{'_mprocs'} > $1
+			  ? $state_count->{'_mprocs'}
 			  : $1;
-			$eatingstatus = 0;
-			$eatingjobs   = 0;
+			$eating_status = 0;
+			$eating_jobs   = 0;
 		} elsif (/\s+properties = (.*)/) {
-			$Nodes->{$server}{$node}{properties} = $1;
-			$eatingstatus                        = 0;
-			$eatingjobs                          = 0;
+			$nodes->{$server}{$node}{'properties'} = $1;
+			$eating_status                         = 0;
+			$eating_jobs                           = 0;
 		} elsif (/\s+ntype = (.*)/) {
-			$Nodes->{$server}{$node}{ntype} = $1;
-			$eatingstatus                   = 0;
-			$eatingjobs                     = 0;
+			$nodes->{$server}{$node}{'ntype'} = $1;
+			$eating_status                    = 0;
+			$eating_jobs                      = 0;
 		} elsif (/\s+state = (.*)/) {
-			$Nodes->{$server}{$node}{state} = $1;
-			$State_count->{$1}++;
-			$eatingstatus = 0;
-			$eatingjobs   = 0;
+			$nodes->{$server}{$node}{'state'} = $1;
+			$state_count->{$1}++;
+			$eating_status = 0;
+			$eating_jobs   = 0;
 		} elsif (/\s+jobs = (.*)/) {
-			$eatingjobs   = 1;
-			$eatingstatus = 0;
-			$jobs         = $1;
-			$State_count->{"_anodes"}++;
+			$eating_jobs   = 1;
+			$eating_status = 0;
+			$active_jobs   = $1;
+			$state_count->{'_anodes'}++;
 			
 			#
 			# Reset list of jobs on this node.
 			#
-			$Nodes->{$server}{$node}{jobs} = {};
-			foreach my $job_slot (split(/, /, $jobs)) {
+			$nodes->{$server}{$node}{'jobs'} = {};
+			foreach my $job_slot (split(/, /, $active_jobs)) {
 				if ($job_slot =~ m{(\d+)/(\d+)}) {
 					my $slot   = $1;
 					my $job_id = $2;
-					$Nodes->{$server}{$node}{job}{$slot} = $job_id;
-					$State_count->{"_aprocs"}++;
-					if (defined(${$Nodes}{$server}{$node}{jobs}{$job_id})) {
-						${$Nodes}{$server}{$node}{jobs}{$job_id}++;
+					$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
+					$state_count->{'_aprocs'}++;
+					if (defined(${$nodes}{$server}{$node}{'jobs'}{$job_id})) {
+						${$nodes}{$server}{$node}{'jobs'}{$job_id}++;
 					} else {
-						${$Nodes}{$server}{$node}{jobs}{$job_id} = 1;
+						${$nodes}{$server}{$node}{'jobs'}{$job_id} = 1;
 					}
 				} else {
-					printwarning("ERROR: Cannot parse job ID from job slot $job_slot.");
+					_PrintWarning("ERROR: Cannot parse job ID from job slot $job_slot.");
 				}
 			}
 		} elsif (/\s+status = (.*)/) {
-			$eatingstatus = 1;
-			$eatingjobs   = 0;
+			$eating_status = 1;
+			$eating_jobs   = 0;
 			$statuses     = $1;
 			foreach my $status (split(/,/, $statuses)) {
 				if ($status =~ m{(.+)=(.+)}) {
-					$Nodes->{$server}{$node}{status}{$1} = $2;
+					$nodes->{$server}{$node}{'status'}{$1} = $2;
 				}
 			}
-		} elsif ($eatingjobs) {
+		} elsif ($eating_jobs) {
 			if ($_ =~ /\w/) {
 				/^\s+(.*)$/;
-				$jobs = $1;
-				foreach my $job_slot (split(/, /, $jobs)) {
+				$active_jobs = $1;
+				foreach my $job_slot (split(/, /, $active_jobs)) {
 					if ($job_slot =~ m{(\d+)/(\d+)}) {
 						my $slot   = $1;
 						my $job_id = $2;
-						$Nodes->{$server}{$node}{job}{$slot} = $job_id;
-						$State_count->{"_aprocs"}++;
-						if (defined(${$Nodes}{$server}{$node}{jobs}{$job_id})) {
-							${$Nodes}{$server}{$node}{jobs}{$job_id}++;
+						$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
+						$state_count->{'_aprocs'}++;
+						if (defined(${$nodes}{$server}{$node}{'jobs'}{$job_id})) {
+							${$nodes}{$server}{$node}{'jobs'}{$job_id}++;
 						} else {
-							${$Nodes}{$server}{$node}{jobs}{$job_id} = 1;
+							${$nodes}{$server}{$node}{'jobs'}{$job_id} = 1;
 						}
 					} else {
-						printwarning("ERROR: Cannot parse job ID from job slot $job_slot.");
+						_PrintWarning("ERROR: Cannot parse job ID from job slot $job_slot.");
 					}
 				}
 			} else {
-				$eatingjobs = 0;
+				$eating_jobs = 0;
 			}
-		} elsif ($eatingstatus) {
+		} elsif ($eating_status) {
 			if ($_ =~ /\w/) {
 				/^\s+(.*)$/;
 				$statuses = $1;
 				foreach my $status (split(/,/, $statuses)) {
 					if ($status =~ m{(.+)=(.+)}) {
-						$Nodes->{$server}{$node}{status}{$1} = $2;
+						$nodes->{$server}{$node}{'status'}{$1} = $2;
 					}
 				}
 			} else {
-				$eatingstatus = 0;
+				$eating_status = 0;
 			}
 		}
 	}
@@ -593,27 +604,27 @@ sub get_info_cmdline {
 				$job = $1;
 				my $scheduler = $2;
 				if ($server eq $scheduler) {
-					$Jobs->{$job}{seen}   = 1;
-					$Jobs->{$job}{server} = $server;
-					$State_count->{"_njobs"}++;
+					$jobs->{$job}{'seen'}   = 1;
+					$jobs->{$job}{'server'} = $server;
+					$state_count->{'_njobs'}++;
 				} else {
-					die "FATAL: server reported in qstat output ($scheduler) does not match server for which info was requested ($server).";
+					die 'FATAL: server reported in qstat output (' . $scheduler . ') does not match server for which info was requested (' . $server . ').';
 				}
 			} elsif (/^\s*Job_Name = (.+)/i) {
-				$Jobs->{$job}{jname} = $1;
+				$jobs->{$job}{'jname'} = $1;
 			} elsif (/^\s*Job_Owner = ([^@]+)/i) {
-				$Jobs->{$job}{user} = $1;
+				$jobs->{$job}{'user'} = $1;
 			} elsif (/^\s*job_state = ([CEHQRSTW])/i) {
 				my $state = $1;
-				$Jobs->{$job}{state} = $state;
+				$jobs->{$job}{'state'} = $state;
 				if ($state eq 'R') {
-					$State_count->{"_rjobs"}++;
+					$state_count->{'_rjobs'}++;
 				}
 			} elsif (/^\s*queue = (.+)/i) {
-				$Jobs->{$job}{queue} = $1;
+				$jobs->{$job}{'queue'} = $1;
 			} elsif (/^\s*Resource_List.nodes = ([0-9]+):ppn=([0-9]+)/i) {
-				$Jobs->{$job}{ncount}  = $1;
-				$Jobs->{$job}{cores_r} = $2;
+				$jobs->{$job}{'ncount'}  = $1;
+				$jobs->{$job}{'cores_r'} = $2;
 			} elsif (/^\s*Resource_List.mem = ([0-9]+)([a-z]+)$/i) {
 				my $mem_value = $1;
 				my $mem_unit  = $2;
@@ -628,11 +639,11 @@ sub get_info_cmdline {
 				} else {
 					die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
 				}
-				$Jobs->{$job}{mem_r} = $mem_value;
+				$jobs->{$job}{'mem_r'} = $mem_value;
 			} elsif (/^\s*Resource_List.walltime = ([0-9:]+)/i) {
-				$Jobs->{$job}{walltime_r} = $1;
+				$jobs->{$job}{'walltime_r'} = $1;
 			} elsif (/^\s*resources_used.cput = (.+)$/i) {
-				$Jobs->{$job}{cputime_u} = $1;
+				$jobs->{$job}{'cputime_u'} = $1;
 			} elsif (/^\s*resources_used.mem = ([0-9]+)([a-z]+)$/i) {
 				my $mem_value = $1;
 				my $mem_unit  = $2;
@@ -647,24 +658,78 @@ sub get_info_cmdline {
 				} else {
 					die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
 				}
-				$Jobs->{$job}{mem_u} = $mem_value;
+				$jobs->{$job}{'mem_u'} = sprintf("%.1f", $mem_value);
 			} elsif (/^\s*resources_used.walltime = (.+)/i) {
-				$Jobs->{$job}{walltime_u} = $1;
+				$jobs->{$job}{'walltime_u'} = $1;
 			}
+		}
+	}
+	
+	#
+	# Revisit info about all jobs and 
+	#  * add defaults for required data if missing.
+	#  * calculate derived data.
+	#
+	foreach my $job (keys(%{$jobs})) {
+		foreach my $attribute ('seen','server','jname','user','queue','state') {
+			unless (defined($jobs->{$job}{$attribute})) {
+				$jobs->{$job}{$attribute} = '?';
+				_PrintWarning('ERROR: Missing required attribute ' . $attribute . ' for job ' . $job);
+			}
+		}
+		if (defined($jobs->{$job}{'cputime_u'}) && defined($jobs->{$job}{'walltime_u'})) {
+			my @cputime = reverse(split(':', $jobs->{$job}{'cputime_u'}));
+			my $cputime_sec = $cputime[0] + ($cputime[1] * 60) + ($cputime[2] * 3600);
+			my @walltime = reverse(split(':', $jobs->{$job}{'walltime_u'}));
+			my $walltime_sec = $walltime[0] + ($walltime[1] * 60) + ($walltime[2] * 3600);
+			if ($walltime_sec > 0) {
+				$jobs->{$job}{'cpu_u'} = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
+			}
+			#_PrintWarning("DEBUG: walltime_sec = $walltime[0] | $walltime[1] | $walltime[2]");
+			#_PrintWarning("DEBUG: cputime = $jobs->{$job}{cputime_u} | walltime = $jobs->{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
+		}
+		if (defined($jobs->{$job}{'cores_r'})) {
+			$jobs->{$job}{'cpu_r'} = $jobs->{$job}{'cores_r'} * 100;
+		}
+		if (defined($jobs->{$job}{'cpu_u'} && defined($jobs->{$job}{'cpu_r'}))) {
+			my $cpu_u = $jobs->{$job}{'cpu_u'};
+			my $cpu_r = $jobs->{$job}{'cpu_r'};
+			my $cpu_s; # usage state.
+			if (($cpu_u / $cpu_r) < $res_usage_low) {
+				$cpu_s = '<';
+			} elsif (($cpu_u / $cpu_r) > $res_usage_high) {
+				$cpu_s = '>';
+			} else {
+				$cpu_s = '=';
+			}
+			$jobs->{$job}{'cpu_s'} = $cpu_s;
+		}
+		if (defined($jobs->{$job}{'mem_u'}) && defined($jobs->{$job}{'mem_r'})) {
+			my $mem_u = $jobs->{$job}{'mem_u'};
+			my $mem_r = $jobs->{$job}{'mem_r'};
+			my $mem_s; # usage state.
+			if (($mem_u / $mem_r) < $res_usage_low) {
+				$mem_s = '<';
+			} elsif (($mem_u / $mem_r) > $res_usage_high) {
+				$mem_s = '>';
+			} else {
+				$mem_s = '=';
+			}
+			$jobs->{$job}{'mem_s'} = $mem_s;
 		}
 	}
 	
 	#
 	# Revisit info about all nodes and copy some details to the data structure indexed by job.
 	#
-	foreach my $server (keys(%{$Nodes})) {
-		foreach my $node (keys(%{ ${$Nodes}{$server} })) {
-			foreach my $job (keys(%{ ${$Nodes}{$server}{$node}{jobs} })) {
-				if (defined(${$Jobs}{$job}) && ${$Jobs}{$job}{server} eq $server) {
-					$Jobs->{$job}{node}    = $node;
-					$Jobs->{$job}{cores_u} = ${$Nodes}{$server}{$node}{jobs}{$job};
+	foreach my $server (keys(%{$nodes})) {
+		foreach my $node (keys(%{${$nodes}{$server}})) {
+			foreach my $job (keys(%{${$nodes}{$server}{$node}{jobs}})) {
+				if (defined(${$jobs}{$job}) && ${$jobs}{$job}{'server'} eq $server) {
+					$jobs->{$job}{'node'}    = $node;
+					$jobs->{$job}{'cores_u'} = ${$nodes}{$server}{$node}{'jobs'}{$job};
 				} else {
-					printwarning("ERROR: Cannot find job ID ${job} in list of jobs or the scheduler does not match (nodes server = $server | jobs server = ${$Jobs}{$job}{server}).");
+					_PrintWarning("ERROR: Cannot find job ID ${job} in list of jobs or the scheduler does not match (nodes server = $server | jobs server = ${$jobs}{$job}{server}).");
 				}
 			}
 		}
@@ -672,19 +737,18 @@ sub get_info_cmdline {
 
 }
 
-sub update_display {
+sub _UpdateDisplay {
 	
-	my ($state_count, $mprocs, $max_server_length, $max_node_length, $nodes, $jobs, $users, $queues) = @_;
+	my ($state_count, $max_server_length, $max_node_length, $nodes, $jobs, $users, $queues) = @_;
 	
 	my $foo;
 	move($pad, 0, 0);
 	getmaxyx($Y, $X);
-	
 	$y = 0, $x = 0;
 	
-	$show_summary and show_state_summary($state_count);
-	$show_grid and show_grid($jobs, $nodes, $users, $queues, $max_server_length, $max_node_length, $mprocs);
-	$show_queue and show_queue($jobs, $nodes, $users, $queues);
+	$show_summary and _PrintStateSummary($state_count);
+	$show_grid and _PrintGrid($jobs, $nodes, $users, $queues, $max_server_length, $max_node_length);
+	$show_queue and _PrintQueue($jobs, $users, $queues);
 	
 	getyx($pad, $ly, $foo);
 	clrtobot($pad);
@@ -692,19 +756,24 @@ sub update_display {
 	pnoutrefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
 	mvwin($cmdwin, $Y - 1, 0);
 	refresh($cmdwin);
-	update_subwin(@_);
+	_UpdateSubWindow(@_);
 	doupdate();
 }
 
-sub show_state_summary {
+#
+# Print summary state of entire cluster.
+#
+sub _PrintStateSummary {
+	
+	my ($state_count) = @_;
 	
 	#
 	# Usage summary.
 	#
 	addstr($pad, sprintf("Usage Totals: %d/%d %s | %d/%d %s | %d/%d %s", 
-		${ $_[0] }{_aprocs}, ${ $_[0] }{_procs}, 'Cores', 
-		${ $_[0] }{_anodes}, ${ $_[0] }{_nodes}, 'Nodes', 
-		${ $_[0] }{_rjobs},  ${ $_[0] }{_njobs}, 'Jobs Running'));
+		${$state_count}{'_aprocs'}, ${$state_count}{'_procs'}, 'Cores', 
+		${$state_count}{'_anodes'}, ${$state_count}{'_nodes'}, 'Nodes', 
+		${$state_count}{'_rjobs'},  ${$state_count}{'_njobs'}, 'Jobs Running'));
 	
 	#
 	# Show time stamp.
@@ -713,53 +782,36 @@ sub show_state_summary {
 	getyx($pad, $y1, $x1);
 	my $max_state_line_length = $X < $maxcolumns ? $X : $maxcolumns;
 	addstr($pad, ' ' . ' ' x ($max_state_line_length - $x1 - 22));
-	#printwarning("DEBUG: X = $X | Y = $Y | x1 = $x1 | y1 = $y1 | current x = $x | current y = $y");
+	#_PrintWarning("DEBUG: X = $X | Y = $Y | x1 = $x1 | y1 = $y1 | current x = $x | current y = $y");
 	#addstr($pad, sprintf("%02d:%02d:%02d", (localtime())[ 2, 1, 0 ]));
 	addstr($pad, `date "+%Y-%m-%d-T%H:%M:%S"`);
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
 	
 	#
-	# Node summary.
+	# Show node summary.
 	#
 	my $line;
-	my @states = sort grep !/^_/, keys %{ $_[0] };
-	
-	if ($compact_summary) {
-		addstr($pad, 1, 0, 'Node States:');
-		for (my $i = 0 ; defined $states[$i] ; $i++) {
-			$line = ' ' . ${$_[0]}{$states[$i]} . ' ' . $states[$i];
-			$line .= defined $states[$i + 1] ? ' |' : '';
-			getyx($pad, $y1, $x1);
-			if ($X - $x1 - 1 < length($line)) {
-				clrtoeol($pad);
-				move($pad, ++$y, $x = 0);
-				addstr($pad, ' ' x 12);
-			}
-			addstr($pad, $line);
-		}
-		move($pad, ++$y, $x = 0);
-		clrtoeol($pad);
-	} else {
-		for (my $i = 0 ; defined $states[$i] ; $i++) {
-			move($pad, ++$y, $x = 0);
-			$line = ' ' x 14;
-			$line .= sprintf("%4s %-20s", ${$_[0]}{$states[$i]}, $states[$i]);
-			$i++;
-			$line .= sprintf("%4s %-20s", ${$_[0]}{$states[$i]}, $states[$i])
-			  if defined $states[$i];
-			$line .= ' ' x ($X - (length($line) + 14));
+	my @states = sort(grep(!/^_/, keys(%{$state_count})));
+	addstr($pad, 1, 0, 'Node States:');
+	for (my $i = 0 ; defined $states[$i] ; $i++) {
+		$line = ' ' . ${$state_count}{$states[$i]} . ' ' . $states[$i];
+		$line .= defined $states[$i + 1] ? ' |' : '';
+		getyx($pad, $y1, $x1);
+		if ($X - $x1 - 1 < length($line)) {
 			clrtoeol($pad);
-			addstr($pad, $line);
+			move($pad, ++$y, $x = 0);
+			addstr($pad, ' ' x 12);
 		}
-		addstr($pad, 1, 0, 'Node States:');
-		move($pad, ++$y, $x = 0);
+		addstr($pad, $line);
 	}
+	move($pad, ++$y, $x = 0);
+	clrtoeol($pad);
 }
 
-sub show_grid {
+sub _PrintGrid {
 	
-	my ($jobs, $allnodes, $users, $queues, $max_server_length, $max_node_length, $maxprocs) = @_;
+	my ($jobs, $nodes, $users, $queues, $max_server_length, $max_node_length) = @_;
 	
 	my ($foo, $tmpx);
 	$lx = 0;
@@ -782,32 +834,32 @@ sub show_grid {
 		$show_cpu[0] = "0";
 	}
 	
-	#printvcpuline($max_server_length, $max_node_length);
+	#_PrintVcpuLine($max_server_length, $max_node_length);
 	
-	foreach my $server (sort(keys(%$allnodes))) {
+	foreach my $server (sort(keys(%$nodes))) {
 		
-		printnumberline($max_server_length, $max_node_length, $headerspaces, $columns);
+		_PrintNumberLine($max_server_length, $max_node_length, $headerspaces, $columns);
 		
-		foreach my $node (sort(keys(%{${$allnodes}{$server}}))) {
+		foreach my $node (sort(keys(%{${$nodes}{$server}}))) {
 			
 			unless ($show_node ? $show_node =~ /\b$node\b/ : 1) {
 				next;
 			}
 			
-			printdashline($max_server_length, $max_node_length, $headerspaces, $columns);
+			_PrintDashLine($max_server_length, $max_node_length, $headerspaces, $columns);
 			my $col = 0;
 			my $load =
-			  defined($$allnodes{$server}{$node}{status}{'loadave'})
-			  ? $$allnodes{$server}{$node}{status}{'loadave'}
+			  defined($$nodes{$server}{$node}{status}{'loadave'})
+			  ? $$nodes{$server}{$node}{status}{'loadave'}
 			  : '?';
-			my $node_state      = $$allnodes{$server}{$node}{state};
-			my $available_cores = $$allnodes{$server}{$node}{np};
+			my $node_state      = $$nodes{$server}{$node}{'state'};
+			my $available_cores = $$nodes{$server}{$node}{np};
 			my $used_cores      = 0;
 			
 			#
 			# Grid display sorted by job.
 			#
-			foreach my $job (sort(keys(%{ ${$allnodes}{$server}{$node}{jobs} }))) {
+			foreach my $job (sort(keys(%{${$nodes}{$server}{$node}{jobs}}))) {
 				
 				my $letter    = 0;
 				my $color     = 0;
@@ -819,14 +871,9 @@ sub show_grid {
 					    exists $$jobs{$job}
 					and exists $$jobs{$job}{letter}
 					and exists $$jobs{$job}{node}
-					and (
-						$show_user ? $show_user =~ /\b$$jobs{$job}{user}\b/
-						: 1
-					)
-					and (
-						$show_node ? $show_node =~ /\b$$jobs{$job}{node}\b/
-						: 1
-					)
+					and ($show_user     ? $show_user     =~ /\b$$jobs{$job}{user}\b/ : 1)
+					and ($show_node     ? $show_node     =~ /\b$$jobs{$job}{node}\b/ : 1)
+					and ($show_job_id   ? $show_job_id   =~ m/\b$job\b/ : 1)
 				  ) {
 					
 					#
@@ -844,10 +891,26 @@ sub show_grid {
 						$color = $users->{$user}{color};
 					} elsif ($color_by eq 'queue') {
 						$color = $queues->{$queue}{color};
+					} elsif ($color_by eq 'resources') {
+						$color = 7; # white on black.
+						if (defined($jobs->{$job}{cpu_s}) && defined($jobs->{$job}{mem_s})) {
+							my $cpu_s = $jobs->{$job}{cpu_s};
+							my $mem_s = $jobs->{$job}{mem_s};
+							if ($cpu_s eq '=' && $mem_s eq '=') {
+								$color = $resource_usage_state_colors{'='};
+							} else {
+								if ($cpu_s eq '<' || $mem_s eq '<') {
+									$color = $resource_usage_state_colors{'<'};
+								}
+								if ($cpu_s eq '>' || $mem_s eq '>') {
+									$color = $resource_usage_state_colors{'>'};
+								}
+							}
+						}
 					}
 				}
 				
-				for (my $slots = 1 ; $slots <= ${$allnodes}{$server}{$node}{jobs}{$job} ; $slots++) {
+				for (my $slots = 1 ; $slots <= ${$nodes}{$server}{$node}{jobs}{$job} ; $slots++) {
 					if ($col >= $columns) {
 						move($pad, ++$y, $x = 0);
 						$col = 0;
@@ -857,7 +920,7 @@ sub show_grid {
 					} elsif ($col != 0 and $col % 10 == 0) {
 						addstr($pad, '  ');
 					}
-					printcpustate($job_id, $letter, $cpu_state, $color, $underline);
+					_PrintCoreState($job_id, $letter, $cpu_state, $color, $underline);
 					addstr($pad, ' ');
 					getyx($pad, $foo, $tmpx);
 					$lx = $lx > $tmpx ? $lx : $tmpx;
@@ -871,7 +934,7 @@ sub show_grid {
 			# When not all cores are used: fill the remaining ones in the grid with the node state.
 			#
 			my $listed_cores = $used_cores;
-			while ($listed_cores < $$allnodes{$server}{$node}{np}) {
+			while ($listed_cores < $$nodes{$server}{$node}{np}) {
 				if ($col >= $columns) {
 					move($pad, ++$y, $x = 0);
 					$col = 0;
@@ -881,7 +944,7 @@ sub show_grid {
 				} elsif ($col != 0 and $col % 10 == 0) {
 					addstr($pad, '  ');
 				}
-				printcpustate(0, 0, $node_state, 0, 0);
+				_PrintCoreState(0, 0, $node_state, 0, 0);
 				addstr($pad, ' ');
 				$col++;
 				$listed_cores++;
@@ -927,7 +990,7 @@ sub show_grid {
 			move($pad, ++$y, $x = 0) if $col != $columns;
 		}
 		
-		printdashline($max_server_length, $max_node_length, 1, $columns);
+		_PrintDashLine($max_server_length, $max_node_length, 1, $columns);
 		
 	}
 	
@@ -952,9 +1015,9 @@ sub show_grid {
 #
 # Print the job queue.
 #
-sub show_queue {
+sub _PrintQueue {
 	
-	my ($jobs, $allnodes, $users, $queues) = @_;
+	my ($jobs, $users, $queues) = @_;
 	
 	my $format_base     = "%-6s %-15.15s %-12.12s %-40.40s %1s";
 	my $format_cpu      = " %6.6s";
@@ -985,154 +1048,139 @@ sub show_queue {
 	attroff($pad, A_BOLD);
 	move($pad, ++$y, $x = 0);
 	
-	# TODO: Note: we never print the server name as we expected users will recognize their jobs by jobID or queue name.
+	#
+	# Note: we never print the server name as we expected users will recognize their jobs by jobID or queue name.
+	#
 	
 	#
 	# Print jobs sorted by Server followed by JobID.
 	#
-	foreach my $job (sort{defined($jobs->{$a}{server}) && defined($jobs->{$b}{server}) && $jobs->{$a}{server} cmp $jobs->{$b}{server} or $a <=> $b} keys(%{$jobs})) {
+	foreach my $job (sort{defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'} or $a <=> $b} keys(%{$jobs})) {
 		
 		if ($y >= $maxrows ) {
-			printwarning('WARN: too many jobs -> queue display truncated. Increase $maxrows or use one of the filter commands.');
+			_PrintWarning('WARN: too many jobs -> queue display truncated. Increase $maxrows or use one of the filter commands.');
 			return;
 		}
 		
-		my $l         = $jobs->{$job}{letter};
-		my $color     = $jobs->{$job}{color};
-		my $underline = $jobs->{$job}{underline};
-		my $user      = $jobs->{$job}{user};
-		my $queue     = $jobs->{$job}{queue};
-		my $node      = 'NAmissingUndefined';
-		my $cpu_u;
-		my $cpu_r;
-		my $mem_u;
-		my $mem_r;
+		#
+		# Get job details required to determine if this job will be displayed or skipped.
+		#
+		my $job_name = $jobs->{$job}{'jname'};
+		my $user     = $jobs->{$job}{'user'};
+		my $queue    = $jobs->{$job}{'queue'};
+		my $state    = $jobs->{$job}{'state'};
+		my $node     = defined($jobs->{$job}{'node'}) ? $jobs->{$job}{'node'}  : '-';
 		
-		if (defined($jobs->{$job}{node})) {
-			$node = $jobs->{$job}{node};
-		}
+		#
+		# Skip this job if display was not requested.
+		#
+		next unless ($show_job_id   ? $show_job_id   =~ m/\b$job\b/ : 1);
+		next unless ($show_user     ? $show_user     =~ m/\b$user\b/ : 1);
+		next unless ($state =~ m/[TREC]/ && $show_node ? $show_node =~ /\b$node\b/ : 1);
+		next if ($state =~ m/[^TREC]/ && $show_qqueue == 0);
+		
+		#
+		# Get job details that determine how the job will be displayed. 
+		#
+		my $l         = $jobs->{$job}{'letter'};
+		my $underline = $jobs->{$job}{'underline'};
+		my $color     = $jobs->{$job}{'color'};
 		if ($color_by eq 'user') {
-			$color = $users->{$user}{color};
+			$color = $users->{$user}{'color'};
 		} elsif ($color_by eq 'queue') {
-			$color = $queues->{$queue}{color};
+			$color = $queues->{$queue}{'color'};
+		} elsif ($color_by eq 'resources') {
+			$color = 7; # white on black.
+			if (defined($jobs->{$job}{'cpu_s'}) && defined($jobs->{$job}{'mem_s'})) {
+				my $cpu_s = $jobs->{$job}{'cpu_s'};
+				my $mem_s = $jobs->{$job}{'mem_s'};
+				if ($cpu_s eq '=' && $mem_s eq '=') {
+					$color = $resource_usage_state_colors{'='};
+				} else {
+					if ($cpu_s eq '<' || $mem_s eq '<') {
+						$color = $resource_usage_state_colors{'<'};
+					}
+					if ($cpu_s eq '>' || $mem_s eq '>') {
+						$color = $resource_usage_state_colors{'>'};
+					}
+				}
+			}
 		}
 		
-		next
-		  unless $show_user ? $show_user =~ /\b$jobs->{$job}{user}\b/ : 1;
-		
-		next
-		  unless $show_node ? $show_node =~ /\b$node\b/ : 1;
-		
-		if (!($jobs->{$job}{state} =~ /Q|H/ and !$show_qqueue)) {
-			addstr($pad, "  ");
-			if (defined $l and $jobs->{$job}{state} eq "R") {
-				print_colored_letter($l, $color, $underline);
-				addstr($pad, " = ");
-			} else {
-				addstr($pad, "    ");
-			}
-			
-			if (defined($jobs->{$job}{cputime_u}) && defined($jobs->{$job}{walltime_u})) {
-				my @cputime = reverse(split(':', $jobs->{$job}{cputime_u}));
-				my $cputime_sec = $cputime[0] + ($cputime[1] * 60) + ($cputime[2] * 3600);
-				my @walltime = reverse(split(':', $jobs->{$job}{walltime_u}));
-				my $walltime_sec = $walltime[0] + ($walltime[1] * 60) + ($walltime[2] * 3600);
-				if ($walltime_sec > 0) {
-					$cpu_u = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
-				}
-				#printwarning("DEBUG: walltime_sec = $walltime[0] | $walltime[1] | $walltime[2]");
-				#printwarning("DEBUG: cputime = $jobs->{$job}{cputime_u} | walltime = $jobs->{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
-			}
-			
-			if (defined($jobs->{$job}{cores_r})) {
-				$cpu_r = $jobs->{$job}{cores_r} * 100;
-			}
-			
-			if (defined($jobs->{$job}{mem_u})) {
-				$mem_u = sprintf("%.1f", $jobs->{$job}{mem_u});
-			}
-			
-			if (defined($jobs->{$job}{mem_r})) {
-				$mem_r = $jobs->{$job}{mem_r};
-			}
-			
-			#
-			# Print base job info.
-			#
-			addstr($pad, sprintf($format_base, 
-				$job, 
-				$jobs->{$job}{user}, 
-				$jobs->{$job}{queue}, 
-				$jobs->{$job}{jname}, 
-				$jobs->{$job}{state}, 
-			));
-			
-			#
-			# Print job's CPU info.
-			#
-			if (defined($cpu_u)) {
-				if ($colorize && defined($cpu_r)) {
-					my $color = 7; # white on black.
-					if (($cpu_u / $cpu_r) < $res_usage_low) {
-						$color  = 3;
-					} elsif (($cpu_u / $cpu_r) > $res_usage_high) {
-						$color = 1;
-					} else {
-						$color = 2;
-					}
-					attron($pad, A_BOLD | COLOR_PAIR($color));
-					addstr($pad, sprintf($format_cpu, $cpu_u));
-					attroff($pad, A_BOLD | COLOR_PAIR($color));
-				} else {
-					addstr($pad, sprintf($format_cpu, $cpu_u));
-				}
-			} else {
-				addstr($pad, sprintf($format_cpu, ''));
-			}
-			addstr($pad, sprintf($format_cpu, 
-				defined($cpu_r) ? $cpu_r : ''
-			));
-			
-			#
-			# Print job's memory info.
-			#
-			$color = 7; # reset to white on black.
-			if (defined($mem_u)) {
-				if ($colorize && defined($mem_r)) {
-					my $color = 7; # white on black.
-					if (($mem_u / $mem_r) < $res_usage_low) {
-						$color  = 3;
-					} elsif (($mem_u / $mem_r) > $res_usage_high) {
-						$color = 1;
-					} else {
-						$color = 2;
-					}
-					attron($pad, A_BOLD | COLOR_PAIR($color));
-					addstr($pad, sprintf($format_mem, $mem_u));
-					attroff($pad, A_BOLD | COLOR_PAIR($color));
-				} else {
-					addstr($pad, sprintf($format_mem, $mem_u));
-				}
-			} else {
-				addstr($pad, sprintf($format_mem, ''));
-			}
-			addstr($pad, sprintf($format_mem, 
-				defined($mem_r) ? $mem_r : ''
-			));
-			
-			#
-			# Print job's walltime info.
-			#
-			addstr($pad, sprintf($format_walltime, 
-				defined($jobs->{$job}{walltime_u}) ? $jobs->{$job}{walltime_u} : ''
-			));
-			addstr($pad, sprintf($format_walltime, 
-				defined($jobs->{$job}{walltime_r}) ? $jobs->{$job}{walltime_r} : ''
-			));
-			
-			clrtoeol($pad);
-			move($pad, ++$y, $x = 0);
+		addstr($pad, '  ');
+		if (defined($l) and $jobs->{$job}{'state'} eq 'R') {
+			_PrintColoredLetter($l, $color, $underline);
+			addstr($pad, ' = ');
+		} else {
+			addstr($pad, '    ');
 		}
+		
+		
+		#
+		# Print base job info.
+		#
+		addstr($pad, sprintf($format_base, 
+			$job, 
+			$jobs->{$job}{'user'}, 
+			$jobs->{$job}{'queue'}, 
+			$jobs->{$job}{'jname'}, 
+			$jobs->{$job}{'state'}
+		));
+		#_PrintWarning('DEBUG: Job ' . $job .' | user '. $jobs->{$job}{'user'} . ' | queue ' . $jobs->{$job}{'queue'} . ' | state ' . $jobs->{$job}{'state'} . '.');
+		
+		#
+		# Print job's CPU info.
+		#
+		if (defined($jobs->{$job}{'cpu_u'})) {
+			my $cpu_u = $jobs->{$job}{'cpu_u'};
+			if ($colorize && defined($jobs->{$job}{'cpu_s'})) {
+				my $state = $jobs->{$job}{'cpu_s'};
+				attron($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
+				addstr($pad, sprintf($format_cpu, $cpu_u));
+				attroff($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
+			} else {
+				addstr($pad, sprintf($format_cpu, $cpu_u));
+			}
+		} else {
+			addstr($pad, sprintf($format_cpu, ''));
+		}
+		addstr($pad, sprintf($format_cpu, 
+			defined($jobs->{$job}{'cpu_r'}) ? $jobs->{$job}{'cpu_r'} : ''
+		));
+		
+		#
+		# Print job's memory info.
+		#
+		if (defined($jobs->{$job}{'mem_u'})) {
+			my $mem_u = $jobs->{$job}{'mem_u'};
+			if ($colorize && defined($jobs->{$job}{'mem_s'})) {
+				my $state = $jobs->{$job}{'mem_s'};
+				attron($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
+				addstr($pad, sprintf($format_mem, $mem_u));
+				attroff($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
+			} else {
+				addstr($pad, sprintf($format_mem, $mem_u));
+			}
+		} else {
+			addstr($pad, sprintf($format_mem, ''));
+		}
+		addstr($pad, sprintf($format_mem, 
+			defined($jobs->{$job}{'mem_r'}) ? $jobs->{$job}{'mem_r'} : ''
+		));
+		
+		#
+		# Print job's walltime info.
+		#
+		addstr($pad, sprintf($format_walltime, 
+			defined($jobs->{$job}{'walltime_u'}) ? $jobs->{$job}{'walltime_u'} : ''
+		));
+		addstr($pad, sprintf($format_walltime, 
+			defined($jobs->{$job}{'walltime_r'}) ? $jobs->{$job}{'walltime_r'} : ''
+		));
+		
+		clrtoeol($pad);
+		move($pad, ++$y, $x = 0);
+		
 	}
 	
 	clrtoeol($pad);
@@ -1141,44 +1189,44 @@ sub show_queue {
 #
 # Assign a letter to each job.
 #
-sub letterize {
+sub _Letterize {
 	
-	my $Jobs = shift;
+	my ($jobs) = @_;
 	
 	#
-	# %Job_of_letter is only used to note the fact that _someone_ is using that letter.
+	# %job_of_letter is only used to note the fact that _someone_ is using that letter.
 	# If a job gets a letter that is already assigned, 
-	# the second one will be noted in %Job_of_letter,
+	# the second one will be noted in %job_of_letter,
 	# which is Ok because we don't care _who_ has that letter.
 	
 	#
 	# Remove info about old jobs and jobs already assigned a letter.
 	#
-	foreach my $l (keys %Job_of_letter) {
-		delete $Job_of_letter{$l}
-		  if (exists $Jobs->{ $Job_of_letter{$l} }{user});
+	foreach my $l (keys(%job_of_letter)) {
+		delete $job_of_letter{$l}
+		  if (exists($jobs->{$job_of_letter{$l}}{user}));
 	}
 	
 	#
 	# Pick a letter if not already choosen.
 	#
-	foreach my $job (keys %{$Jobs}) {
-		next if !defined $Jobs->{$job}{state};
-		next if $Jobs->{$job}{state} eq "Q";
-		my $user = $Jobs->{$job}{user};
-		if (!exists $Jobs->{$job}{letter}) {
+	foreach my $job (keys(%{$jobs})) {
+		next if (!defined($jobs->{$job}{'state'}));
+		next if ($jobs->{$job}{'state'} eq 'Q');
+		my $user = $jobs->{$job}{user};
+		if (!exists($jobs->{$job}{letter})) {
 			#
 			# Find a letter that isn't already taken.
 			#
 			my $l = substr($user, 0, 1);
-			if (exists $Job_of_letter{$l}) {
+			if (exists($job_of_letter{$l})) {
 				$l = uc($l);
-				if (exists $Job_of_letter{$l}) {
-					if (length $letters <= 0) {
+				if (exists($job_of_letter{$l})) {
+					if (length($letters) <= 0) {
 						#
 						# Replenish our supply of letters.
 						#
-						$colorize or printwarning("WARN: Reusing letters on B&W terminal.");
+						$colorize or _PrintWarning('WARN: Reusing letters on B&W terminal.');
 						$letters   = $masterletters;
 						$underline = !$underline;
 					}
@@ -1186,9 +1234,9 @@ sub letterize {
 					$l = $1;
 				}
 			}
-			$Job_of_letter{$l}       = $job;
-			$Jobs->{$job}{letter}    = $l;
-			$Jobs->{$job}{underline} = $underline;
+			$job_of_letter{$l}       = $job;
+			$jobs->{$job}{letter}    = $l;
+			$jobs->{$job}{underline} = $underline;
 			if ($l =~ m/[^a-zA-Z0-9_]/) {
 				$l = '\\' . "$l";
 			}
@@ -1200,39 +1248,46 @@ sub letterize {
 #
 # Assign a color to each job, user and queue.
 #
-sub colorize {
-	my ($Jobs, $Users, $Queues) = @_ or return;
+sub _Colorize {
+	my ($jobs, $users, $queues) = @_ or return;
 	
-	foreach my $job (keys %{$Jobs}) {
-		next if defined $Jobs->{$job}{color};
+	foreach my $job (keys %{$jobs}) {
+		next if (defined($jobs->{$job}{color}));
 		
-		scalar @Colors == 0 and @Colors = init_colors();
-		my $color = shift @Colors;
-		$Jobs->{$job}{color} = $color;
+		scalar(@colors == 0) and @colors = _InitColors();
+		my $color = shift(@colors);
+		$jobs->{$job}{color} = $color;
 		
-		my $user  = $Jobs->{$job}{user};
-		my $queue = $Jobs->{$job}{queue};
-		$Users->{$user}{color}   = $color unless defined($Users->{$user}{color});
-		$Queues->{$queue}{color} = $color unless defined($Queues->{$queue}{color});
+		my $user  = $jobs->{$job}{user};
+		my $queue = $jobs->{$job}{queue};
+		$users->{$user}{color}   = $color unless (defined($users->{$user}{color}));
+		$queues->{$queue}{color} = $color unless (defined($queues->{$queue}{color}));
 	}
+}
+
+sub _InitColors {
+	return (1 .. ($COLOR_PAIRS - 1 > $pr ? $pr : $COLOR_PAIRS - 1));
 }
 
 # This sucks, I wanted to seperate printing from colors,
 # but I can't just pass back color escape strings.
 # I'm forced to combine them here.
-sub print_colored_letter {
+sub _PrintColoredLetter {
 	my ($letter, $color, $underline) = @_;
-	$colorize or do { addstr($pad, $letter); return };
-	#printwarning("DEBUG: color = $color");
-	attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
-	addstr($pad, $letter);
-	attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+	if ($colorize) {
+		#_PrintWarning("DEBUG: color = $color");
+		attron($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+		addstr($pad, $letter);
+		attroff($pad, A_BOLD | COLOR_PAIR($color) | ($underline && A_UNDERLINE));
+	} else {
+		addstr($pad, $letter);
+	}
 }
 
 #
-# Used to find the longest hostnames to align the left side of the node grid.
+# Used to find the longest hostnames to align the left side of the grid.
 #
-sub get_max_key_len {
+sub _GetMaxKeyLength {
 	my ($hash) = @_;
 	my $max_length = 0;
 	foreach my $value (keys(%{$hash})) {
@@ -1245,28 +1300,23 @@ sub get_max_key_len {
 }
 
 #
-# Prints each character representing each core in the node grid.
+# Prints each character representing each core in the grid.
 #
-sub printcpustate {
+sub _PrintCoreState {
 	
 	my ($job, $letter, $state, $color, $underline) = @_;
 	
 	if ($job) {
-		printwarning("WARN: $job has no letter.") unless $letter;
+		_PrintWarning("WARN: $job has no letter.") unless $letter;
 		$letter = '&' unless $letter;
 	}
 	
-	#
-	# TODO: I'm ignoring job-sharing here because I've never seen it used.
-	# TODO: It would be more correct to use the constants defined in pbs_ifl.h,
-	# TODO: but that would break compatibility with non-perl-PBS environments.
-	#
 	if ($state =~ /down/ and $job) {
-		print_colored_letter($letter, $color, $underline);
+		_PrintColoredLetter($letter, $color, $underline);
 	} elsif ($job and $show_jobs) {
-		print_colored_letter($letter, $color, $underline);
+		_PrintColoredLetter($letter, $color, $underline);
 	} elsif ($state =~ /down/) {
-		#print_colored_letter($state_characters{'down'}, 1, 0);    # Color pair 1 is red on black
+		#_PrintColoredLetter($state_characters{'down'}, 1, 0);    # Color pair 1 is red on black
 		addch($pad, $state_characters{'down'});
 	} elsif ($state =~ /offline/) {
 		addch($pad, $state_characters{'offline'});
@@ -1286,54 +1336,58 @@ sub printcpustate {
 }
 
 #
-# Print the list of visible CPUs above the node grid.
+# Print the list of visible CPUs above the grid.
 #
-sub printvcpuline {
+sub _PrintVcpuLine {
 	
 	my ($max_server_length, $max_node_length) = shift;
 	
 	# inform the user of the visible CPUs.
 	if (scalar(@show_cpu) == 1) {
-		addstr($pad, "  CPU $show_cpu[0]" . " " x ($max_server_length + 1 + $max_node_length - 4));
+		addstr($pad, "  CPU $show_cpu[0]" . ' ' x ($max_server_length + 1 + $max_node_length - 4));
 	#} elsif ( scalar @show_cpu == $maxprocs ) {
 	#	addstr($pad, '   ' . ' ' x ($maxlen));
 	} else {
 		addstr($pad, ' ' x ($X - 1));
 		move($pad, $y, 0);
-		addstr($pad, ' visible CPUs: ' . join(",", @show_cpu));
+		addstr($pad, ' visible CPUs: ' . join(',', @show_cpu));
 	}
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
 }
 
-# Print the line of dashes above and below the node grid.
-sub printdashline {
+#
+# Print the line of dashes above and below a node in the grid.
+#
+sub _PrintDashLine {
 	
 	my ($max_server_length, $max_node_length, $spaces, $columns) = @_;
 	
-	my $line = "   " . " " x ($max_server_length + 1 + $max_node_length);
+	my $line = '   ' . ' ' x ($max_server_length + 1 + $max_node_length);
 	for (my $i = 0 ; $i < $columns ; $i++) {
-		$line .= "--" if ($i != 0 and $i % 10 == 0);
-		$line .= "-" . "-" x $spaces;
+		$line .= '--' if ($i != 0 and $i % 10 == 0);
+		$line .= '-' . '-' x $spaces;
 	}
-	$line =~ s/-$//;    # oops, we printed one extra, erase it
+	$line =~ s/-$//; # Create one dash too much; delete it.
 	addstr($pad, $line);
 	clrtoeol($pad);
 	move($pad, ++$y, $x = 0);
 }
 
-# Print the repetitive line of numbers along the top of the node grid.
-sub printnumberline {
+#
+# Print the line of sequenctial numbers for the cores along the top of the grid.
+#
+sub _PrintNumberLine {
 	
 	my ($max_server_length, $max_node_length, $spaces, $columns) = @_;
 	
 	my $line = '  ' . sprintf("%${max_server_length}s", 'scheduler') . ' ' . sprintf("%${max_node_length}s", 'node') . ' ';
 	for (my $i = 0, my $j = 0 ; $i < $columns ; $i++, $j++) {
 		if ($i != 0 and $i % 10 == 0) {
-			$line .= "  ";
+			$line .= '  ';
 			$j = 0;
 		}
-		$line .= (($j + 1) % 10) . " " x $spaces;
+		$line .= (($j + 1) % 10) . ' ' x $spaces;
 	}
 	addstr($pad, $line);
 	addstr($pad, sprintf "%6s ", 'load');
@@ -1342,22 +1396,22 @@ sub printnumberline {
 	
 }
 
-# This is used in top_sleep to annoy the user.
-sub printwarning {
+#
+# This is used in _TopSleep to inform the user.
+#
+sub _PrintWarning {
+	my ($message) = @_;
 	attron($cmdwin, A_REVERSE);
-	addstr($cmdwin, 0, 0, join(" ", @_));
+	addstr($cmdwin, 0, 0, "$message");
 	attroff($cmdwin, A_REVERSE);
+	clrtoeol($cmdwin);
 	refresh($cmdwin);
 }
 
 #
 # Get input from user on commandline.
 #
-# Used in top_sleep to solicit the user.
-# 'getstring' is a subroutine from the Curses module that is redefined here
-# to handle control characters like backspace, delete and timeouts.
-#
-sub getstring {
+sub _GetString {
 	
 	my ($question) = @_;
 	
@@ -1373,13 +1427,11 @@ sub getstring {
 	$x = $question_length;
 	clrtoeol($cmdwin);
 	refresh($cmdwin);
-	#echo;
 	nodelay($cmdwin, 0);
 	
 	#
 	# Get answer from user.
 	#
-	#$char = getch($cmdwin);
 	while (1) {
 		my ($char, $key) = getch($cmdwin);
 		next unless (defined($char));
@@ -1387,25 +1439,22 @@ sub getstring {
 			# ERR returned on timeout.
 			next;
 		#
-		# When your terminal is not configured correctly the backspace character may have a different ASCII number
-		# in most but not all cases this is then character number 127 (DEL). Preferably try to fix your terminal 
-		# config, b ut if that does not help, switch the comment for the 2 lines below to treat char 127 as backspace.
+		# When your terminal is not configured correctly the backspace character may have a different ASCII number.
+		# In most but not all cases this is then character number 127 (DEL). Preferably try to fix your terminal config, 
+		# but if that does not help, switch the comment for the 2 lines below to treat char 127 as backspace.
 		#
 		#} elsif ($char eq KEY_BACKSPACE or $char eq "$CTRL_H" or $char eq "\cH" or ord($char) == 127) {
 		} elsif ($char eq KEY_BACKSPACE or $char eq "$CTRL_H" or $char eq "\cH") {
 			#
 			# User corrected typo using backspace.
 			#
-			#printwarning('KEY_BACKSPACE was pressed but it is mapped to ' . KEY_BACKSPACE);
+			#_PrintWarning('DEBUG: KEY_BACKSPACE was pressed but it is mapped to ' . KEY_BACKSPACE);
 			if (length($input) > 0) {
 				$x--;
 				move($cmdwin, 0, $x);
 				delch($cmdwin);
 				refresh($cmdwin);
 				substr($input, $x - $question_length, 1, '');
-				#$input =~ s/.$//;
-			#} elsif ($char eq KEY_BACKSPACE) {
-			#	move($cmdwin, 0, $x);
 			}
 		} elsif ($char eq KEY_DC) {
 			#
@@ -1440,13 +1489,14 @@ sub getstring {
 			#
 			last;
 		} else {
+			my $current_position_offset = $x - $question_length;
+			substr($input, $current_position_offset, 0, $char);
+			insch($cmdwin, $char);
 			$x++;
-			$input .= $char;
-			echochar($cmdwin, $char);
-			#refresh($cmdwin);
+			move($cmdwin, 0, $x);
+			refresh($cmdwin);
 		}
 	}
-	#noecho;
 	move($cmdwin, 0, 0);
 	clrtoeol($cmdwin);
 	refresh($cmdwin);
@@ -1455,100 +1505,41 @@ sub getstring {
 
 sub print_serverstatus_window {
 	my $server = shift;
-	destroy_subwin();
-	printwarning("TODO: This information is not available without perl-PBS");
+	_DestroySubWindow();
+	_PrintWarning("TODO: This information is not available without perl-PBS");
 	return;
 	
 	my $con = pbs_connect($server);
 	if ($con <= 0) {
-		destroy_subwin();
-		printwarning("Connect to $server failed: $PBS::pbs_errno\n");
+		_DestroySubWindow();
+		_PrintWarning("Connect to $server failed: $PBS::pbs_errno\n");
 		return;
 	}
 	my $ref = pbs_statserver($con, undef, undef);
 	pbs_disconnect($con);
-	print_status_window("$server", $ref->[0]->{attribs});
+	_PrintSubWindow("$server", $ref->[0]->{attribs});
 }
 
-# since we don't store enough info about jobs in %Jobs, go ahead and get
+# since we don't store enough info about jobs in %jobs, go ahead and get
 # it from the server
 sub print_jobstatus_window {
 	my $job    = shift;
 	my $server = shift;
-	destroy_subwin();
-	printwarning("TODO: This information is not available without perl-PBS");
+	_DestroySubWindow();
+	_PrintWarning("TODO: This information is not available without perl-PBS");
 	return;
 	
 	my $con = pbs_connect($server);
 	if ($con <= 0) {
-		destroy_subwin();
-		printwarning("Connect to $server failed: $PBS::pbs_errno\n");
+		_DestroySubWindow();
+		_PrintWarning("Connect to $server failed: $PBS::pbs_errno\n");
 		return;
 	}
 	
 	my $ref = pbs_statjob($con, "$job.$server", undef, undef);
 	pbs_disconnect($con);
 	
-	print_status_window("$job.$server", $ref->[0]->{attribs}, "'l' for node load report");
-
-}
-
-sub print_jobloadstatus_window {
-	my $job      = shift;
-	my $server   = shift;
-	my $allnodes = shift;
-	
-	my @loads;
-	my $value;
-	my $freephys;
-	my $sessions;
-	foreach $server (sort keys %{$allnodes}) {
-	  NODE:
-		foreach my $node (sort keys %{ $allnodes->{$server} }) {
-			foreach my $this_cpu (0 .. $allnodes->{$server}{$node}{np} - 1) {
-				if (    exists $allnodes->{$server}{$node}{job}{$this_cpu}
-					and exists $allnodes->{$server}{$node}{status}{loadave})
-				{
-					if ($job eq $allnodes->{$server}{$node}{job}{$this_cpu}) {
-						$value = "load: " . $allnodes->{$server}{$node}{status}{loadave};
-						{    # yes, I'm TOTALLY cheating here.  Sue me.
-							local $^W = 0;
-							$freephys = int(($allnodes->{$server}{$node}{status}{physmem} - ($allnodes->{$server}{$node}{status}{totmem} - $allnodes->{$server}{$node}{status}{availmem})) / 1024);
-							$sessions =
-							  ($allnodes->{$server}{$node}{status}{nsessions} =~ /^\?/)
-							  ? 0
-							  : $allnodes->{$server}{$node}{status}{nsessions};
-							
-							#: scalar (split / /,$allnodes->{$server}{$node}{status}{sessions});
-							$value .= "  physmem: " . int($allnodes->{$server}{$node}{status}{physmem} / 1024) . "MB";
-							$value .= " avail: ${freephys}MB";
-							$value .= "  sessions: $sessions";
-							
-						}
-						push(
-							@loads,
-							{
-								name  => $node,
-								value => $value
-							}
-						);
-						next NODE;
-					}
-				}
-			}
-		}
-	}
-	
-	if (scalar @loads < 1) {
-		push(
-			@loads,
-			{
-				name  => "load report",
-				value => "The job has ended, or the server is too old"
-			}
-		);
-	}
-	print_status_window("$job Load Report", \@loads, "'l' for job details");
+	_PrintSubWindow("$job.$server", $ref->[0]->{attribs}, "'l' for node load report");
 
 }
 
@@ -1562,8 +1553,8 @@ sub print_nodestatus_window {
 	while (($name, $value) = each %{ $ref->{status} }) {
 		push(@attrs, { name => $name, value => $value });
 	}
-	push(@attrs, { name => "ntype", value => $ref->{ntype} });
-	push(@attrs, { name => "state", value => $ref->{state} });
+	push(@attrs, { name => "ntype", value => $ref->{'ntype'} });
+	push(@attrs, { name => "state", value => $ref->{'state'} });
 	if (exists $ref->{properties}) {
 		push(@attrs, { name => "properties", value => $ref->{properties} });
 	}
@@ -1579,27 +1570,18 @@ sub print_nodestatus_window {
 	}
 	
 	#push(@attrs, { name => "multiple", value => $multiplejob });
-	print_status_window("$nodename", \@attrs, "'j' for job details on CPU0");
+	_PrintSubWindow("$nodename", \@attrs, "'j' for job details on CPU0");
 	
 }
 
 #
 # This is used by the subs above to actually paint the subpad.
 #
-sub print_status_window {
+sub _PrintSubWindow {
 	
-	my $title    = shift;
-	my $ref      = shift;
-	my $epilogue = shift;
+	my ($title, $ref, $epilogue) = @_;
 	
 	my $line = 1;
-	my $string;
-	my $maxlinelen;
-	my $pat;
-	my $indent;
-	
-	my $name;
-	my $value;
 	
 	#
 	# Subwin's width is 8 fewer than the main win, and with 2 chars padding inside,
@@ -1623,38 +1605,34 @@ sub print_status_window {
 	}
 	
 	#
-	# TODO:# do we need to properly destroy the subpads?
+	# TODO: Do we need to properly destroy the subpads?
 	#
 	$subwin = subpad($pad, $subpad_heigth, $subpad_width, 2, 5);
 	
-	$subwin or die "FATAL: Failed to print_status_window. X = $X | Y = $Y | maxcolumns = $maxcolumns | maxrows = $maxrows";
+	$subwin or die "FATAL: Failed to _PrintSubWindow. X = $X | Y = $Y | maxcolumns = $maxcolumns | maxrows = $maxrows";
 	move($subwin, $line, 0);
 	clrtoeol($subwin);
 	move($subwin, $line, 2);
 	
 	foreach my $attr (@{$ref}) {
-		$name       = $attr->{name};
-		$value      = $attr->{value};
-		$indent     = length($name) + 2 + 3;     # 2 for padding, 3 for " = "
-		$maxlinelen = $subpad_width - $indent;
-		$pat        = ".{1,$maxlinelen}";
+		my $name       = $attr->{name};
+		my $value      = $attr->{value};
+		my $indent     = length($name) + 2 + 3;     # 2 for padding, 3 for " = "
+		my $maxlinelen = $subpad_width - $indent;
+		my $pattern    = ".{1,$maxlinelen}";
 		
 		addstr($subwin, $name . " = ");
-		$string = $value;
+		my $string = $value;
 		
 		if ((length($string) + $indent) > $maxlinelen) {
 			while (length($string)) {
-				
 				move($subwin, $line, $indent);
-				$string =~ s/($pat)// or die "FATAL: Cannot truncate '$string' using regex '$pat'";
+				$string =~ s/($pattern)// or die "FATAL: Cannot truncate '$string' to max line length of $maxlinelen characters.";
 				addstr($subwin, "$1");
 				clrtoeol($subwin);
 				move($subwin, ++$line, 0);
 				clrtoeol($subwin);
 				move($subwin, $line, 2);
-				
-				$indent = 7;
-				
 			}
 			move($subwin, $line, 0);
 			clrtoeol($subwin);
@@ -1679,7 +1657,9 @@ sub print_status_window {
 	move($subwin, ++$line, 0);
 	clrtoeol($subwin);
 	
-	# make a nice box window border for our output
+	#
+	# Create a nice box by adding a border to the window.
+	#
 	resize($subwin, $line + 2, $X - 10);
 	attron($subwin, COLOR_PAIR(1));
 	box($subwin, &ACS_VLINE, &ACS_HLINE);
@@ -1695,7 +1675,7 @@ sub print_status_window {
 
 }
 
-sub update_subwin {
+sub _UpdateSubWindow {
 	$subwin or return;
 	if ($searchobject{TYPE} eq "SERVER") {
 		print_serverstatus_window($searchobject{VALUE});
@@ -1706,12 +1686,12 @@ sub update_subwin {
 	} elsif ($searchobject{TYPE} eq "JOBLOAD") {
 		print_jobloadstatus_window($searchobject{VALUE}, $searchobject{SERVER}, $_[1]);
 	} else {
-		printwarning("oddly, I'm on line " . __LINE__);
+		_PrintWarning("oddly, I'm on line " . __LINE__);
 	}
 	pnoutrefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
 }
 
-sub destroy_subwin {
+sub _DestroySubWindow {
 	$subwin       = 0;
 	%searchobject = ();
 	$subY         = 0;
@@ -1723,9 +1703,322 @@ sub destroy_subwin {
 }
 
 #
-# TODO: top_sleep() is a kludge that just keeps growing...
+# Print online help for interactive mode.
 #
-sub top_sleep {
+# TODO: $helpwin should be a scrollable pad.
+#
+sub _PrintHelpWindow {
+	
+	my $helpwin = newwin($maxrows, $maxcolumns, 0, 0);
+	attron($helpwin, A_REVERSE | A_BOLD | COLOR_PAIR(3));
+	addstr($helpwin, "     ctop v$VERSION     ");
+	attroff($helpwin, A_REVERSE | A_BOLD | COLOR_PAIR(3));
+	move($helpwin, 2, 0);
+	addstr($helpwin, "Current settings: \n\n");
+	addstr($helpwin, '  Refresh ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, "$sleeptime seconds\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Grid width ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, "$columns cores\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Colorization ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $colorize ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	if ($colorize) {
+		addstr($helpwin, '  Color by ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, "$color_by\n");
+		attroff($helpwin, A_BOLD);
+	}
+	addstr($helpwin, '  State summary display ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $show_summary ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Grid display ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $show_grid ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Display jobs in grid ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $show_jobs ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Load = ');
+	attron($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
+	addstr($helpwin, 'Ok');
+	attroff($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
+	addstr($helpwin, '        indicates ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, 'requested cores - ' . $healthy_load_stdev . ' <= load <= requested cores + ' . $healthy_load_stdev . "\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Load = ');
+	attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+	addstr($helpwin, 'too low!');
+	attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+	addstr($helpwin, '  indicates ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, 'load < requested cores - ' . $healthy_load_stdev . "\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Load = ');
+	attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+	addstr($helpwin, 'TOO HIGH!');
+	attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+	addstr($helpwin, ' indicates ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, 'load > requested cores + ' . $healthy_load_stdev . "\n");
+	attroff($helpwin, A_BOLD);
+	#addstr($helpwin, "  Show CPU Number ");
+	#attron( $helpwin, A_BOLD );
+	#addstr($helpwin, join( " ", @show_cpu ) . "\n");
+	#attroff( $helpwin, A_BOLD );
+	addstr($helpwin, '  Showing jobs from: ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, join(" ", @host) . "\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Queue display ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $show_queue ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	addstr($helpwin, '  Show queued jobs ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, $show_qqueue ? "on\n" : "off\n");
+	attroff($helpwin, A_BOLD);
+	if ($colorize) {
+		addstr($helpwin, '  CPU/Mem ');
+		attron($helpwin, A_BOLD | COLOR_PAIR(2));
+		addstr($helpwin, 'healthy resource usage ');
+		attroff($helpwin, A_BOLD | COLOR_PAIR(2));
+		addstr($helpwin, ' indicates ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, $res_usage_low . ' <= (used / requested) <= ' . $res_usage_high . "\n");
+		attroff($helpwin, A_BOLD);
+		addstr($helpwin, '  CPU/Mem ');
+		attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+		addstr($helpwin, 'inefficiently low usage');
+		attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+		addstr($helpwin, ' indicates ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, '(used / requested) < ' . $res_usage_low . "\n");
+		attroff($helpwin, A_BOLD);
+		addstr($helpwin, '  CPU/Mem ');
+		attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+		addstr($helpwin, 'dangerously high usage ');
+		attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+		addstr($helpwin, ' indicates ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, '(used / requested) > ' . $res_usage_high . "\n");
+		attroff($helpwin, A_BOLD);
+	}
+	addstr($helpwin, '  Number of possible colors ');
+	attron($helpwin, A_BOLD);
+	addstr($helpwin, "$COLOR_PAIRS\n");
+	attroff($helpwin, A_BOLD);
+	if ($show_user) {
+		addstr($helpwin, '  Limiting job view to user(s) ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, "$show_user\n");
+		attroff($helpwin, A_BOLD);
+	}
+	if ($show_node) {
+		addstr($helpwin, '  Limiting job view to node(s) ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, "$show_node\n");
+		attroff($helpwin, A_BOLD);
+	}
+	if ($show_job_id && $show_job_id ne '!') {
+		my @jobs_selected = split(' ', $show_job_id);
+		my $job_count = scalar(@jobs_selected);
+		addstr($helpwin, '  Limiting job view to ');
+		attron($helpwin, A_BOLD);
+		addstr($helpwin, $job_count . ' job(s) from search result.' . "\n");
+		attroff($helpwin, A_BOLD);
+	}
+	addstr($helpwin, <<"__EOHELP__");
+
+Interactive commands are:
+
+  [space] Update Display.
+  q       Quit.
+  h       Print this Help.
+  c       Color cores in grid display by job, user, queue or resource usage.
+  u       Show only jobs for a subset of Users.
+             Accepts comma seprated list for multiple users.
+  n       Show only jobs for a subset of Nodes.
+             Accepts comma separated list for multiple nodes (e.g. 02,05,10).
+             Accepts dash separated range of node (e.g. 02-07).
+  s       Seconds to refresh.
+  t       Toggle display of "waiting" jobs in the queue display.
+             Waiting jobs include jobs with job states:
+                H: Job is held due to unsatisfied dependency.
+                Q: Job is queued, eligible to run or routed.
+                W: Job is waiting for its execution start time (-a option) to be reached.
+                S: Job is suspended.
+             Active jobs include jobs with job states: 
+                T: Job is being transferred to a node.
+                R: Job is running on a node.
+                E: Job is exiting after having run on a node.
+                C: Job is completed.
+  j       Toggle display of Jobs in grid display.
+  w       With of grid display in number of cores.
+  /       Search jobs and display details. Search is not case sensitive.
+             Accepts i: prefix to limit search to job IDs (e.g. i:251).
+             Accepts j: prefix to limit search to job names (e.g. j:MyExperiment).
+             Accepts n: prefix to limit search to jobs running on a node (e.g. n:3)
+             Accepts s: prefix to limit search to jobs from a server (e.g. s:scheduler02)
+             Accepts u: prefix to limit search to jobs from certain users (e.g. u:myaccount)
+             Accepts q: prefix to limit search to jobs submitted to certain queue (e.g. q:test)
+  C       Toggle Colorization.
+  S       Toggle State summary.
+  G       Toggle Grid display.
+  Q       Toggle Queue display.
+
+Press any key to continue...
+__EOHELP__
+	refresh($helpwin);
+	#
+	# Wait for the user to hit the any key.
+	#
+	cbreak;
+	nodelay($helpwin, 0);
+	getch($helpwin);
+	halfdelay(1);
+	prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+	move($cmdwin, 0, 0);
+	clrtoeol($cmdwin);
+	refresh($cmdwin);
+	delwin($helpwin);
+	
+}
+
+sub _PerformSearch {
+	
+	my ($search_pattern, $jobs) = @_;
+	my @job_ids_found;
+	my $object_type;
+	
+	#
+	# Did the user disable the filtering by providing an empty search pattern of searching for '.*'?
+	#
+	if ((!defined($search_pattern)) or $search_pattern =~ m/^\n*$/) {
+		$show_job_id = 0;
+		_PrintWarning('INFO: disabled search; showing all jobs.');
+		return;
+	} elsif ($search_pattern =~ s/^([a-z])://) {
+		#
+		# Did the user specify an object type to limit the search?
+		#
+		if ($1 eq 'i') {
+			$object_type = 'JobID';
+		} elsif ($1 eq 'j') {
+			$object_type = 'JobName';
+		} elsif ($1 eq 'n') {
+			$object_type = 'Node';
+		} elsif ($1 eq 's') {
+			$object_type = 'Server';
+		} elsif ($1 eq 'u') {
+			$object_type = 'User';
+		} elsif ($1 eq 'q') {
+			$object_type = 'Queue';
+		} else {
+			_PrintWarning('ERROR: Invalid search pattern prefix.');
+			return;
+		}
+	} else {
+		$object_type = 'Any';
+	}
+	
+	#
+	# Reset job ID filter -> show nothing.
+	#
+	$show_job_id = '';
+	
+	#
+	# Search for relevant objects in the data structure for all jobs and all nodes.
+	#
+	foreach my $job (keys(%{$jobs})) {
+		my $found = 0;
+		my $job_name = ${$jobs}{$job}{'jname'};
+		my $user     = ${$jobs}{$job}{'user'};
+		my $queue    = ${$jobs}{$job}{'queue'};
+		if ($object_type eq 'JobID' || $object_type eq 'Any') {
+			my $job_id_pattern = $search_pattern;
+			my $server;
+			if ($search_pattern =~ m/^(.+)\.[^\+\*\?\.]+$/) {
+				$job_id_pattern = $1;
+				$server = $2;
+			}
+			if ($job =~ m/$job_id_pattern/i and (!defined($server) or $jobs->{$job}{'server'} =~ m/$server/)) {
+				$found = 1;
+			}
+		}
+		if ($object_type eq 'JobName' || $object_type eq 'Any') {
+			if ($job_name =~ m/$search_pattern/i) {
+				$found = 1;
+			}
+		}
+		if ($object_type eq 'Node' || $object_type eq 'Any') {
+			if (defined($jobs->{$job}{'node'})) {
+				my $node_pattern = $search_pattern;
+				my $server;
+				if ($search_pattern =~ m/^(.+)\.[^\+\*\?\.]+$/) {
+					$node_pattern = $1;
+					$server = $2;
+				}
+				if ($jobs->{$job}{'node'} =~ m/$node_pattern/i and (!defined($server) or $jobs->{$job}{'server'} =~ m/$server/)) {
+					$found = 1;
+				}
+			}
+		}
+		if ($object_type eq 'Server' || $object_type eq 'Any') {
+			if ($jobs->{$job}{'server'} =~ m/$search_pattern/i) {
+				$found = 1;
+			}
+		}
+		if ($object_type eq 'User' || $object_type eq 'Any') {
+			if ($user =~ m/$search_pattern/i) {
+				$found = 1;
+			}
+		}
+		if ($object_type eq 'Queue' || $object_type eq 'Any') {
+			if ($queue =~ m/$search_pattern/i) {
+				$found = 1;
+			}
+		}
+		
+		if ($found) {
+			push (@job_ids_found, $job);
+		}
+	}
+	
+	#
+	# Create space separated list of job IDs for the matching jobs 
+	# that will be diplayed on referesh of the display.
+	#
+	foreach my $job (@job_ids_found) {
+		$show_job_id   .= $job . ' ';
+	}
+	$show_job_id   =~ s/ $//;
+	
+	#
+	# Check if we found anything.
+	#
+	my $jobs_found = scalar(@job_ids_found);
+	if ($jobs_found < 1) {
+		$show_job_id = '!';
+		_PrintWarning('WARN: No objects found matching ' . $search_pattern);
+	} else {
+		_PrintWarning('INFO: found ' . $jobs_found . ' job(s) matching ' . $search_pattern);
+	}
+	
+}
+
+#
+# Loop around processing user input until the timer expires 
+# and it is time to return back up to _MainLoop() for an update.
+#
+sub _TopSleep {
 	
 	my $targettime = time() + $sleeptime;
 	
@@ -1736,13 +2029,13 @@ sub top_sleep {
 			$SIGWINCH = 0;
 			endwin;
 			refresh();
-			update_display(@_);
+			_UpdateDisplay(@_);
 		}
 		if (defined $input) {
-			if ($input eq "q") {
+			if ($input eq 'q') {
 				if ($subwin) {
-					destroy_subwin();
-					update_display(@_);
+					_DestroySubWindow();
+					_UpdateDisplay(@_);
 				} else {
 					endwin;
 					exit(0);
@@ -1751,170 +2044,9 @@ sub top_sleep {
 				# Why doesn't curses do this automatically?
 				clear($pad);
 				clrtoeol($cmdwin);
-				update_display(@_);
-			} elsif ($input eq "h" || $input eq "?") {
-				#
-				# TODO: $helpwin should be a scrollable pad.
-				#
-				my $helpwin = newwin(0, 0, 0, 0);
-				attron($helpwin, A_REVERSE | COLOR_PAIR(6));
-				addstr($helpwin, "ctop v$VERSION");
-				attroff($helpwin, A_REVERSE | COLOR_PAIR(6));
-				move($helpwin, 2, 0);
-				addstr($helpwin, "Current settings: \n\n");
-				addstr($helpwin, "  Refresh ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, "$sleeptime seconds\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Grid width ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, "$columns cores\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Colorization ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $colorize ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				if ($colorize) {
-					addstr($helpwin, "  Color by ");
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, "$color_by\n");
-					attroff($helpwin, A_BOLD);
-				}
-				addstr($helpwin, "  State summary display ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $show_summary ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Grid display ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $show_grid ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Display jobs in grid ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $show_jobs ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, '  Load = ');
-				attron($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
-				addstr($helpwin, 'Ok');
-				attroff($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
-				addstr($helpwin, '        indicates ');
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, 'requested cores - ' . $healthy_load_stdev . ' <= load <= requested cores + ' . $healthy_load_stdev . "\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, '  Load = ');
-				attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-				addstr($helpwin, 'too low!');
-				attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-				addstr($helpwin, '  indicates ');
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, 'load < requested cores - ' . $healthy_load_stdev . "\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, '  Load = ');
-				attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-				addstr($helpwin, 'TOO HIGH!');
-				attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-				addstr($helpwin, ' indicates ');
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, 'load > requested cores + ' . $healthy_load_stdev . "\n");
-				attroff($helpwin, A_BOLD);
-				#addstr($helpwin, "  Show CPU Number ");
-				#attron( $helpwin, A_BOLD );
-				#addstr($helpwin, join( " ", @show_cpu ) . "\n");
-				#attroff( $helpwin, A_BOLD );
-				addstr($helpwin, "  Showing jobs from: ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, join(" ", @host) . "\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Queue display ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $show_queue ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				addstr($helpwin, "  Show queued jobs ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, $show_qqueue ? "on\n" : "off\n");
-				attroff($helpwin, A_BOLD);
-				if ($colorize) {
-					addstr($helpwin, '  CPU/Mem ');
-					attron($helpwin, A_BOLD | COLOR_PAIR(2));
-					addstr($helpwin, 'healthy resource usage ');
-					attroff($helpwin, A_BOLD | COLOR_PAIR(2));
-					addstr($helpwin, ' indicates ');
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, $res_usage_low . ' <= (used / requested) <= ' . $res_usage_high . "\n");
-					attroff($helpwin, A_BOLD);
-					addstr($helpwin, '  CPU/Mem ');
-					attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-					addstr($helpwin, 'inefficiently low usage');
-					attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-					addstr($helpwin, ' indicates ');
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, '(used / requested) < ' . $res_usage_low . "\n");
-					attroff($helpwin, A_BOLD);
-					addstr($helpwin, '  CPU/Mem ');
-					attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-					addstr($helpwin, 'dangerously high usage ');
-					attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-					addstr($helpwin, ' indicates ');
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, '(used / requested) > ' . $res_usage_high . "\n");
-					attroff($helpwin, A_BOLD);
-				}
-				addstr($helpwin, "  Number of possible colors ");
-				attron($helpwin, A_BOLD);
-				addstr($helpwin, "$COLOR_PAIRS\n");
-				attroff($helpwin, A_BOLD);
-				if ($show_user) {
-					addstr($helpwin, "  Limiting job view to user(s) ");
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, "$show_user\n");
-					attroff($helpwin, A_BOLD);
-				}
-				if ($show_node) {
-					addstr($helpwin, "  Limiting job view to node(s) ");
-					attron($helpwin, A_BOLD);
-					addstr($helpwin, "$show_node\n");
-					attroff($helpwin, A_BOLD);
-				}
-				addstr($helpwin, <<"__EOHELP__");
-
-Interactive commands are:
-
-  [space] Update Display.
-  /       Search for a server, node, or job and display details.
-  q       Quit.
-  h       Print this Help.
-  u       Show only jobs for a subset of Users.
-             Accepts comma seprated list for multiple users.
-  n       Show only jobs for a subset of Nodes.
-             Accepts comma seprated list for multiple nodes.
-  c       Color cores in grid display by job, node or queue.
-  s       Seconds to refresh.
-             Accepts math operators (ie: 2*60).
-  w       With of grid display in number of cores.
-  C       Toggle Colorization.
-  S       Toggle State summary.
-  G       Toggle Grid display.
-  Q       Toggle Queue display.
-  t       Toggle display of queued jobs in queue display.
-             When view is limited to specific nodes, 
-             only jobs running on those nodes are displayed, 
-             queued jobs are not displayed and 't' has no effect.
-  j       Toggle display of Jobs in grid display.
-
-Press any key to continue...
-__EOHELP__
-				refresh($helpwin);
-				#
-				# Wait for the user to hit the any key.
-				#
-				cbreak;
-				nodelay($helpwin, 0);
-				getch($helpwin);
-				halfdelay(1);
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-				move($cmdwin, 0, 0);
-				clrtoeol($cmdwin);
-				refresh($cmdwin);
-				delwin($helpwin);
+				_UpdateDisplay(@_);
+			} elsif ($input eq 'h' || $input eq '?') {
+				_PrintHelpWindow();
 #			} elsif ($input =~ /^\d$/) {
 #				# Change the visible CPUs.
 #				# TODO: Don't allow the user to display CPUs that don't exist on any node.
@@ -1928,53 +2060,49 @@ __EOHELP__
 #					}
 #					@show_cpu = sort keys %seen;
 #				}
-#				update_display(@_);
-			} elsif ($input eq "s") {
-				$input = getstring("Number of seconds for refresh[$sleeptime]? ");
-				if ($input) {
-					my $tmp;
-					# TODO: I hate this use of eval
-					if ($tmp = eval $input and $tmp > 0) {
-						$sleeptime  = $tmp;
-						$targettime = time() + $sleeptime;
-					} else {
-						printwarning("Invalid number!");
-					}
+#				_UpdateDisplay(@_);
+			} elsif ($input eq 's') {
+				$input = _GetString('Number of seconds for refresh? ' . "[$sleeptime] ");
+				if ($input =~ m/^\d+$/ && $input >= 1) {
+					$sleeptime = $input;
+					$targettime = time() + $sleeptime;
+				} else {
+					_PrintWarning('ERROR: Invalid number!');
 				}
-			} elsif ($input eq "w") {
-				$input = getstring("Width of grid display in number of cores [$columns]? ");
+			} elsif ($input eq 'w') {
+				$input = _GetString('Width of grid display in number of cores ? ' . "[$columns] ");
 				if ($input) {
 					if ($input =~ /^\d+$/ and $input > 0) {
 						$columns = $input;
-						update_display(@_);
+						_UpdateDisplay(@_);
 					} else {
-						printwarning("Invalid number!");
+						_PrintWarning('ERROR: Invalid number!');
 					}
 				}
-			} elsif ($input eq "u") {
-				$input = getstring("Limit view to \"all\", \"me\", a or username? ");
+			} elsif ($input eq 'u') {
+				$input = _GetString('Limit view to "a" for all, "me" for the current user, or comma separated list of users? ');
 				if ($input) {
-					if ($input eq "all" or $input eq "a") {
+					if ($input eq 'all' or $input eq 'a') {
 						$show_user = 0;
-					} elsif ($input eq "me" or $input eq "m") {
+					} elsif ($input eq 'me' or $input eq 'm') {
 						$show_user = $ENV{USER};
 					} elsif ($input =~ /^\+(.*)/) {
 						if ($show_user eq '0') {
-							printwarning("ERROR: Cannot add user to list of users. Please specify a list first.");
+							_PrintWarning('ERROR: Cannot add user to list of users. Please specify a list first.');
 							return;
 						}
-						if ($1 eq "me" or $1 eq "m") {
-							$show_user .= " " . $ENV{USER};
+						if ($1 eq 'me' or $1 eq 'm') {
+							$show_user .= ' ' . $ENV{USER};
 						} else {
 							$show_user .= " $1";
 						}
 						$show_user =~ s/^ / /g;
 					} elsif ($input =~ /^-(.*)/) {
 						if ($show_user eq '0') {
-							printwarning("ERROR: Cannot remove user from list of users. Please specify a list first.");
+							_PrintWarning('ERROR: Cannot remove user from list of users. Please specify a list first.');
 							return;
 						}
-						if ($1 eq "me" or $1 eq "m") {
+						if ($1 eq 'me' or $1 eq 'm') {
 							$show_user =~ s/\b$ENV{USER}\b//;
 						} else {
 							$show_user =~ s/\b$1\b//;
@@ -1985,23 +2113,23 @@ __EOHELP__
 					} else {
 						$show_user = $input;
 					}
-					update_display(@_);
+					_UpdateDisplay(@_);
 				}
-			} elsif ($input eq "n") {
-				$input = getstring("Limit view to \"all\", a or nodename? ");
+			} elsif ($input eq 'n') {
+				$input = _GetString('Limit view to "a" for all nodes, range or comma separated list of nodes? ');
 				if ($input) {
-					if ($input eq "all" or $input eq "a") {
+					if ($input eq 'all' or $input eq 'a') {
 						$show_node = 0;
 					} elsif ($input =~ m/^\+(.*)/) {
 						if ($show_node eq '0') {
-							printwarning("ERROR: Cannot add node to list of nodes. Please specify a list first.");
+							_PrintWarning('ERROR: Cannot add node to list of nodes. Please specify a list first.');
 							return;
 						}
 						$show_node .= " $1";
 						$show_node =~ s/^ / /g;
 					} elsif ($input =~ m/^-(.*)/) {
 						if ($show_node eq '0') {
-							printwarning("ERROR: Cannot remove node from list of nodes. Please specify a list first.");
+							_PrintWarning('ERROR: Cannot remove node from list of nodes. Please specify a list first.');
 							return;
 						}
 						$show_node =~ s/\b$1\b//;
@@ -2009,21 +2137,21 @@ __EOHELP__
 						$show_node =~ s/^ / /g;
 						$show_node =~ s/ $/ /g;
 					} elsif ($input =~ m/^([0-9]+)-([0-9]+)$/) {
-						$show_node = join(" ", $1 .. $2);
+						$show_node = join(' ', $1 .. $2);
 					} else {
 						$show_node = $input;
 					}
-					update_display(@_);
+					_UpdateDisplay(@_);
 				}
-			} elsif ($input eq "c") {
+			} elsif ($input eq 'c') {
 				if (!has_colors()) {
-					printwarning("Terminal doesn't support colors");
+					_PrintWarning('ERROR: Terminal doesn\'t support colors.');
 					$colorize = 0;
 				} else {
 					# Toggle colorize if color was disabled.
 					$colorize = !$colorize unless ($colorize);
 					# Get item type to group by for coloring nodes in grid display 
-					$input = getstring("Color jobs by \"j\" (job), \"u\" (user) or \"q\" (queue)? ");
+					$input = _GetString('Color jobs by "j" (job), "u" (user), "q" (queue) or "r" (resource usage)? ' . "[$color_by]");
 					if ($input) {
 						if ($input eq 'job' or $input eq 'j') {
 							$color_by = 'job';
@@ -2031,34 +2159,36 @@ __EOHELP__
 							$color_by = 'user';
 						} elsif ($input eq 'queue' or $input eq 'q') {
 							$color_by = 'queue';
+						} elsif ($input eq 'resource usage' or $input eq 'r') {
+							$color_by = 'resources';
 						} else {
-							printwarning("Unsupported color by value.");
+							_PrintWarning('ERROR: Unsupported color by value.');
 						}
-						update_display(@_);
+						_UpdateDisplay(@_);
 					}
 				}
-			} elsif ($input eq "C") {
+			} elsif ($input eq 'C') {
 				$colorize = !$colorize;
 				if ($colorize && !has_colors()) {
-					printwarning("Terminal doesn't support colors");
+					_PrintWarning('ERROR: Terminal doesn\'t support colors.');
 					$colorize = 0;
 				}
-				update_display(@_);
-			} elsif ($input eq "S") {
+				_UpdateDisplay(@_);
+			} elsif ($input eq 'S') {
 				$show_summary = !$show_summary;
-				update_display(@_);
-			} elsif ($input eq "G") {
+				_UpdateDisplay(@_);
+			} elsif ($input eq 'G') {
 				$show_grid = !$show_grid;
-				update_display(@_);
-			} elsif ($input eq "Q") {
+				_UpdateDisplay(@_);
+			} elsif ($input eq 'Q') {
 				$show_queue = !$show_queue;
-				update_display(@_);
-			} elsif ($input eq "t") {
+				_UpdateDisplay(@_);
+			} elsif ($input eq 't') {
 				$show_qqueue = !$show_qqueue;
-				update_display(@_);
-			} elsif ($input eq "j") {
+				_UpdateDisplay(@_);
+			} elsif ($input eq 'j') {
 				$show_jobs = !$show_jobs;
-				update_display(@_);
+				_UpdateDisplay(@_);
 			} elsif ($input eq KEY_HOME or $input eq KEY_SHOME or $input eq KEY_FIND) {
 				$py = 0;
 				$px = 0;
@@ -2076,223 +2206,74 @@ __EOHELP__
 				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2
 				  and $py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
 				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "8" or $input eq KEY_UP) {
+			} elsif ($input eq '8' or $input eq KEY_UP) {
 				$py <= 0 and $py = 0, next;
 				$py--;
 				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "2" or $input eq KEY_DOWN) {
+			} elsif ($input eq '2' or $input eq KEY_DOWN) {
 				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2 and next;
 				$py++;
 				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "4" or $input eq KEY_LEFT) {
+			} elsif ($input eq '4' or $input eq KEY_LEFT) {
 				$px <= 0 and $px = 0, next;
 				$px -= 2;
 				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq "6" or $input eq KEY_RIGHT) {
+			} elsif ($input eq '6' or $input eq KEY_RIGHT) {
 				$px >= $lx - $X + 1 and next;
 				$px += 2;
 				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq " ") {
+			} elsif ($input eq ' ') {
 				addstr($cmdwin, 0, 0, "Updating...");
 				clrtoeol($cmdwin);
 				refresh($cmdwin);
 				move($cmdwin, 0, 0);
 				clrtoeol($cmdwin);
 				return;
-#
-# TODO: below are various search options with logic that needs a major update.
-#
-#
-# TODO: fix crash on search for example when searching on node '02'.
-#
-			} elsif ( $input eq "j"
-				and $subwin
-				and $searchobject{TYPE} eq "NODE")
-			{
-
-				my $jobid = $_[1]->{ $searchobject{SERVER} }{ $searchobject{VALUE} }{job}{"0"};
-				$searchobject{TYPE}   = "JOB";
-				$searchobject{VALUE}  = $jobid;
-				$searchobject{SERVER} = $_[2]->{$jobid}{server};
-				$py                   = 0;
-				$px                   = 0;
-				update_subwin(@_);
-				doupdate();
-			} elsif ($input eq "l") {
-
-				if ($subwin and $searchobject{TYPE} eq "JOBLOAD") {
-
-					# We are currently looking a jobload report detail, immediately switch
-					# this to a job detail window
-					$searchobject{TYPE} = "JOB";
-					$py                 = 0;
-					$px                 = 0;
-					update_subwin(@_);
-					doupdate();
-
-				} elsif ($subwin and $searchobject{TYPE} eq "JOB") {
-
-					# We are currently looking at a job detail, immediately switch this
-					# to a jobload report
-					$searchobject{TYPE} = "JOBLOAD";
-					$py                 = 0;
-					$px                 = 0;
-					update_subwin(@_);
-					doupdate();
-
-				} else {
-					$input = getstring("Job ID Number? ");
-					if ($input) {
-						my @objects      = ();
-						my $searchtype   = "";
-						my $searchserver = "";
-
-						# what other information can we extract?
-						if ($input =~ /^\d+$/) {
-							$searchtype ||= "job";
-						} elsif ($input =~ /^\d+\./) {
-							$searchtype ||= "job";
-							($input, $searchserver) = split(/\./, $input, 2);
-						}
-
-						# we know everything we can, now go find stuff
-						if ($searchtype eq "job") {
-							foreach my $job (%{ $_[2] }) {
-								if (
-									$input eq $job
-									and ( !$searchserver
-										or $_[2]->{$job}{server} =~ m/^$searchserver/)
-								  )
-								{
-									push(@objects, $job);
-									$searchobject{TYPE}   = "JOBLOAD";
-									$searchobject{SERVER} = $_[2]->{$job}{server};
-									$searchobject{VALUE}  = "$job";
-								}
-							}
-						}
-
-						# if we have anything useful, go display it
-						if (scalar @objects > 1) {
-							printwarning("Multiple objects found. Please narrow your search.");
-						} elsif (scalar @objects < 1) {
-							printwarning("No objects found.");
-						} elsif (exists $searchobject{TYPE} && defined $searchobject{TYPE}) {
-							$subwin = 1;
-							$py     = 0;
-							$px     = 0;
-							update_subwin(@_);
-							doupdate();
-						}
-					}
-				}
-			}
-
-			# Just about all of this should be moved out of here
-			# TODO: need to unify these searches somehow
-			elsif ($input eq "/") {
-				printwarning("WARN: search functionality disabled pending major rewrite of search logic.");
-				return;
-				$input = getstring("Search string? ");
-
-				if ($input) {
-					my @objects      = ();
-					my $searchtype   = "";
-					my $searchserver = "";
-
-					# did the user specify a pattern?
-					if ($input =~ s/^~(.)\s?//) {
-						if ($1 eq "s") {
-							$searchtype = "server";
-						} elsif ($1 eq "j") {
-							$searchtype = "job";
-						} elsif ($1 eq "n") {
-							$searchtype = "node";
-						} else {
-							printwarning("Invalid search pattern");
-							next;
-						}
-					}
-
-					# what other information can we extract?
-					if ($input =~ /^\d+$/) {
-						$searchtype ||= "job";
-					} elsif ($input =~ /^\d+\./) {
-						$searchtype ||= "job";
-						($input, $searchserver) = split(/\./, $input, 2);
-					} elsif ($input =~ /^[a-z]+\s+\w/) {
-						$searchtype ||= "node";
-						($input, $searchserver) = split(/\s+/, $input, 2);
-					}
-
-					# we know everything we can, now go find stuff
-					if ($searchtype eq "job") {
-						foreach my $job (%{ $_[2] }) {
-							if (
-								$input eq $job
-								and ( !$searchserver
-									or $_[2]->{$job}{server} =~ /^$searchserver/)
-							  )
-							{
-								push(@objects, $job);
-								$searchobject{TYPE}   = "JOB";
-								$searchobject{SERVER} = $_[2]->{$job}{server};
-								$searchobject{VALUE}  = "$job";
-							}
-						}
-					} else {
-						foreach my $server (%{ $_[1] }) {
-							if ($server =~ /^$input/
-								and (!$searchtype or $searchtype eq "server"))
-							{
-								push(@objects, $input);
-								$searchobject{TYPE}   = "SERVER";
-								$searchobject{SERVER} = "$server";
-								$searchobject{VALUE}  = "$server";
-							}
-							if (
-								    exists $_[1]->{$server}{$input}
-								and (!$searchtype or $searchtype eq "node")
-								and ( !$searchserver
-									or $server =~ /^$searchserver/)
-							  )
-							{
-								push(@objects, $input);
-								$searchobject{TYPE}   = "NODE";
-								$searchobject{SERVER} = "$server";
-								$searchobject{VALUE}  = "$input";
-							}
-						}
-					}
-
-					# if we have anything useful, go display it
-					if (scalar @objects > 1) {
-						printwarning("Multiple objects found.  Please narrow your search.");
-					} elsif (scalar @objects < 1) {
-						printwarning("no objects found matching $input");
-					} elsif (exists $searchobject{TYPE}
-						&& defined $searchobject{TYPE})
-					{
-						$subwin = 1;
-						$py     = 0;
-						$px     = 0;
-						update_subwin(@_);
-						doupdate();
-					}
-				}
+			} elsif ($input eq '/') {
+				$input = _GetString('Search string? ');
+				_PerformSearch($input, $_[4]);
+				_UpdateDisplay(@_);
+			} elsif ($input =~ m/^\n$/) {
+				#
+				# User pressed the enter key.
+				# Most likely to get rid of an error/warning message.
+				# Just update the screen.
+				#
+				addstr($cmdwin, 0, 0, '');
+				clrtoeol($cmdwin);
+				refresh($cmdwin);
+				move($cmdwin, 0, 0);
+				clrtoeol($cmdwin);
+				#return;
 			} elsif ($input =~ m/[^\d\.-]/) {
-				printwarning("ERROR: unsupported command $input.");
+				_PrintWarning('ERROR: unsupported command ' . $input . '.');
 				return;
+#
+# TODO: below an old example of using a subwin.
+#
+#			} elsif ($input eq 'j'
+#				and $subwin
+#				and $searchobject{TYPE} eq "NODE")
+#			{
+#
+#				my $jobid = $_[1]->{ $searchobject{SERVER} }{ $searchobject{VALUE} }{job}{"0"};
+#				$searchobject{TYPE}   = "JOB";
+#				$searchobject{VALUE}  = $jobid;
+#				$searchobject{SERVER} = $_[2]->{$jobid}{server};
+#				$py                   = 0;
+#				$px                   = 0;
+#				_UpdateSubWindow(@_);
+#				doupdate();
 			}
 		}
 	}
 }
 
-sub readrc {
-	my ($f) = shift or return;
-	return unless (-f $f);
-
-	open(F, $f) or die "$f: $!\n";
+sub _LoadConfig {
+	my ($config_file) = @_ or return;
+	return unless (-f $config_file);
+	
+	open(F, $config_file) or die "$config_file: $!\n";
 	while ($_ = <F>) {
 		chomp;
 		s/#.*//;
@@ -2301,10 +2282,11 @@ sub readrc {
 		$name  =~ s/\s//g;
 		$value =~ s/\s//g;
 		next if (length($name) <= 0 or length($value) <= 0);
-
+		
+		#
+		# TODO: security risk: get rid of eval.
+		#
 		if ($name eq "host" or $name eq "show_cpu") {
-
-			# /em cringes
 			eval "\@$name=(\"" . join('","', split(',', $value)) . "\")";
 		} elsif ($name eq "show_user") {
 			eval "\$$name=join(' ', split(',', \"$value\"))";
@@ -2312,7 +2294,7 @@ sub readrc {
 			eval "\$$name=$value";
 		}
 	}
-	close F;
+	close(F);
 }
 
 __END__
@@ -2347,7 +2329,7 @@ look for the B<Backend> information at the top right.
 
 seconds between refreshes
 
-=item   B<-c> num
+=item   B<-w> num
 
 number of columns to display in the grid
 
@@ -2529,10 +2511,6 @@ Use colors in the display, 1 or 0
 =item B<show_summary>
 
 Display the summary at the top of the display, 1 or 0
-
-=item B<compact_summary>
-
-Show node state summary on one line, 1 or 0
 
 =item B<show_grid>
 
