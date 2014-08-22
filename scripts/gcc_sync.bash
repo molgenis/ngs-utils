@@ -33,7 +33,7 @@ Details:
  -a   All: syncs all tools and resources from ${SOURCE_ROOT_DIR} to ${DESTINATION_ROOT_DIRS[@]}
 
  -r   Resource: syncs only the specified resource to ${DESTINATION_ROOT_DIRS[@]}.
-      The specified path must be relative to ${SOURCE_ROOT_DIR}resources/
+      Path may be either an absolute path or relative to ${SOURCE_ROOT_DIR}resources/
 
  -t   Tool: syncs only the specified tool to ${DESTINATION_ROOT_DIRS[@]}.
       The tool must be deployed as "module" and specified using name/version as per "module" command syntax.
@@ -299,10 +299,14 @@ if [ ${ALL} -eq 1 ]; then
   RSYNC_SOURCES[2]='resources'
 elif [ ${RESOURCE} -eq 1 ]; then
   #
+  # Remove leading ${SOURCE_ROOT_DIR}/resources/ from SOURCE if an absolute path was specified.
+  #
+  SOURCE="$(echo ${SOURCE} | sed "s|^${SOURCE_ROOT_DIR}/*resources/*||")"
+  #
   # Find and add only specified resource to list of data to rsync.
   #
   cd "${SOURCE_ROOT_DIR}/resources/" 2> ${TMP_LOG} || reportError ${LINENO} $?
-  if [ -e ${SOURCE} ]; then
+    if [ -e "${SOURCE_ROOT_DIR}/resources/${SOURCE}" ]; then
     echo "INFO: Found resource ${SOURCE}."
   else
     reportError ${LINENO} $? "Cannot find resource ${SOURCE} in ${SOURCE_ROOT_DIR}/resources/."
