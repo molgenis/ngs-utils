@@ -47,7 +47,8 @@ my @host               = ();       # Hostname of your scheduler
                                    # on which you login to monitor/submit jobs. When empty we will try
                                    # $ENV{"PBS_DEFAULT"}, SERVERHOST from showconfig or localhost.
 my $maxrows            = 3000;     # maximum number of rows
-my $maxcolumns         = 137;      # maximum number of columns
+my $maxcolumns         = 137;      # maximum number of columns to start with. 
+                                   # May be increased on the fly when the job ID values are too long to fit within the default term width.
 my $healthy_load_stdev = 3;        # When node load is lower or higher than requested/allocated cores ± this stdev 
                                    # it is condidered inefficient or dangerous, respectively.
 my $res_usage_low      = 0.80;     # When resource usage / requested resources drops below this threshold it is considered inefficient.
@@ -411,7 +412,7 @@ sub _MainLoop {
 			# Remove old nodes that are no longer seen.
 			#
 			foreach my $node (keys(%{$nodes{$server}})) {
-				if ($nodes{$server}{$node}{'seen'} != 1) {
+				if (!defined($nodes{$server}{$node}{'seen'}) or $nodes{$server}{$node}{'seen'} ne '1') {
 					delete $nodes{$server}{$node};
 				} else {
 					$nodes{$server}{$node}{'seen'} = 0;
@@ -423,10 +424,7 @@ sub _MainLoop {
 		# Remove old jobs that are no longer seen.
 		#
 		foreach my $job (keys(%jobs)) {
-			if (   !exists $jobs{$job}{'seen'}
-				or !defined $jobs{$job}{'seen'}
-				or $jobs{$job}{'seen'} != 1)
-			{
+			if (!defined $jobs{$job}{'seen'} or $jobs{$job}{'seen'} ne '1') {
 				delete $jobs{$job};
 			} else {
 				$jobs{$job}{'seen'} = 0;
@@ -474,7 +472,7 @@ sub _GetInfo {
 	my @qmgr = `$qmgr -c 'l n \@$server' $server 2>/dev/null`;
 	$? and do { _PrintWarning("Connection to $server failed.") };
 	
-	my @qstat_f = `$qstat -f \@$server 2>/dev/null`;
+	my @qstat_ft = `$qstat -ft \@$server 2>/dev/null`;
 	$? and do { _PrintWarning("Connection to $server failed.") };
 	
 	my $active_jobs;
@@ -533,7 +531,7 @@ sub _GetInfo {
 			#
 			$nodes->{$server}{$node}{'jobs'} = {};
 			foreach my $job_slot (split(/, /, $active_jobs)) {
-				if ($job_slot =~ m{(\d+)/(\d+)}) {
+				if ($job_slot =~ m/(\d+)\/(\d+(\[\d+\])?)/) {
 					my $slot   = $1;
 					my $job_id = $2;
 					$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
@@ -561,7 +559,7 @@ sub _GetInfo {
 				/^\s+(.*)$/;
 				$active_jobs = $1;
 				foreach my $job_slot (split(/, /, $active_jobs)) {
-					if ($job_slot =~ m{(\d+)/(\d+)}) {
+					if ($job_slot =~ m/(\d+)\/(\d+(\[\d+\])?)/) {
 						my $slot   = $1;
 						my $job_id = $2;
 						$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
@@ -596,13 +594,13 @@ sub _GetInfo {
 	#
 	# Parse qstat output.
 	#
-	if (scalar(@qstat_f) > 0) {
+	if (scalar(@qstat_ft) > 0) {
 		my $job;
-		foreach (@qstat_f) {
+		foreach (@qstat_ft) {
 			chomp;
-			if (/^\s*Job Id: ([0-9]+)\.([a-z0-9A-Z-._]+)/) {
+			if (/^\s*Job Id: ([0-9]+(\[[0-9]+\])?)\.([a-z0-9A-Z\-\._]+)/) {
 				$job = $1;
-				my $scheduler = $2;
+				my $scheduler = $3;
 				if ($server eq $scheduler) {
 					$jobs->{$job}{'seen'}   = 1;
 					$jobs->{$job}{'server'} = $server;
@@ -624,10 +622,14 @@ sub _GetInfo {
 				$jobs->{$job}{'queue'} = $1;
 			} elsif (/^\s*Resource_List.nodes = ([0-9]+):ppn=([0-9]+)/i) {
 				$jobs->{$job}{'ncount'}  = $1;
-				$jobs->{$job}{'cores_r'} = $2;
-			} elsif (/^\s*Resource_List.mem = ([0-9]+)([a-z]+)$/i) {
-				my $mem_value = $1;
-				my $mem_unit  = $2;
+				$jobs->{$job}{'cores_r'} = $2 * $1;
+			} elsif (/^\s*Resource_List.nodes = ([0-9]+)$/i) {
+				$jobs->{$job}{'ncount'}  = $1;
+				$jobs->{$job}{'cores_r'} = 1 * $1; # no cores were specified -> defaults to 1. 
+			} elsif (/^\s*Resource_List.(p?mem) = ([0-9]+)([a-z]+)$/i) {
+				my $mem_type  = $1; # either mem (total) or pmem (per core).
+				my $mem_value = $2;
+				my $mem_unit  = $3;
 				if ($mem_unit eq 'b') {
 					$mem_value = $mem_value / 1073741824;
 				} elsif ($mem_unit eq 'kb') {
@@ -639,7 +641,7 @@ sub _GetInfo {
 				} else {
 					die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
 				}
-				$jobs->{$job}{'mem_r'} = $mem_value;
+				$jobs->{$job}{$mem_type . '_r'} = sprintf("%.1f", $mem_value);
 			} elsif (/^\s*Resource_List.walltime = ([0-9:]+)/i) {
 				$jobs->{$job}{'walltime_r'} = $1;
 			} elsif (/^\s*resources_used.cput = (.+)$/i) {
@@ -704,6 +706,21 @@ sub _GetInfo {
 			}
 			$jobs->{$job}{'cpu_s'} = $cpu_s;
 		}
+		if (defined($jobs->{$job}{'pmem_r'})) {
+			if (defined($jobs->{$job}{'cores_r'})) {
+				my $total_mem = sprintf("%.1f", $jobs->{$job}{'pmem_r'} * $jobs->{$job}{'cores_r'});
+				if (defined($jobs->{$job}{'mem_r'})) {
+					if ($jobs->{$job}{'mem_r'} < $total_mem) {
+						$jobs->{$job}{'mem_r'} = $total_mem;
+					}
+				} else {
+					$jobs->{$job}{'mem_r'} = $total_mem;
+				}
+			}
+		}
+		if (!defined($jobs->{$job}{'mem_r'}) || $jobs->{$job}{'mem_r'} <= 0) {
+			$jobs->{$job}{'mem_r'} = 0.1 # default to low value if not specified to prevent illegal devide by zero errors.
+		}
 		if (defined($jobs->{$job}{'mem_u'}) && defined($jobs->{$job}{'mem_r'})) {
 			my $mem_u = $jobs->{$job}{'mem_u'};
 			my $mem_r = $jobs->{$job}{'mem_r'};
@@ -725,11 +742,15 @@ sub _GetInfo {
 	foreach my $server (keys(%{$nodes})) {
 		foreach my $node (keys(%{${$nodes}{$server}})) {
 			foreach my $job (keys(%{${$nodes}{$server}{$node}{jobs}})) {
-				if (defined(${$jobs}{$job}) && ${$jobs}{$job}{'server'} eq $server) {
-					$jobs->{$job}{'node'}    = $node;
-					$jobs->{$job}{'cores_u'} = ${$nodes}{$server}{$node}{'jobs'}{$job};
+				if (defined(${$jobs}{$job})) {
+					if (${$jobs}{$job}{'server'} eq $server) {
+						$jobs->{$job}{'node'}    = $node;
+						$jobs->{$job}{'cores_u'} = ${$nodes}{$server}{$node}{'jobs'}{$job};
+					} else {
+						_PrintWarning("ERROR: Scheduler does not match for job ID ${job} (nodes server = $server but jobs server = ${$jobs}{$job}{server}).");
+					}
 				} else {
-					_PrintWarning("ERROR: Cannot find job ID ${job} in list of jobs or the scheduler does not match (nodes server = $server | jobs server = ${$jobs}{$job}{server}).");
+					_PrintWarning("ERROR: Cannot find job ID ${job} in list of jobs.");
 				}
 			}
 		}
@@ -1019,7 +1040,18 @@ sub _PrintQueue {
 	
 	my ($jobs, $users, $queues) = @_;
 	
-	my $format_base     = "%-6s %-15.15s %-12.12s %-40.40s %1s";
+	#
+	# Get max length of several values and adjust pad width if necessary.
+	#
+	my $max_job_id_length = _GetMaxKeyLength($jobs);
+	$max_job_id_length = $max_job_id_length > 5 ? $max_job_id_length : 5;
+	my $invariable_width = 131;
+	if ($invariable_width + $max_job_id_length > $maxcolumns) {
+		$maxcolumns = $invariable_width + $max_job_id_length;
+		resize($pad, $maxrows, $maxcolumns);
+	}
+	
+	my $format_base     = "%-${max_job_id_length}s %-15.15s %-12.12s %-40.40s %1s";
 	my $format_cpu      = " %6.6s";
 	my $format_mem      = " %8.8s";
 	my $format_walltime = " %9.9s";
@@ -1053,9 +1085,16 @@ sub _PrintQueue {
 	#
 	
 	#
-	# Print jobs sorted by Server followed by JobID.
+	# Print jobs sorted by
+	#  1. Server followed by
+	#  2. JobID without optional array task suffix followed by
+	#  3. opional array task suffix.
 	#
-	foreach my $job (sort{defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'} or $a <=> $b} keys(%{$jobs})) {
+	#foreach my $job (sort{defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'} or $a <=> $b} keys(%{$jobs})) {
+	foreach my $job (sort{     (defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'})
+							or (($a =~ m/^(\d+)/)[0] <=> ($b =~ m/^(\d+)/)[0])
+							or ($a =~ m/\[(\d+)\]$/ && $b =~ m/\[(\d+)\]$/ && ($a =~ m/\[(\d+)\]$/)[0] <=> ($b =~ m/\[(\d+)\]$/)[0])
+						} keys(%{$jobs})) {
 		
 		if ($y >= $maxrows ) {
 			_PrintWarning('WARN: too many jobs -> queue display truncated. Increase $maxrows or use one of the filter commands.');
