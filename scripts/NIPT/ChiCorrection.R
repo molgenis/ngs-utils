@@ -63,7 +63,7 @@ FilterBins <- function(strand, sample, avgFile, chidir, total, sampleID)
   }
   setwd(chidir)
   totalFile <- totalFile / 50
-  filter[totalFile > 1] <- TRUE
+  filter[totalFile > 3.5] <- TRUE
   sampleCorrected[filter] <- as.matrix(sample[filter]) / as.matrix(totalFile[filter])
   write.table(sampleCorrected, paste(sampleID, ".", strand,  ".corrected.bins.table.tsv", sep=""), , quote = FALSE, sep ="\t", row.names = TRUE)
   for (l in 1:length(controlFiles)  )
