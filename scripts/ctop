@@ -32,7 +32,7 @@
 my $columns            = 46;       # Columns in grid
 my $sleeptime          = 30;       # Seconds between refreshes
 my $colorize           = 1;        # 1 or 0
-my $color_by           = 'job';    # Assign color per job, user or queue.
+my $color_by           = 'job';    # Assign color per job, user, queue or resources.
 my $show_summary       = 1;        # 1 or 0
 my $show_grid          = 1;        # 1 or 0
 my $show_queue         = 1;        # 1 or 0
@@ -46,13 +46,13 @@ my @host               = ();       # Hostname of your scheduler
                                    # This is not necessarily the same as the user interface (UI) host
                                    # on which you login to monitor/submit jobs. When empty we will try
                                    # $ENV{"PBS_DEFAULT"}, SERVERHOST from showconfig or localhost.
-my $maxrows            = 3000;     # maximum number of rows
+my $maxrows            = 3000;     # maximum number of rows.
 my $maxcolumns         = 137;      # maximum number of columns to start with. 
                                    # May be increased on the fly when the job ID values are too long to fit within the default term width.
 my $healthy_load_stdev = 3;        # When node load is lower or higher than requested/allocated cores ± this stdev 
                                    # it is condidered inefficient or dangerous, respectively.
-my $res_usage_low      = 0.80;     # When resource usage / requested resources drops below this threshold it is considered inefficient.
-my $res_usage_high     = 1.05;     # When resource usage / requested resources exceeds this threshold it is considered dangerous.
+my $res_usage_low      = 0.80;     # When (usage / requested) resources drops below this threshold it is considered inefficient.
+my $res_usage_high     = 1.05;     # When (usage / requested) resources exceeds this threshold it is considered dangerous.
 
 my $qmgr     = "/usr/local/pbs/bin/qmgr";
 my $qstat    = "/usr/local/pbs/bin/qstat";
@@ -66,14 +66,13 @@ use warnings;
 use vars qw/$VERSION/;
 use Curses;
 
-$VERSION = "5.5.2";
+$VERSION = "5.5.3";
 
 #
 # Initialize global vars.
 #
 my %job_of_letter;
 my @colors = ();
-my %searchobject  = ();
 
 #
 # Define which characters can be used to show jobs or node state in grid view.
@@ -92,8 +91,19 @@ my $masterletters = "ABCDEHIKLNOSTUVYZabcdeiklnopqsuvwxyz-+=<>|/\_~";
 my $letters       = $masterletters;
 my $underline     = 0;
 
-
-my ($y, $x, $Y, $X, $py, $px, $ly, $lx, $subY, $subX) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+#
+# Coordinates.
+#
+#             y             x: Offset of where last print statement started on main pad. 
+#                              Needs increment before adding additional characters to display.
+#             Y             X: Height and width of terminal window. May be smaller than main pad.
+#     partial_y     partial_x: Top-left coordinate of the part of the main pad currently displayed in the terminal window.
+#        last_y        last_x: Last printed character / bottom right coordinate on main pad.
+#          subY          subX: Height and width of sub pad.
+# sub_partial_y sub_partial_x: Top-left coordinate of the part of the sub pad currently displayed in the sub pad.
+#    sub_last_y    sub_last_x: Last printed character / bottom right coordinate on sub pad.
+#
+my ($y, $x, $Y, $X, $partial_y, $partial_x, $last_y, $last_x, $sub_Y, $sub_X, $sub_partial_y, $sub_partial_x, $sub_last_y, $sub_last_x) = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 _LoadConfig("/etc/ctoprc");
 _LoadConfig("$ENV{HOME}/.ctoprc");
@@ -316,7 +326,10 @@ my %resource_usage_state_colors = (
 my $pad = newpad($maxrows, $maxcolumns);
 my $cmdwin = newwin(1, $X - 1, $Y - 1, 0);
 keypad($cmdwin, 1);
-my $subwin = 0;
+my $subpad = 0;
+my $subpad_box = 0;
+my $subpad_content = 0;
+my $helpwin = 0;
 
 _MainLoop(\@host);
 
@@ -388,19 +401,24 @@ sub _MainLoop {
 	my %users;
 	my %queues;
 	my %state_count;
-	my $max_server_length;
-	my $max_node_length;
+	my %max_length;
 	
+	$state_count{'_nodes'}  = 0;
+	$state_count{'_anodes'} = 0;
+	$state_count{'_procs'}  = 0;
+	$state_count{'_aprocs'} = 0;
+	$state_count{'_mprocs'} = 0;
+	$state_count{'_rjobs'}  = 0;
+	$state_count{'_njobs'}  = 0;
+
 	while (1) {
 		
-		%state_count          = ();
-		$state_count{'_nodes'}  = 0;
-		$state_count{'_anodes'} = 0;
-		$state_count{'_procs'}  = 0;
-		$state_count{'_aprocs'} = 0;
-		$state_count{'_mprocs'} = 0;
-		$state_count{'_rjobs'}  = 0;
-		$state_count{'_njobs'}  = 0;
+		#
+		# Reset state counts.
+		#
+		foreach my $state (keys(%state_count)) {
+			$state_count{$state} = 0;
+		}
 		
 		foreach my $server (@$host) {
 			#
@@ -412,8 +430,8 @@ sub _MainLoop {
 			# Remove old nodes that are no longer seen.
 			#
 			foreach my $node (keys(%{$nodes{$server}})) {
-				if (!defined($nodes{$server}{$node}{'seen'}) or $nodes{$server}{$node}{'seen'} ne '1') {
-					delete $nodes{$server}{$node};
+				if (!defined($nodes{$server}{$node}{'seen'}) or $nodes{$server}{$node}{'seen'} == 0) {
+					delete($nodes{$server}{$node});
 				} else {
 					$nodes{$server}{$node}{'seen'} = 0;
 				}
@@ -424,41 +442,61 @@ sub _MainLoop {
 		# Remove old jobs that are no longer seen.
 		#
 		foreach my $job (keys(%jobs)) {
-			if (!defined $jobs{$job}{'seen'} or $jobs{$job}{'seen'} ne '1') {
-				delete $jobs{$job};
+			if (!defined($jobs{$job}{'seen'}) or $jobs{$job}{'seen'} == 0) {
+				my $deleted = delete($jobs{$job});
 			} else {
 				$jobs{$job}{'seen'} = 0;
 			}
 		}
 		
 		#
-		# Determine max length of certain names, 
-		# so we can adjust column widths accordingly.
-		#
-		($max_server_length) = _GetMaxKeyLength(\%nodes);
-		$max_node_length = 0;
-		foreach my $server (keys(%nodes)) {
-			my ($max_node_length_for_this_server) = _GetMaxKeyLength($nodes{$server});
-			$max_node_length = 
-			    $max_node_length_for_this_server > $max_node_length
-			  ? $max_node_length_for_this_server
-			  : $max_node_length;
-		}
-		#
-		# Width of server and node columns must be at least as long as their column labels: 'scheduler'(9) and 'node'(4.)
-		#
-		$max_server_length = $max_server_length > 9 ? $max_server_length : 9;
-		$max_node_length = $max_node_length > 4 ? $max_node_length : 4;
-		
-		#
+		# Add derived data for jobs and nodes.
 		# Assign characters and color pairs to jobs, users and queues.
 		#
+		_SupplementInfo(\%nodes, \%jobs);
 		_Letterize(\%jobs);
 		_Colorize(\%jobs, \%users, \%queues);
 		
-		_UpdateDisplay(\%state_count, $max_server_length, $max_node_length, \%nodes, \%jobs, \%users, \%queues);
+		#
+		# Determine max length of certain names, 
+		# so we can adjust column widths accordingly.
+		#
+		($max_length{'server'}) = _GetMaxKeyLength(\%nodes);
+		$max_length{'node'} = 0;
+		foreach my $server (keys(%nodes)) {
+			my ($max_node_length_for_this_server) = _GetMaxKeyLength($nodes{$server});
+			$max_length{'node'} = 
+			    $max_node_length_for_this_server > $max_length{'node'}
+			  ? $max_node_length_for_this_server
+			  : $max_length{'node'};
+		}
+		$max_length{'job_ID'} = _GetMaxKeyLength(\%jobs);
+		
+		#
+		# Width of server and node columns must be at least as long as their column labels: 'scheduler'(9) and 'node'(4.)
+		#
+		$max_length{'server'} = $max_length{'server'} > 9 ? $max_length{'server'} : 9;
+		$max_length{'node'}   = $max_length{'node'}   > 4 ? $max_length{'node'}   : 4;
+		$max_length{'job_ID'} = $max_length{'job_ID'} > 5 ? $max_length{'job_ID'} : 5;
+		
+		#
+		# Get max length of several values and adjust pad width if necessary.
+		#
+		my $invariable_width = 23; # for the grid display.
+		my $grid_width = (($columns - 1) * 2) + (int($columns / 10) * 2);
+		if ($invariable_width + $max_length{'server'} + $max_length{'node'} + $grid_width > $maxcolumns) {
+			$maxcolumns = $invariable_width + $max_length{'server'} + $max_length{'node'} + $grid_width;
+			resize($pad, $maxrows, $maxcolumns);
+		}
+		$invariable_width = 131; # for the queue display.
+		if ($invariable_width + $max_length{'job_ID'} > $maxcolumns) {
+			$maxcolumns = $invariable_width + $max_length{'job_ID'};
+			resize($pad, $maxrows, $maxcolumns);
+		}
+		
+		_UpdateDisplay(\%state_count, \%max_length, \%nodes, \%jobs, \%users, \%queues);
 		-t STDOUT or do { endwin; exit; };
-		_TopSleep(\%state_count, $max_server_length, $max_node_length, \%nodes, \%jobs, \%users, \%queues);
+		_TopSleep(\%state_count, \%max_length, \%nodes, \%jobs, \%users, \%queues);
 	}
 }
 
@@ -472,9 +510,12 @@ sub _GetInfo {
 	my @qmgr = `$qmgr -c 'l n \@$server' $server 2>/dev/null`;
 	$? and do { _PrintWarning("Connection to $server failed.") };
 	
-	my @qstat_ft = `$qstat -ft \@$server 2>/dev/null`;
+	my @qstat = `$qstat -ft \@$server 2>/dev/null`;
 	$? and do { _PrintWarning("Connection to $server failed.") };
 	
+	#
+	# Parse qmgr output.
+	#
 	my $active_jobs;
 	my $eating_jobs = 0;
 	my $status;
@@ -482,9 +523,6 @@ sub _GetInfo {
 	my $eating_status = 0;
 	my $node         = "";
 	
-	#
-	# Parse qmgr output.
-	#
 	foreach (@qmgr) {
 		chomp;
 		
@@ -493,49 +531,49 @@ sub _GetInfo {
 			$node =~ s/^targetgcc//;
 			$node =~ s/-mgmt$//;
 			$node =~ s/\s//g;
-			delete $nodes->{$server}{$node};
-			$nodes->{$server}{$node}{'seen'} = 1;
-			$state_count->{'_nodes'}++;
+			delete ${$nodes}{$server}{$node};
+			${$nodes}{$server}{$node}{'seen'} = 1;
+			${$state_count}{'_nodes'}++;
 			$eating_jobs   = 0;
 			$eating_status = 0;
 		} elsif (/\s+np = (.*)/) {
-			$nodes->{$server}{$node}{'np'} = $1;
-			$state_count->{'_procs'} += $1;
-			$state_count->{'_mprocs'} =
-			    $state_count->{'_mprocs'} > $1
-			  ? $state_count->{'_mprocs'}
+			${$nodes}{$server}{$node}{'np'} = $1;
+			${$state_count}{'_procs'} += $1;
+			${$state_count}{'_mprocs'} =
+			    ${$state_count}{'_mprocs'} > $1
+			  ? ${$state_count}{'_mprocs'}
 			  : $1;
 			$eating_status = 0;
 			$eating_jobs   = 0;
 		} elsif (/\s+properties = (.*)/) {
-			$nodes->{$server}{$node}{'properties'} = $1;
+			${$nodes}{$server}{$node}{'properties'} = $1;
 			$eating_status                         = 0;
 			$eating_jobs                           = 0;
 		} elsif (/\s+ntype = (.*)/) {
-			$nodes->{$server}{$node}{'ntype'} = $1;
+			${$nodes}{$server}{$node}{'ntype'} = $1;
 			$eating_status                    = 0;
 			$eating_jobs                      = 0;
 		} elsif (/\s+state = (.*)/) {
-			$nodes->{$server}{$node}{'state'} = $1;
-			$state_count->{$1}++;
+			${$nodes}{$server}{$node}{'state'} = $1;
+			${$state_count}{$1}++;
 			$eating_status = 0;
 			$eating_jobs   = 0;
 		} elsif (/\s+jobs = (.*)/) {
 			$eating_jobs   = 1;
 			$eating_status = 0;
 			$active_jobs   = $1;
-			$state_count->{'_anodes'}++;
+			${$state_count}{'_anodes'}++;
 			
 			#
 			# Reset list of jobs on this node.
 			#
-			$nodes->{$server}{$node}{'jobs'} = {};
+			${$nodes}{$server}{$node}{'jobs'} = {};
 			foreach my $job_slot (split(/, /, $active_jobs)) {
 				if ($job_slot =~ m/(\d+)\/(\d+(\[\d+\])?)/) {
 					my $slot   = $1;
 					my $job_id = $2;
-					$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
-					$state_count->{'_aprocs'}++;
+					${$nodes}{$server}{$node}{'job'}{$slot} = $job_id;
+					${$state_count}{'_aprocs'}++;
 					if (defined(${$nodes}{$server}{$node}{'jobs'}{$job_id})) {
 						${$nodes}{$server}{$node}{'jobs'}{$job_id}++;
 					} else {
@@ -551,7 +589,7 @@ sub _GetInfo {
 			$statuses     = $1;
 			foreach my $status (split(/,/, $statuses)) {
 				if ($status =~ m{(.+)=(.+)}) {
-					$nodes->{$server}{$node}{'status'}{$1} = $2;
+					${$nodes}{$server}{$node}{'status'}{$1} = $2;
 				}
 			}
 		} elsif ($eating_jobs) {
@@ -562,8 +600,8 @@ sub _GetInfo {
 					if ($job_slot =~ m/(\d+)\/(\d+(\[\d+\])?)/) {
 						my $slot   = $1;
 						my $job_id = $2;
-						$nodes->{$server}{$node}{'job'}{$slot} = $job_id;
-						$state_count->{'_aprocs'}++;
+						${$nodes}{$server}{$node}{'job'}{$slot} = $job_id;
+						${$state_count}{'_aprocs'}++;
 						if (defined(${$nodes}{$server}{$node}{'jobs'}{$job_id})) {
 							${$nodes}{$server}{$node}{'jobs'}{$job_id}++;
 						} else {
@@ -582,7 +620,7 @@ sub _GetInfo {
 				$statuses = $1;
 				foreach my $status (split(/,/, $statuses)) {
 					if ($status =~ m{(.+)=(.+)}) {
-						$nodes->{$server}{$node}{'status'}{$1} = $2;
+						${$nodes}{$server}{$node}{'status'}{$1} = $2;
 					}
 				}
 			} else {
@@ -594,78 +632,86 @@ sub _GetInfo {
 	#
 	# Parse qstat output.
 	#
-	if (scalar(@qstat_ft) > 0) {
-		my $job;
-		foreach (@qstat_ft) {
-			chomp;
+	my $job;
+	
+	foreach (@qstat) {
+		chomp;
+		if (/^\s*Job Id: /i) {
 			if (/^\s*Job Id: ([0-9]+(\[[0-9]+\])?)\.([a-z0-9A-Z\-\._]+)/) {
 				$job = $1;
 				my $scheduler = $3;
 				if ($server eq $scheduler) {
-					$jobs->{$job}{'seen'}   = 1;
-					$jobs->{$job}{'server'} = $server;
-					$state_count->{'_njobs'}++;
+					${$jobs}{$job}{'seen'}   = 1;
+					${$jobs}{$job}{'server'} = $server;
+					${$state_count}{'_njobs'}++;
 				} else {
 					die 'FATAL: server reported in qstat output (' . $scheduler . ') does not match server for which info was requested (' . $server . ').';
 				}
-			} elsif (/^\s*Job_Name = (.+)/i) {
-				$jobs->{$job}{'jname'} = $1;
-			} elsif (/^\s*Job_Owner = ([^@]+)/i) {
-				$jobs->{$job}{'user'} = $1;
-			} elsif (/^\s*job_state = ([CEHQRSTW])/i) {
-				my $state = $1;
-				$jobs->{$job}{'state'} = $state;
-				if ($state eq 'R') {
-					$state_count->{'_rjobs'}++;
-				}
-			} elsif (/^\s*queue = (.+)/i) {
-				$jobs->{$job}{'queue'} = $1;
-			} elsif (/^\s*Resource_List.nodes = ([0-9]+):ppn=([0-9]+)/i) {
-				$jobs->{$job}{'ncount'}  = $1;
-				$jobs->{$job}{'cores_r'} = $2 * $1;
-			} elsif (/^\s*Resource_List.nodes = ([0-9]+)$/i) {
-				$jobs->{$job}{'ncount'}  = $1;
-				$jobs->{$job}{'cores_r'} = 1 * $1; # no cores were specified -> defaults to 1. 
-			} elsif (/^\s*Resource_List.(p?mem) = ([0-9]+)([a-z]+)$/i) {
-				my $mem_type  = $1; # either mem (total) or pmem (per core).
-				my $mem_value = $2;
-				my $mem_unit  = $3;
-				if ($mem_unit eq 'b') {
-					$mem_value = $mem_value / 1073741824;
-				} elsif ($mem_unit eq 'kb') {
-					$mem_value = $mem_value / 1048576;
-				} elsif ($mem_unit eq 'mb') {
-					$mem_value = $mem_value / 1024;
-				} elsif ($mem_unit eq 'gb') {
-					$mem_value = $mem_value;
-				} else {
-					die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
-				}
-				$jobs->{$job}{$mem_type . '_r'} = sprintf("%.1f", $mem_value);
-			} elsif (/^\s*Resource_List.walltime = ([0-9:]+)/i) {
-				$jobs->{$job}{'walltime_r'} = $1;
-			} elsif (/^\s*resources_used.cput = (.+)$/i) {
-				$jobs->{$job}{'cputime_u'} = $1;
-			} elsif (/^\s*resources_used.mem = ([0-9]+)([a-z]+)$/i) {
-				my $mem_value = $1;
-				my $mem_unit  = $2;
-				if ($mem_unit eq 'b') {
-					$mem_value = $mem_value / 1073741824;
-				} elsif ($mem_unit eq 'kb') {
-					$mem_value = $mem_value / 1048576;
-				} elsif ($mem_unit eq 'mb') {
-					$mem_value = $mem_value / 1024;
-				} elsif ($mem_unit eq 'gb') {
-					$mem_value = $mem_value;
-				} else {
-					die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
-				}
-				$jobs->{$job}{'mem_u'} = sprintf("%.1f", $mem_value);
-			} elsif (/^\s*resources_used.walltime = (.+)/i) {
-				$jobs->{$job}{'walltime_u'} = $1;
+			} else {
+				die 'FATAL: cannot parse JobID from qstat output line: ' . $_;
 			}
+		} elsif (/^\s*Job_Name = (.+)/i) {
+			${$jobs}{$job}{'jname'} = $1;
+		} elsif (/^\s*Job_Owner = ([^@]+)/i) {
+			${$jobs}{$job}{'user'} = $1;
+		} elsif (/^\s*job_state = ([CEHQRSTW])/i) {
+			my $state = $1;
+			${$jobs}{$job}{'state'} = $state;
+			if ($state eq 'R') {
+				${$state_count}{'_rjobs'}++;
+			}
+		} elsif (/^\s*queue = (.+)/i) {
+			${$jobs}{$job}{'queue'} = $1;
+		} elsif (/^\s*Resource_List.nodes = ([0-9]+):ppn=([0-9]+)/i) {
+			${$jobs}{$job}{'ncount'}  = $1;
+			${$jobs}{$job}{'cores_r'} = $2 * $1;
+		} elsif (/^\s*Resource_List.nodes = ([0-9]+)$/i) {
+			${$jobs}{$job}{'ncount'}  = $1;
+			${$jobs}{$job}{'cores_r'} = 1 * $1; # no cores were specified -> defaults to 1. 
+		} elsif (/^\s*Resource_List.(p?mem) = ([0-9]+)([a-z]+)$/i) {
+			my $mem_type  = $1; # either mem (total) or pmem (per core).
+			my $mem_value = $2;
+			my $mem_unit  = $3;
+			if ($mem_unit eq 'b') {
+				$mem_value = $mem_value / 1073741824;
+			} elsif ($mem_unit eq 'kb') {
+				$mem_value = $mem_value / 1048576;
+			} elsif ($mem_unit eq 'mb') {
+				$mem_value = $mem_value / 1024;
+			} elsif ($mem_unit eq 'gb') {
+				$mem_value = $mem_value;
+			} else {
+				die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
+			}
+			${$jobs}{$job}{$mem_type . '_r'} = sprintf("%.1f", $mem_value);
+		} elsif (/^\s*Resource_List.walltime = ([0-9:]+)/i) {
+			${$jobs}{$job}{'walltime_r'} = $1;
+		} elsif (/^\s*resources_used.cput = (.+)$/i) {
+			${$jobs}{$job}{'cputime_u'} = $1;
+		} elsif (/^\s*resources_used.mem = ([0-9]+)([a-z]+)$/i) {
+			my $mem_value = $1;
+			my $mem_unit  = $2;
+			if ($mem_unit eq 'b') {
+				$mem_value = $mem_value / 1073741824;
+			} elsif ($mem_unit eq 'kb') {
+				$mem_value = $mem_value / 1048576;
+			} elsif ($mem_unit eq 'mb') {
+				$mem_value = $mem_value / 1024;
+			} elsif ($mem_unit eq 'gb') {
+				$mem_value = $mem_value;
+			} else {
+				die "FATAL: Unsupported mem unit $mem_unit in $qstat -f output.";
+			}
+			${$jobs}{$job}{'mem_u'} = sprintf("%.1f", $mem_value);
+		} elsif (/^\s*resources_used.walltime = (.+)/i) {
+			${$jobs}{$job}{'walltime_u'} = $1;
 		}
 	}
+}
+
+sub _SupplementInfo {
+	
+	my ($nodes, $jobs) = @_;
 	
 	#
 	# Revisit info about all jobs and 
@@ -673,29 +719,29 @@ sub _GetInfo {
 	#  * calculate derived data.
 	#
 	foreach my $job (keys(%{$jobs})) {
-		foreach my $attribute ('seen','server','jname','user','queue','state') {
-			unless (defined($jobs->{$job}{$attribute})) {
-				$jobs->{$job}{$attribute} = '?';
+		foreach my $attribute ('server','jname','user','queue','state') {
+			unless (defined(${$jobs}{$job}{$attribute})) {
+				${$jobs}{$job}{$attribute} = '?';
 				_PrintWarning('ERROR: Missing required attribute ' . $attribute . ' for job ' . $job);
 			}
 		}
-		if (defined($jobs->{$job}{'cputime_u'}) && defined($jobs->{$job}{'walltime_u'})) {
-			my @cputime = reverse(split(':', $jobs->{$job}{'cputime_u'}));
+		if (defined(${$jobs}{$job}{'cputime_u'}) && defined(${$jobs}{$job}{'walltime_u'})) {
+			my @cputime = reverse(split(':', ${$jobs}{$job}{'cputime_u'}));
 			my $cputime_sec = $cputime[0] + ($cputime[1] * 60) + ($cputime[2] * 3600);
-			my @walltime = reverse(split(':', $jobs->{$job}{'walltime_u'}));
+			my @walltime = reverse(split(':', ${$jobs}{$job}{'walltime_u'}));
 			my $walltime_sec = $walltime[0] + ($walltime[1] * 60) + ($walltime[2] * 3600);
 			if ($walltime_sec > 0) {
-				$jobs->{$job}{'cpu_u'} = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
+				${$jobs}{$job}{'cpu_u'} = sprintf("%u", ($cputime_sec / $walltime_sec) * 100);
 			}
 			#_PrintWarning("DEBUG: walltime_sec = $walltime[0] | $walltime[1] | $walltime[2]");
-			#_PrintWarning("DEBUG: cputime = $jobs->{$job}{cputime_u} | walltime = $jobs->{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
+			#_PrintWarning("DEBUG: cputime = ${$jobs}{$job}{cputime_u} | walltime = ${$jobs}{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
 		}
-		if (defined($jobs->{$job}{'cores_r'})) {
-			$jobs->{$job}{'cpu_r'} = $jobs->{$job}{'cores_r'} * 100;
+		if (defined(${$jobs}{$job}{'cores_r'})) {
+			${$jobs}{$job}{'cpu_r'} = ${$jobs}{$job}{'cores_r'} * 100;
 		}
-		if (defined($jobs->{$job}{'cpu_u'} && defined($jobs->{$job}{'cpu_r'}))) {
-			my $cpu_u = $jobs->{$job}{'cpu_u'};
-			my $cpu_r = $jobs->{$job}{'cpu_r'};
+		if (defined(${$jobs}{$job}{'cpu_u'} && defined(${$jobs}{$job}{'cpu_r'}))) {
+			my $cpu_u = ${$jobs}{$job}{'cpu_u'};
+			my $cpu_r = ${$jobs}{$job}{'cpu_r'};
 			my $cpu_s; # usage state.
 			if (($cpu_u / $cpu_r) < $res_usage_low) {
 				$cpu_s = '<';
@@ -704,26 +750,26 @@ sub _GetInfo {
 			} else {
 				$cpu_s = '=';
 			}
-			$jobs->{$job}{'cpu_s'} = $cpu_s;
+			${$jobs}{$job}{'cpu_s'} = $cpu_s;
 		}
-		if (defined($jobs->{$job}{'pmem_r'})) {
-			if (defined($jobs->{$job}{'cores_r'})) {
-				my $total_mem = sprintf("%.1f", $jobs->{$job}{'pmem_r'} * $jobs->{$job}{'cores_r'});
-				if (defined($jobs->{$job}{'mem_r'})) {
-					if ($jobs->{$job}{'mem_r'} < $total_mem) {
-						$jobs->{$job}{'mem_r'} = $total_mem;
+		if (defined(${$jobs}{$job}{'pmem_r'})) {
+			if (defined(${$jobs}{$job}{'cores_r'})) {
+				my $total_mem = sprintf("%.1f", ${$jobs}{$job}{'pmem_r'} * ${$jobs}{$job}{'cores_r'});
+				if (defined(${$jobs}{$job}{'mem_r'})) {
+					if (${$jobs}{$job}{'mem_r'} < $total_mem) {
+						${$jobs}{$job}{'mem_r'} = $total_mem;
 					}
 				} else {
-					$jobs->{$job}{'mem_r'} = $total_mem;
+					${$jobs}{$job}{'mem_r'} = $total_mem;
 				}
 			}
 		}
-		if (!defined($jobs->{$job}{'mem_r'}) || $jobs->{$job}{'mem_r'} <= 0) {
-			$jobs->{$job}{'mem_r'} = 0.1 # default to low value if not specified to prevent illegal devide by zero errors.
+		if (!defined(${$jobs}{$job}{'mem_r'}) || ${$jobs}{$job}{'mem_r'} <= 0) {
+			${$jobs}{$job}{'mem_r'} = 0.1 # default to low value if not specified to prevent illegal devide by zero errors.
 		}
-		if (defined($jobs->{$job}{'mem_u'}) && defined($jobs->{$job}{'mem_r'})) {
-			my $mem_u = $jobs->{$job}{'mem_u'};
-			my $mem_r = $jobs->{$job}{'mem_r'};
+		if (defined(${$jobs}{$job}{'mem_u'}) && defined(${$jobs}{$job}{'mem_r'})) {
+			my $mem_u = ${$jobs}{$job}{'mem_u'};
+			my $mem_r = ${$jobs}{$job}{'mem_r'};
 			my $mem_s; # usage state.
 			if (($mem_u / $mem_r) < $res_usage_low) {
 				$mem_s = '<';
@@ -732,7 +778,7 @@ sub _GetInfo {
 			} else {
 				$mem_s = '=';
 			}
-			$jobs->{$job}{'mem_s'} = $mem_s;
+			${$jobs}{$job}{'mem_s'} = $mem_s;
 		}
 	}
 	
@@ -744,8 +790,8 @@ sub _GetInfo {
 			foreach my $job (keys(%{${$nodes}{$server}{$node}{jobs}})) {
 				if (defined(${$jobs}{$job})) {
 					if (${$jobs}{$job}{'server'} eq $server) {
-						$jobs->{$job}{'node'}    = $node;
-						$jobs->{$job}{'cores_u'} = ${$nodes}{$server}{$node}{'jobs'}{$job};
+						${$jobs}{$job}{'node'}    = $node;
+						${$jobs}{$job}{'cores_u'} = ${$nodes}{$server}{$node}{'jobs'}{$job};
 					} else {
 						_PrintWarning("ERROR: Scheduler does not match for job ID ${job} (nodes server = $server but jobs server = ${$jobs}{$job}{server}).");
 					}
@@ -755,12 +801,11 @@ sub _GetInfo {
 			}
 		}
 	}
-
 }
 
 sub _UpdateDisplay {
 	
-	my ($state_count, $max_server_length, $max_node_length, $nodes, $jobs, $users, $queues) = @_;
+	my ($state_count, $max_length, $nodes, $jobs, $users, $queues) = @_;
 	
 	my $foo;
 	move($pad, 0, 0);
@@ -768,17 +813,16 @@ sub _UpdateDisplay {
 	$y = 0, $x = 0;
 	
 	$show_summary and _PrintStateSummary($state_count);
-	$show_grid and _PrintGrid($jobs, $nodes, $users, $queues, $max_server_length, $max_node_length);
-	$show_queue and _PrintQueue($jobs, $users, $queues);
+	$show_grid    and _PrintGrid($jobs, $nodes, $users, $queues, $max_length);
+	$show_queue   and _PrintQueue($jobs, $users, $queues, $max_length);
 	
-	getyx($pad, $ly, $foo);
+	getyx($pad, $last_y, $foo);
 	clrtobot($pad);
 	
-	pnoutrefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
+	pnoutrefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
 	mvwin($cmdwin, $Y - 1, 0);
 	refresh($cmdwin);
 	_UpdateSubWindow(@_);
-	doupdate();
 }
 
 #
@@ -802,7 +846,7 @@ sub _PrintStateSummary {
 	my ($y1, $x1);
 	getyx($pad, $y1, $x1);
 	my $max_state_line_length = $X < $maxcolumns ? $X : $maxcolumns;
-	addstr($pad, ' ' . ' ' x ($max_state_line_length - $x1 - 22));
+	addstr($pad, ' ' . ' ' x ($max_state_line_length - $x1 - 23));
 	#_PrintWarning("DEBUG: X = $X | Y = $Y | x1 = $x1 | y1 = $y1 | current x = $x | current y = $y");
 	#addstr($pad, sprintf("%02d:%02d:%02d", (localtime())[ 2, 1, 0 ]));
 	addstr($pad, `date "+%Y-%m-%d-T%H:%M:%S"`);
@@ -815,9 +859,9 @@ sub _PrintStateSummary {
 	my $line;
 	my @states = sort(grep(!/^_/, keys(%{$state_count})));
 	addstr($pad, 1, 0, 'Node States:');
-	for (my $i = 0 ; defined $states[$i] ; $i++) {
+	for (my $i = 0 ; defined($states[$i]) ; $i++) {
 		$line = ' ' . ${$state_count}{$states[$i]} . ' ' . $states[$i];
-		$line .= defined $states[$i + 1] ? ' |' : '';
+		$line .= defined($states[$i + 1]) ? ' |' : '';
 		getyx($pad, $y1, $x1);
 		if ($X - $x1 - 1 < length($line)) {
 			clrtoeol($pad);
@@ -832,10 +876,9 @@ sub _PrintStateSummary {
 
 sub _PrintGrid {
 	
-	my ($jobs, $nodes, $users, $queues, $max_server_length, $max_node_length) = @_;
+	my ($jobs, $nodes, $users, $queues, $max_length) = @_;
 	
-	my ($foo, $tmpx);
-	$lx = 0;
+	$last_x = 0;
 	
 	#
 	# Keep track of columns.
@@ -855,11 +898,11 @@ sub _PrintGrid {
 		$show_cpu[0] = "0";
 	}
 	
-	#_PrintVcpuLine($max_server_length, $max_node_length);
+	#_PrintVcpuLine($max_length);
 	
-	foreach my $server (sort(keys(%$nodes))) {
+	foreach my $server (sort(keys(%{$nodes}))) {
 		
-		_PrintNumberLine($max_server_length, $max_node_length, $headerspaces, $columns);
+		_PrintNumberLine($max_length, $headerspaces, $columns);
 		
 		foreach my $node (sort(keys(%{${$nodes}{$server}}))) {
 			
@@ -867,7 +910,7 @@ sub _PrintGrid {
 				next;
 			}
 			
-			_PrintDashLine($max_server_length, $max_node_length, $headerspaces, $columns);
+			_PrintDashLine($max_length, $headerspaces, $columns);
 			my $col = 0;
 			my $load =
 			  defined($$nodes{$server}{$node}{status}{'loadave'})
@@ -880,52 +923,69 @@ sub _PrintGrid {
 			#
 			# Grid display sorted by job.
 			#
-			foreach my $job (sort(keys(%{${$nodes}{$server}{$node}{jobs}}))) {
+			JOB: foreach my $job (sort(keys(%{${$nodes}{$server}{$node}{jobs}}))) {
 				
 				my $letter    = 0;
 				my $color     = 0;
 				my $underline = 0;
-				my $job_id    = 0;
 				my $cpu_state = 'busy';
 				
-				if (
-					    exists $$jobs{$job}
-					and exists $$jobs{$job}{letter}
-					and exists $$jobs{$job}{node}
-					and ($show_user     ? $show_user     =~ /\b$$jobs{$job}{user}\b/ : 1)
-					and ($show_node     ? $show_node     =~ /\b$$jobs{$job}{node}\b/ : 1)
-					and ($show_job_id   ? $show_job_id   =~ m/\b$job\b/ : 1)
-				  ) {
+				#
+				# Sanity checks on presense of data.
+				#
+				unless (defined(${$jobs}{$job})) {
+					_PrintWarning('WARN: Job ' . $job . ' was seen running on a node, but missing from qstat output. (May be sync issue.)');
+					next JOB;
+				}
+				unless (    defined(${$jobs}{$job}{user})
+						and defined(${$jobs}{$job}{node})) {
+					_PrintWarning('WARN: Job ' . $job . ' was seen running on a node, but is lacking user or node info in qstat output.');
+					next JOB;
+				}
+				
+				#
+				# Check if we need to display or skip this job.
+				#
+				unless (    ($show_user     ? $show_user     =~ /\b$$jobs{$job}{user}\b/ : 1)
+						and ($show_node     ? $show_node     =~ /\b$$jobs{$job}{node}\b/ : 1)
+						and ($show_job_id   ? $show_job_id   =~ m/\b$job\b/ : 1)
+					   ) {
+					next JOB;
+				}
 					
-					#
-					# Get job details.
-					# By default color by job.
-					#
-					$job_id    = $job;
-					$letter    = $jobs->{$job}{letter};
-					$color     = $jobs->{$job}{color};
-					$underline = $jobs->{$job}{underline};
-					my $user  = $jobs->{$job}{user};
-					my $queue = $jobs->{$job}{queue};
-					
-					if ($color_by eq 'user') {
-						$color = $users->{$user}{color};
-					} elsif ($color_by eq 'queue') {
-						$color = $queues->{$queue}{color};
-					} elsif ($color_by eq 'resources') {
-						$color = 7; # white on black.
-						if (defined($jobs->{$job}{cpu_s}) && defined($jobs->{$job}{mem_s})) {
-							my $cpu_s = $jobs->{$job}{cpu_s};
-							my $mem_s = $jobs->{$job}{mem_s};
-							if ($cpu_s eq '=' && $mem_s eq '=') {
-								$color = $resource_usage_state_colors{'='};
-							} else {
-								if ($cpu_s eq '<' || $mem_s eq '<') {
-									$color = $resource_usage_state_colors{'<'};
-								}
-								if ($cpu_s eq '>' || $mem_s eq '>') {
-									$color = $resource_usage_state_colors{'>'};
-								}
+				#
+				# Get job details.
+				# By default color by job.
+				#
+				unless (    defined(${$jobs}{$job}{letter})
+						and defined(${$jobs}{$job}{color})
+						and defined(${$jobs}{$job}{underline})
+						and defined(${$jobs}{$job}{queue})) {
+					_PrintWarning('WARN: Job ' . $job . ' was seen running on a node, but is lacking details (letter, color, underline or queue).');
+				}
+				$letter    = ${$jobs}{$job}{letter};
+				$color     = ${$jobs}{$job}{color};
+				$underline = ${$jobs}{$job}{underline};
+				my $user  = ${$jobs}{$job}{user};
+				my $queue = ${$jobs}{$job}{queue};
+				
+				if ($color_by eq 'user') {
+					$color = ${$users}{$user}{color};
+				} elsif ($color_by eq 'queue') {
+					$color = ${$queue}{$queue}{color};
+				} elsif ($color_by eq 'resources') {
+					$color = 7; # white on black.
+					if (defined(${$jobs}{$job}{cpu_s}) && defined(${$jobs}{$job}{mem_s})) {
+						my $cpu_s = ${$jobs}{$job}{cpu_s};
+						my $mem_s = ${$jobs}{$job}{mem_s};
+						if ($cpu_s eq '=' && $mem_s eq '=') {
+							$color = $resource_usage_state_colors{'='};
+						} else {
+							if ($cpu_s eq '<' || $mem_s eq '<') {
+								$color = $resource_usage_state_colors{'<'};
+							}
+							if ($cpu_s eq '>' || $mem_s eq '>') {
+								$color = $resource_usage_state_colors{'>'};
 							}
 						}
 					}
@@ -937,14 +997,12 @@ sub _PrintGrid {
 						$col = 0;
 					}
 					if ($col == 0) {
-						addstr($pad, sprintf "  %${max_server_length}s %${max_node_length}s ", $server, $node);
+						addstr($pad, sprintf "  %${$max_length}{'server'}s %${$max_length}{'node'}s ", $server, $node);
 					} elsif ($col != 0 and $col % 10 == 0) {
 						addstr($pad, '  ');
 					}
-					_PrintCoreState($job_id, $letter, $cpu_state, $color, $underline);
+					_PrintCoreState($job, $letter, $cpu_state, $color, $underline);
 					addstr($pad, ' ');
-					getyx($pad, $foo, $tmpx);
-					$lx = $lx > $tmpx ? $lx : $tmpx;
 					clrtoeol($pad);
 					$col++;
 					$used_cores++;
@@ -961,7 +1019,7 @@ sub _PrintGrid {
 					$col = 0;
 				}
 				if ($col == 0) {
-					addstr($pad, sprintf "  %${max_server_length}s %${max_node_length}s ", $server, $node);
+					addstr($pad, sprintf "  %${$max_length}{'server'}s %${$max_length}{'node'}s ", $server, $node);
 				} elsif ($col != 0 and $col % 10 == 0) {
 					addstr($pad, '  ');
 				}
@@ -969,8 +1027,6 @@ sub _PrintGrid {
 				addstr($pad, ' ');
 				$col++;
 				$listed_cores++;
-				getyx($pad, $foo, $tmpx);
-				$lx = $lx > $tmpx ? $lx : $tmpx;
 				clrtoeol($pad);
 			}
 			
@@ -978,8 +1034,6 @@ sub _PrintGrid {
 				addstr($pad, '  ') if ($col != 0 and $col % 10 == 0);
 				addstr($pad, '  ');
 				$col++;
-				getyx($pad, $foo, $tmpx);
-				$lx = $lx > $tmpx ? $lx : $tmpx;
 				clrtoeol($pad);
 			}
 			
@@ -1005,20 +1059,23 @@ sub _PrintGrid {
 			$colorize and attron($pad, A_BOLD | COLOR_PAIR($color));
 			addstr($pad, $health);
 			$colorize and attroff($pad, A_BOLD | COLOR_PAIR($color));
+			getyx($pad, my $current_last_y, my $current_last_x);
+			$last_x = $last_x > $current_last_x ? $last_x : $current_last_x;
+			clrtoeol($pad);
 			move($pad, ++$y, $x = 0);
 			
 			clrtoeol($pad);
 			move($pad, ++$y, $x = 0) if $col != $columns;
 		}
 		
-		_PrintDashLine($max_server_length, $max_node_length, 1, $columns);
+		_PrintDashLine($max_length, 1, $columns);
 		
 	}
 	
 	#
 	# Print legend underneath grid.
 	#
-	my $legend = sprintf("  %${max_server_length}s %${max_node_length}s ", ' ', ' ');
+	my $legend = sprintf("  %${$max_length}{'server'}s %${$max_length}{'node'}s ", ' ', ' ');
 	$legend .= 'legend:';
 	$legend .= " $state_characters{'unknown'} unknown";
 	$legend .= " | $state_characters{'busy'} busy";
@@ -1038,18 +1095,12 @@ sub _PrintGrid {
 #
 sub _PrintQueue {
 	
-	my ($jobs, $users, $queues) = @_;
+	my ($jobs, $users, $queues, $max_length) = @_;
 	
 	#
 	# Get max length of several values and adjust pad width if necessary.
 	#
-	my $max_job_id_length = _GetMaxKeyLength($jobs);
-	$max_job_id_length = $max_job_id_length > 5 ? $max_job_id_length : 5;
-	my $invariable_width = 131;
-	if ($invariable_width + $max_job_id_length > $maxcolumns) {
-		$maxcolumns = $invariable_width + $max_job_id_length;
-		resize($pad, $maxrows, $maxcolumns);
-	}
+	my $max_job_id_length = ${$max_length}{'job_ID'};
 	
 	my $format_base     = "%-${max_job_id_length}s %-15.15s %-12.12s %-40.40s %1s";
 	my $format_cpu      = " %6.6s";
@@ -1076,8 +1127,10 @@ sub _PrintQueue {
 	addstr($pad, sprintf($format_mem, 'req.'));
 	addstr($pad, sprintf($format_walltime, 'used'));
 	addstr($pad, sprintf($format_walltime, 'requested'));
-	clrtoeol($pad);
 	attroff($pad, A_BOLD);
+	clrtoeol($pad);
+	getyx($pad, my $current_last_y, my $current_last_x);
+	$last_x = $last_x > $current_last_x ? $last_x : $current_last_x;
 	move($pad, ++$y, $x = 0);
 	
 	#
@@ -1090,8 +1143,7 @@ sub _PrintQueue {
 	#  2. JobID without optional array task suffix followed by
 	#  3. opional array task suffix.
 	#
-	#foreach my $job (sort{defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'} or $a <=> $b} keys(%{$jobs})) {
-	foreach my $job (sort{     (defined($jobs->{$a}{'server'}) && defined($jobs->{$b}{'server'}) && $jobs->{$a}{'server'} cmp $jobs->{$b}{'server'})
+	foreach my $job (sort{     (defined(${$jobs}{$a}{'server'}) && defined(${$jobs}{$b}{'server'}) && ${$jobs}{$a}{'server'} cmp ${$jobs}{$b}{'server'})
 							or (($a =~ m/^(\d+)/)[0] <=> ($b =~ m/^(\d+)/)[0])
 							or ($a =~ m/\[(\d+)\]$/ && $b =~ m/\[(\d+)\]$/ && ($a =~ m/\[(\d+)\]$/)[0] <=> ($b =~ m/\[(\d+)\]$/)[0])
 						} keys(%{$jobs})) {
@@ -1104,11 +1156,10 @@ sub _PrintQueue {
 		#
 		# Get job details required to determine if this job will be displayed or skipped.
 		#
-		my $job_name = $jobs->{$job}{'jname'};
-		my $user     = $jobs->{$job}{'user'};
-		my $queue    = $jobs->{$job}{'queue'};
-		my $state    = $jobs->{$job}{'state'};
-		my $node     = defined($jobs->{$job}{'node'}) ? $jobs->{$job}{'node'}  : '-';
+		my $user     = ${$jobs}{$job}{'user'};
+		my $queue    = ${$jobs}{$job}{'queue'};
+		my $state    = ${$jobs}{$job}{'state'};
+		my $node     = defined(${$jobs}{$job}{'node'}) ? ${$jobs}{$job}{'node'}  : '-';
 		
 		#
 		# Skip this job if display was not requested.
@@ -1121,18 +1172,19 @@ sub _PrintQueue {
 		#
 		# Get job details that determine how the job will be displayed. 
 		#
-		my $l         = $jobs->{$job}{'letter'};
-		my $underline = $jobs->{$job}{'underline'};
-		my $color     = $jobs->{$job}{'color'};
+		my $job_name  = ${$jobs}{$job}{'jname'};
+		my $l         = ${$jobs}{$job}{'letter'};
+		my $underline = ${$jobs}{$job}{'underline'};
+		my $color     = ${$jobs}{$job}{'color'};
 		if ($color_by eq 'user') {
-			$color = $users->{$user}{'color'};
+			$color = ${$users}{$user}{'color'};
 		} elsif ($color_by eq 'queue') {
-			$color = $queues->{$queue}{'color'};
+			$color = ${$queues}{$queue}{'color'};
 		} elsif ($color_by eq 'resources') {
 			$color = 7; # white on black.
-			if (defined($jobs->{$job}{'cpu_s'}) && defined($jobs->{$job}{'mem_s'})) {
-				my $cpu_s = $jobs->{$job}{'cpu_s'};
-				my $mem_s = $jobs->{$job}{'mem_s'};
+			if (defined(${$jobs}{$job}{'cpu_s'}) && defined(${$jobs}{$job}{'mem_s'})) {
+				my $cpu_s = ${$jobs}{$job}{'cpu_s'};
+				my $mem_s = ${$jobs}{$job}{'mem_s'};
 				if ($cpu_s eq '=' && $mem_s eq '=') {
 					$color = $resource_usage_state_colors{'='};
 				} else {
@@ -1147,7 +1199,7 @@ sub _PrintQueue {
 		}
 		
 		addstr($pad, '  ');
-		if (defined($l) and $jobs->{$job}{'state'} eq 'R') {
+		if (defined($l) and ${$jobs}{$job}{'state'} eq 'R') {
 			_PrintColoredLetter($l, $color, $underline);
 			addstr($pad, ' = ');
 		} else {
@@ -1160,20 +1212,20 @@ sub _PrintQueue {
 		#
 		addstr($pad, sprintf($format_base, 
 			$job, 
-			$jobs->{$job}{'user'}, 
-			$jobs->{$job}{'queue'}, 
-			$jobs->{$job}{'jname'}, 
-			$jobs->{$job}{'state'}
+			${$jobs}{$job}{'user'}, 
+			${$jobs}{$job}{'queue'}, 
+			${$jobs}{$job}{'jname'}, 
+			${$jobs}{$job}{'state'}
 		));
-		#_PrintWarning('DEBUG: Job ' . $job .' | user '. $jobs->{$job}{'user'} . ' | queue ' . $jobs->{$job}{'queue'} . ' | state ' . $jobs->{$job}{'state'} . '.');
+		#_PrintWarning('DEBUG: Job ' . $job .' | user '. ${$jobs}{$job}{'user'} . ' | queue ' . ${$jobs}{$job}{'queue'} . ' | state ' . ${$jobs}{$job}{'state'} . '.');
 		
 		#
 		# Print job's CPU info.
 		#
-		if (defined($jobs->{$job}{'cpu_u'})) {
-			my $cpu_u = $jobs->{$job}{'cpu_u'};
-			if ($colorize && defined($jobs->{$job}{'cpu_s'})) {
-				my $state = $jobs->{$job}{'cpu_s'};
+		if (defined(${$jobs}{$job}{'cpu_u'})) {
+			my $cpu_u = ${$jobs}{$job}{'cpu_u'};
+			if ($colorize && defined(${$jobs}{$job}{'cpu_s'})) {
+				my $state = ${$jobs}{$job}{'cpu_s'};
 				attron($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
 				addstr($pad, sprintf($format_cpu, $cpu_u));
 				attroff($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
@@ -1184,16 +1236,16 @@ sub _PrintQueue {
 			addstr($pad, sprintf($format_cpu, ''));
 		}
 		addstr($pad, sprintf($format_cpu, 
-			defined($jobs->{$job}{'cpu_r'}) ? $jobs->{$job}{'cpu_r'} : ''
+			defined(${$jobs}{$job}{'cpu_r'}) ? ${$jobs}{$job}{'cpu_r'} : ''
 		));
 		
 		#
 		# Print job's memory info.
 		#
-		if (defined($jobs->{$job}{'mem_u'})) {
-			my $mem_u = $jobs->{$job}{'mem_u'};
-			if ($colorize && defined($jobs->{$job}{'mem_s'})) {
-				my $state = $jobs->{$job}{'mem_s'};
+		if (defined(${$jobs}{$job}{'mem_u'})) {
+			my $mem_u = ${$jobs}{$job}{'mem_u'};
+			if ($colorize && defined(${$jobs}{$job}{'mem_s'})) {
+				my $state = ${$jobs}{$job}{'mem_s'};
 				attron($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
 				addstr($pad, sprintf($format_mem, $mem_u));
 				attroff($pad, A_BOLD | COLOR_PAIR($resource_usage_state_colors{$state}));
@@ -1204,17 +1256,17 @@ sub _PrintQueue {
 			addstr($pad, sprintf($format_mem, ''));
 		}
 		addstr($pad, sprintf($format_mem, 
-			defined($jobs->{$job}{'mem_r'}) ? $jobs->{$job}{'mem_r'} : ''
+			defined(${$jobs}{$job}{'mem_r'}) ? ${$jobs}{$job}{'mem_r'} : ''
 		));
 		
 		#
 		# Print job's walltime info.
 		#
 		addstr($pad, sprintf($format_walltime, 
-			defined($jobs->{$job}{'walltime_u'}) ? $jobs->{$job}{'walltime_u'} : ''
+			defined(${$jobs}{$job}{'walltime_u'}) ? ${$jobs}{$job}{'walltime_u'} : ''
 		));
 		addstr($pad, sprintf($format_walltime, 
-			defined($jobs->{$job}{'walltime_r'}) ? $jobs->{$job}{'walltime_r'} : ''
+			defined(${$jobs}{$job}{'walltime_r'}) ? ${$jobs}{$job}{'walltime_r'} : ''
 		));
 		
 		clrtoeol($pad);
@@ -1239,28 +1291,34 @@ sub _Letterize {
 	# which is Ok because we don't care _who_ has that letter.
 	
 	#
-	# Remove info about old jobs and jobs already assigned a letter.
+	# Remove info about old jobs.
 	#
 	foreach my $l (keys(%job_of_letter)) {
-		delete $job_of_letter{$l}
-		  if (exists($jobs->{$job_of_letter{$l}}{user}));
+		my $job_id_of_l = $job_of_letter{$l};
+		unless (defined(${$jobs}{$job_id_of_l})) {
+			my $deleted = delete($job_of_letter{$l});
+		}
 	}
 	
 	#
-	# Pick a letter if not already choosen.
+	# Pick a letter.
 	#
 	foreach my $job (keys(%{$jobs})) {
-		next if (!defined($jobs->{$job}{'state'}));
-		next if ($jobs->{$job}{'state'} eq 'Q');
-		my $user = $jobs->{$job}{user};
-		if (!exists($jobs->{$job}{letter})) {
+		#
+		# Skip jobs that already have a letter assigned
+		# or that are queued / on hold and do not yet need a letter.
+		#
+		next unless (defined(${$jobs}{$job}{'state'}));
+		next if (${$jobs}{$job}{'state'} =~ m/[HQ]/);
+		my $user = ${$jobs}{$job}{'user'};
+		unless (defined(${$jobs}{$job}{'letter'})) {
 			#
 			# Find a letter that isn't already taken.
 			#
 			my $l = substr($user, 0, 1);
-			if (exists($job_of_letter{$l})) {
+			if (defined($job_of_letter{$l})) {
 				$l = uc($l);
-				if (exists($job_of_letter{$l})) {
+				if (defined($job_of_letter{$l})) {
 					if (length($letters) <= 0) {
 						#
 						# Replenish our supply of letters.
@@ -1273,9 +1331,9 @@ sub _Letterize {
 					$l = $1;
 				}
 			}
-			$job_of_letter{$l}       = $job;
-			$jobs->{$job}{letter}    = $l;
-			$jobs->{$job}{underline} = $underline;
+			$job_of_letter{$l}          = $job;
+			${$jobs}{$job}{'letter'}    = $l;
+			${$jobs}{$job}{'underline'} = $underline;
 			if ($l =~ m/[^a-zA-Z0-9_]/) {
 				$l = '\\' . "$l";
 			}
@@ -1288,19 +1346,20 @@ sub _Letterize {
 # Assign a color to each job, user and queue.
 #
 sub _Colorize {
-	my ($jobs, $users, $queues) = @_ or return;
 	
-	foreach my $job (keys %{$jobs}) {
-		next if (defined($jobs->{$job}{color}));
+	my ($jobs, $users, $queues) = @_;
+	
+	foreach my $job (keys(%{$jobs})) {
+		next if (defined(${$jobs}{$job}{'color'}));
 		
 		scalar(@colors == 0) and @colors = _InitColors();
 		my $color = shift(@colors);
-		$jobs->{$job}{color} = $color;
+		${$jobs}{$job}{'color'} = $color;
 		
-		my $user  = $jobs->{$job}{user};
-		my $queue = $jobs->{$job}{queue};
-		$users->{$user}{color}   = $color unless (defined($users->{$user}{color}));
-		$queues->{$queue}{color} = $color unless (defined($queues->{$queue}{color}));
+		my $user  = ${$jobs}{$job}{'user'};
+		my $queue = ${$jobs}{$job}{'queue'};
+		${$users}{$user}{'color'}   = $color unless (defined(${$users}{$user}{'color'}));
+		${$queues}{$queue}{'color'} = $color unless (defined(${$queues}{$queue}{'color'}));
 	}
 }
 
@@ -1346,8 +1405,10 @@ sub _PrintCoreState {
 	my ($job, $letter, $state, $color, $underline) = @_;
 	
 	if ($job) {
-		_PrintWarning("WARN: $job has no letter.") unless $letter;
-		$letter = '&' unless $letter;
+		unless ($letter) {
+			_PrintWarning("WARN: $job has no letter.");
+			$letter = $state_characters{'unknown'};
+		}
 	}
 	
 	if ($state =~ /down/ and $job) {
@@ -1355,7 +1416,6 @@ sub _PrintCoreState {
 	} elsif ($job and $show_jobs) {
 		_PrintColoredLetter($letter, $color, $underline);
 	} elsif ($state =~ /down/) {
-		#_PrintColoredLetter($state_characters{'down'}, 1, 0);    # Color pair 1 is red on black
 		addch($pad, $state_characters{'down'});
 	} elsif ($state =~ /offline/) {
 		addch($pad, $state_characters{'offline'});
@@ -1379,11 +1439,11 @@ sub _PrintCoreState {
 #
 sub _PrintVcpuLine {
 	
-	my ($max_server_length, $max_node_length) = shift;
+	my ($max_length) = @_;
 	
 	# inform the user of the visible CPUs.
 	if (scalar(@show_cpu) == 1) {
-		addstr($pad, "  CPU $show_cpu[0]" . ' ' x ($max_server_length + 1 + $max_node_length - 4));
+		addstr($pad, "  CPU $show_cpu[0]" . ' ' x (${$max_length}{'server'} + 1 + ${$max_length}{'node'} - 4));
 	#} elsif ( scalar @show_cpu == $maxprocs ) {
 	#	addstr($pad, '   ' . ' ' x ($maxlen));
 	} else {
@@ -1400,9 +1460,9 @@ sub _PrintVcpuLine {
 #
 sub _PrintDashLine {
 	
-	my ($max_server_length, $max_node_length, $spaces, $columns) = @_;
+	my ($max_length, $spaces, $columns) = @_;
 	
-	my $line = '   ' . ' ' x ($max_server_length + 1 + $max_node_length);
+	my $line = '   ' . ' ' x (${$max_length}{'server'} + 1 + ${$max_length}{'node'});
 	for (my $i = 0 ; $i < $columns ; $i++) {
 		$line .= '--' if ($i != 0 and $i % 10 == 0);
 		$line .= '-' . '-' x $spaces;
@@ -1418,9 +1478,9 @@ sub _PrintDashLine {
 #
 sub _PrintNumberLine {
 	
-	my ($max_server_length, $max_node_length, $spaces, $columns) = @_;
+	my ($max_length, $spaces, $columns) = @_;
 	
-	my $line = '  ' . sprintf("%${max_server_length}s", 'scheduler') . ' ' . sprintf("%${max_node_length}s", 'node') . ' ';
+	my $line = '  ' . sprintf("%${$max_length}{'server'}s", 'scheduler') . ' ' . sprintf("%${$max_length}{'node'}s", 'node') . ' ';
 	for (my $i = 0, my $j = 0 ; $i < $columns ; $i++, $j++) {
 		if ($i != 0 and $i % 10 == 0) {
 			$line .= '  ';
@@ -1616,318 +1676,596 @@ sub print_nodestatus_window {
 #
 # This is used by the subs above to actually paint the subpad.
 #
-sub _PrintSubWindow {
+#sub _PrintSubWindow {
+#	
+#	my ($title, $ref, $epilogue) = @_;
+#	
+#	my $line = 1;
+#	
+#	#
+#	# Subwin's width is 8 fewer than the main win, and with 2 chars padding inside,
+#	# each line will be 10 chars less wide than the main window.
+#	# Select the smallest sizes from default and size currently in use
+#	# to make sure the subpad is smaller than its parent pad.
+#	# When the dimensions for the subpad are larger than those of the parent,
+#	# subpad creating will fail!
+#	#
+#	my $subpad_width;
+#	my $subpad_height;
+#	if ($maxcolumns < $X) {
+#		$subpad_width = $maxcolumns - 8;
+#	} else {
+#		$subpad_width = $X - 8;
+#	}
+#	if ($maxrows < $Y) {
+#		$subpad_height = $maxrows - 5;
+#	} else {
+#		$subpad_height = $Y - 5;
+#	}
+#	
+#	#
+#	# TODO: Do we need to properly destroy the subpads?
+#	#
+#	$subpad = subpad($pad, $subpad_height, $subpad_width, 2, 5);
+#	
+#	$subpad or die "FATAL: Failed to _PrintSubWindow. X = $X | Y = $Y | maxcolumns = $maxcolumns | maxrows = $maxrows";
+#	move($subpad, $line, 0);
+#	clrtoeol($subpad);
+#	move($subpad, $line, 2);
+#	
+#	foreach my $attr (@{$ref}) {
+#		my $name       = $attr->{name};
+#		my $value      = $attr->{value};
+#		my $indent     = length($name) + 2 + 3;     # 2 for padding, 3 for " = "
+#		my $maxlinelen = $subpad_width - $indent;
+#		my $pattern    = ".{1,$maxlinelen}";
+#		
+#		addstr($subpad, $name . " = ");
+#		my $string = $value;
+#		
+#		if ((length($string) + $indent) > $maxlinelen) {
+#			while (length($string)) {
+#				move($subpad, $line, $indent);
+#				$string =~ s/($pattern)// or die "FATAL: Cannot truncate '$string' to max line length of $maxlinelen characters.";
+#				addstr($subpad, "$1");
+#				clrtoeol($subpad);
+#				move($subpad, ++$line, 0);
+#				clrtoeol($subpad);
+#				move($subpad, $line, 2);
+#			}
+#			move($subpad, $line, 0);
+#			clrtoeol($subpad);
+#			move($subpad, $line, 2);
+#		} else {
+#			addstr($subpad, $string);
+#			clrtoeol($subpad);
+#			move($subpad, ++$line, 0);
+#			clrtoeol($subpad);
+#			move($subpad, $line, 2);
+#		}
+#	}
+#	
+#	move($subpad, ++$line, 0);
+#	clrtoeol($subpad);
+#	move($subpad, $line, 2);
+#	if (defined $epilogue) {
+#		addstr($subpad, "'q' to exit $epilogue");
+#	} else {
+#		addstr($subpad, "'q' to exit this window");
+#	}
+#	move($subpad, ++$line, 0);
+#	clrtoeol($subpad);
+#	
+#	#
+#	# Create a nice box by adding a border to the window.
+#	#
+#	resize($subpad, $line + 2, $X - 10);
+#	attron($subpad, COLOR_PAIR(1));
+#	box($subpad, &ACS_VLINE, &ACS_HLINE);
+#	move($subpad, 0, 3);
+#	addch($subpad, &ACS_RTEE);
+#	addstr($subpad, "$title");
+#	addch($subpad, &ACS_LTEE);
+#	attroff($subpad, COLOR_PAIR(1));
+#	
+#	# currently not used (since the subwin is always smaller than the terminal)
+#	$sub_Y = $line + 4;
+#	$sub_X = $X - 10;
+#
+#}
+
+sub _UpdateSubWindow {
+	$subpad or return;
+	#pnoutrefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+	pnoutrefresh($subpad_box, 0, 0, 0, 0, $sub_Y, $sub_X);
+	pnoutrefresh($subpad_content, $sub_partial_y , $sub_partial_x, 2, 2, $sub_Y - 3, $sub_X - 3);
+	#pnoutrefresh($subpad, 0, 0, 0, 0, $sub_Y - 1, $sub_X - 1);
+	doupdate();
+	#prefresh($subpad, 0, 0, 0, 0, $sub_Y, $sub_X);
+}
+
+sub _DestroySubWindow {
+	delwin($subpad_content);
+	delwin($subpad_box);
+	delwin($subpad);
+	$subpad         = 0;
+	$subpad_box     = 0;
+	$subpad_content = 0;
+	$sub_partial_y  = 0;
+	$sub_partial_x  = 0;
+	$sub_Y  = 0;
+	$sub_X  = 0;
+	if ($partial_y >= $last_y - $Y + 2) {
+		$partial_y = $last_y - $Y + 3;
+		pnoutrefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+	}
+}
+
+sub _PrintHelpPad {
 	
-	my ($title, $ref, $epilogue) = @_;
-	
+	my $title = 'Settings & Help';
 	my $line = 1;
+	my $color_pair = 3;
+	my $indent = '  ';
 	
 	#
-	# Subwin's width is 8 fewer than the main win, and with 2 chars padding inside,
-	# each line will be 10 chars less wide than the main window.
-	# Select the smallest sizes from default and size currently in use
-	# to make sure the subpad is smaller than its parent pad.
+	# Get dimensions for subpads.
+	#
 	# When the dimensions for the subpad are larger than those of the parent,
 	# subpad creating will fail!
 	#
-	my $subpad_width;
-	my $subpad_heigth;
+	my $sub_width;
+	my $sub_height;
+	my $box_width;
+	my $box_height;
+	my $content_width   = 100;
+	my $content_height  = 63;
+	
 	if ($maxcolumns < $X) {
-		$subpad_width = $maxcolumns - 8;
+		$box_width = $maxcolumns;
 	} else {
-		$subpad_width = $X - 8;
+		$box_width = $X;
 	}
 	if ($maxrows < $Y) {
-		$subpad_heigth = $maxrows - 5;
+		$box_height = $maxrows;
 	} else {
-		$subpad_heigth = $Y - 5;
+		$box_height = $Y - 1;
 	}
+	
+	if ($content_width + 2 < $box_width) {
+		$sub_width = $box_width;
+	} else {
+		$sub_width = $content_width + 2;
+	}
+	if ($content_height + 2 < $box_height) {
+		$sub_height = $box_height;
+	} else {
+		$sub_height = $content_height + 2;
+	}
+	$sub_Y = $box_height;
+	$sub_X = $box_width;
+	$sub_last_y = $content_height;
+	$sub_last_x = $content_width;
 	
 	#
-	# TODO: Do we need to properly destroy the subpads?
+	# Create subpads.
 	#
-	$subwin = subpad($pad, $subpad_heigth, $subpad_width, 2, 5);
-	
-	$subwin or die "FATAL: Failed to _PrintSubWindow. X = $X | Y = $Y | maxcolumns = $maxcolumns | maxrows = $maxrows";
-	move($subwin, $line, 0);
-	clrtoeol($subwin);
-	move($subwin, $line, 2);
-	
-	foreach my $attr (@{$ref}) {
-		my $name       = $attr->{name};
-		my $value      = $attr->{value};
-		my $indent     = length($name) + 2 + 3;     # 2 for padding, 3 for " = "
-		my $maxlinelen = $subpad_width - $indent;
-		my $pattern    = ".{1,$maxlinelen}";
-		
-		addstr($subwin, $name . " = ");
-		my $string = $value;
-		
-		if ((length($string) + $indent) > $maxlinelen) {
-			while (length($string)) {
-				move($subwin, $line, $indent);
-				$string =~ s/($pattern)// or die "FATAL: Cannot truncate '$string' to max line length of $maxlinelen characters.";
-				addstr($subwin, "$1");
-				clrtoeol($subwin);
-				move($subwin, ++$line, 0);
-				clrtoeol($subwin);
-				move($subwin, $line, 2);
-			}
-			move($subwin, $line, 0);
-			clrtoeol($subwin);
-			move($subwin, $line, 2);
-		} else {
-			addstr($subwin, $string);
-			clrtoeol($subwin);
-			move($subwin, ++$line, 0);
-			clrtoeol($subwin);
-			move($subwin, $line, 2);
-		}
-	}
-	
-	move($subwin, ++$line, 0);
-	clrtoeol($subwin);
-	move($subwin, $line, 2);
-	if (defined $epilogue) {
-		addstr($subwin, "'q' to exit $epilogue");
-	} else {
-		addstr($subwin, "'q' to exit this window");
-	}
-	move($subwin, ++$line, 0);
-	clrtoeol($subwin);
+	$subpad         = newpad($sub_height, $sub_width);
+	$subpad_box     = newpad($box_height, $box_width);
+	$subpad_content = subpad($subpad, $content_height, $content_width , 2, 2);
+	$subpad         or die "FATAL: Failed to create subpad in _PrintHelpPad. X = $X | Y = $Y | sub_height = $sub_height | sub_width = $sub_width";
+	$subpad_box     or die "FATAL: Failed to create subpad_box in _PrintHelpPad. X = $X | Y = $Y | sub_height = $sub_height | sub_width = $sub_width | box_height = $box_height | box_width = $box_width";
+	$subpad_content or die "FATAL: Failed to create subpad_content in _PrintHelpPad. X = $X | Y = $Y | sub_height = $sub_height | sub_width = $sub_width | con_height = $content_height | con_width = $content_width";
+	clrtobot($subpad);
+	clrtobot($subpad_content);
+	clrtobot($subpad_box);
 	
 	#
 	# Create a nice box by adding a border to the window.
 	#
-	resize($subwin, $line + 2, $X - 10);
-	attron($subwin, COLOR_PAIR(1));
-	box($subwin, &ACS_VLINE, &ACS_HLINE);
-	move($subwin, 0, 3);
-	addch($subwin, &ACS_RTEE);
-	addstr($subwin, "$title");
-	addch($subwin, &ACS_LTEE);
-	attroff($subwin, COLOR_PAIR(1));
+	attron($subpad_box, COLOR_PAIR($color_pair) | A_BOLD);
+	box($subpad_box, &ACS_VLINE, &ACS_HLINE);
+	move($subpad_box, 0, 3);
+	addch($subpad_box, &ACS_RTEE);
+	attron($subpad_box, A_REVERSE);
+	addstr($subpad_box, " $title ");
+	attroff($subpad_box, A_REVERSE);
+	addch($subpad_box, &ACS_LTEE);
+	attroff($subpad_box, COLOR_PAIR($color_pair) | A_BOLD);
 	
-	# currently not used (since the subwin is always smaller than the terminal)
-	$subY = $line + 4;
-	$subX = $X - 10;
-
-}
-
-sub _UpdateSubWindow {
-	$subwin or return;
-	if ($searchobject{TYPE} eq "SERVER") {
-		print_serverstatus_window($searchobject{VALUE});
-	} elsif ($searchobject{TYPE} eq "NODE") {
-		print_nodestatus_window($searchobject{VALUE}, $_[1]->{ $searchobject{SERVER} }{ $searchobject{VALUE} });
-	} elsif ($searchobject{TYPE} eq "JOB") {
-		print_jobstatus_window($searchobject{VALUE}, $searchobject{SERVER});
-	} elsif ($searchobject{TYPE} eq "JOBLOAD") {
-		print_jobloadstatus_window($searchobject{VALUE}, $searchobject{SERVER}, $_[1]);
-	} else {
-		_PrintWarning("oddly, I'm on line " . __LINE__);
-	}
-	pnoutrefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-}
-
-sub _DestroySubWindow {
-	$subwin       = 0;
-	%searchobject = ();
-	$subY         = 0;
-	$subX         = 0;
-	if ($py >= $ly - $Y + 2) {
-		$py = $ly - $Y + 3;
-		pnoutrefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-	}
-}
-
-#
-# Print online help for interactive mode.
-#
-# TODO: $helpwin should be a scrollable pad.
-#
-sub _PrintHelpWindow {
+	#
+	# Add content to the window.
+	#
+	addstr($subpad_content, 'Current settings:');
 	
-	my $helpwin = newwin($maxrows, $maxcolumns, 0, 0);
-	attron($helpwin, A_REVERSE | A_BOLD | COLOR_PAIR(3));
-	addstr($helpwin, "     ctop v$VERSION     ");
-	attroff($helpwin, A_REVERSE | A_BOLD | COLOR_PAIR(3));
-	move($helpwin, 2, 0);
-	addstr($helpwin, "Current settings: \n\n");
-	addstr($helpwin, '  Refresh ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, "$sleeptime seconds\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Grid width ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, "$columns cores\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Colorization ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $colorize ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Version ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $VERSION);
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Refresh ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $sleeptime . ' seconds');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Grid width ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $columns . ' cores');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Colorization ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $colorize ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
 	if ($colorize) {
-		addstr($helpwin, '  Color by ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, "$color_by\n");
-		attroff($helpwin, A_BOLD);
+		addstr($subpad_content, $indent . 'Color by ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, $color_by);
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
 	}
-	addstr($helpwin, '  State summary display ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $show_summary ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Grid display ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $show_grid ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Display jobs in grid ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $show_jobs ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Load = ');
-	attron($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
-	addstr($helpwin, 'Ok');
-	attroff($helpwin, A_BOLD | COLOR_PAIR(2)) if ($colorize);
-	addstr($helpwin, '        indicates ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, 'requested cores - ' . $healthy_load_stdev . ' <= load <= requested cores + ' . $healthy_load_stdev . "\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Load = ');
-	attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-	addstr($helpwin, 'too low!');
-	attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-	addstr($helpwin, '  indicates ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, 'load < requested cores - ' . $healthy_load_stdev . "\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Load = ');
-	attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-	addstr($helpwin, 'TOO HIGH!');
-	attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-	addstr($helpwin, ' indicates ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, 'load > requested cores + ' . $healthy_load_stdev . "\n");
-	attroff($helpwin, A_BOLD);
-	#addstr($helpwin, "  Show CPU Number ");
-	#attron( $helpwin, A_BOLD );
-	#addstr($helpwin, join( " ", @show_cpu ) . "\n");
-	#attroff( $helpwin, A_BOLD );
-	addstr($helpwin, '  Showing jobs from: ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, join(" ", @host) . "\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Queue display ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $show_queue ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
-	addstr($helpwin, '  Show queued jobs ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, $show_qqueue ? "on\n" : "off\n");
-	attroff($helpwin, A_BOLD);
+	addstr($subpad_content, $indent . 'State summary display ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $show_summary ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Grid display ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $show_grid ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Display jobs in grid ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $show_jobs ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Load = ');
+	attron($subpad_content, A_BOLD | COLOR_PAIR(2)) if ($colorize);
+	addstr($subpad_content, 'Ok');
+	attroff($subpad_content, A_BOLD | COLOR_PAIR(2)) if ($colorize);
+	addstr($subpad_content, '        indicates ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, 'requested cores - ' . $healthy_load_stdev . ' <= load <= requested cores + ' . $healthy_load_stdev);
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Load = ');
+	attron($subpad_content, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+	addstr($subpad_content, 'too low!');
+	attroff($subpad_content, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+	addstr($subpad_content, '  indicates ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, 'load < requested cores - ' . $healthy_load_stdev);
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Load = ');
+	attron($subpad_content, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+	addstr($subpad_content, 'TOO HIGH!');
+	attroff($subpad_content, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+	addstr($subpad_content, ' indicates ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, 'load > requested cores + ' . $healthy_load_stdev);
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Showing jobs from: ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, join(" ", @host));
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Queue display ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $show_queue ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Show queued jobs ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, $show_qqueue ? 'on' : 'off');
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
 	if ($colorize) {
-		addstr($helpwin, '  CPU/Mem ');
-		attron($helpwin, A_BOLD | COLOR_PAIR(2));
-		addstr($helpwin, 'healthy resource usage ');
-		attroff($helpwin, A_BOLD | COLOR_PAIR(2));
-		addstr($helpwin, ' indicates ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, $res_usage_low . ' <= (used / requested) <= ' . $res_usage_high . "\n");
-		attroff($helpwin, A_BOLD);
-		addstr($helpwin, '  CPU/Mem ');
-		attron($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-		addstr($helpwin, 'inefficiently low usage');
-		attroff($helpwin, A_BOLD | COLOR_PAIR(3)) if ($colorize);
-		addstr($helpwin, ' indicates ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, '(used / requested) < ' . $res_usage_low . "\n");
-		attroff($helpwin, A_BOLD);
-		addstr($helpwin, '  CPU/Mem ');
-		attron($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-		addstr($helpwin, 'dangerously high usage ');
-		attroff($helpwin, A_BOLD | COLOR_PAIR(1)) if ($colorize);
-		addstr($helpwin, ' indicates ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, '(used / requested) > ' . $res_usage_high . "\n");
-		attroff($helpwin, A_BOLD);
+		addstr($subpad_content, $indent . 'CPU/Mem ');
+		attron($subpad_content, A_BOLD | COLOR_PAIR(2));
+		addstr($subpad_content, 'healthy resource usage ');
+		attroff($subpad_content, A_BOLD | COLOR_PAIR(2));
+		addstr($subpad_content, ' indicates ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, $res_usage_low . ' <= (used / requested) <= ' . $res_usage_high);
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
+		
+		addstr($subpad_content, $indent . 'CPU/Mem ');
+		attron($subpad_content, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+		addstr($subpad_content, 'inefficiently low usage');
+		attroff($subpad_content, A_BOLD | COLOR_PAIR(3)) if ($colorize);
+		addstr($subpad_content, ' indicates ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, '(used / requested) < ' . $res_usage_low);
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
+		
+		addstr($subpad_content, $indent . 'CPU/Mem ');
+		attron($subpad_content, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+		addstr($subpad_content, 'dangerously high usage ');
+		attroff($subpad_content, A_BOLD | COLOR_PAIR(1)) if ($colorize);
+		addstr($subpad_content, ' indicates ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, '(used / requested) > ' . $res_usage_high);
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
 	}
-	addstr($helpwin, '  Number of possible colors ');
-	attron($helpwin, A_BOLD);
-	addstr($helpwin, "$COLOR_PAIRS\n");
-	attroff($helpwin, A_BOLD);
+	addstr($subpad_content, $indent . 'Number of possible colors ');
+	attron($subpad_content, A_BOLD);
+	addstr($subpad_content, "$COLOR_PAIRS\n");
+	attroff($subpad_content, A_BOLD);
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
 	if ($show_user) {
-		addstr($helpwin, '  Limiting job view to user(s) ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, "$show_user\n");
-		attroff($helpwin, A_BOLD);
+		addstr($subpad_content, $indent . 'Limiting job view to user(s) ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, "$show_user\n");
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
 	}
 	if ($show_node) {
-		addstr($helpwin, '  Limiting job view to node(s) ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, "$show_node\n");
-		attroff($helpwin, A_BOLD);
+		addstr($subpad_content, $indent . 'Limiting job view to node(s) ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, "$show_node\n");
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
 	}
 	if ($show_job_id && $show_job_id ne '!') {
 		my @jobs_selected = split(' ', $show_job_id);
 		my $job_count = scalar(@jobs_selected);
-		addstr($helpwin, '  Limiting job view to ');
-		attron($helpwin, A_BOLD);
-		addstr($helpwin, $job_count . ' job(s) from search result.' . "\n");
-		attroff($helpwin, A_BOLD);
+		addstr($subpad_content, $indent . 'Limiting job view to ');
+		attron($subpad_content, A_BOLD);
+		addstr($subpad_content, $job_count . ' job(s) from search result.' . "\n");
+		attroff($subpad_content, A_BOLD);
+		
+		clrtoeol($subpad_content);
+		move($subpad_content, ++$line, 0);
 	}
-	addstr($helpwin, <<"__EOHELP__");
+	
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, 'Navigation:');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Press [Arrow], [Page Up], [Page Down], [Home] or [End] keys to navigate.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
 
-Interactive commands are:
+	addstr($subpad_content, $indent . $indent . 'Depending on your terminal settings you may have to press ');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	addstr($subpad_content, $indent . $indent . 'a modifier key ([Alt], [Ctrl] or [Shift]) + a navigation key to scroll.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
 
-  [space] Update Display.
-  q       Quit.
-  h       Print this Help.
-  c       Color cores in grid display by job, user, queue or resource usage.
-  u       Show only jobs for a subset of Users.
-             Accepts comma seprated list for multiple users.
-  n       Show only jobs for a subset of Nodes.
-             Accepts comma separated list for multiple nodes (e.g. 02,05,10).
-             Accepts dash separated range of node (e.g. 02-07).
-  s       Seconds to refresh.
-  t       Toggle display of "waiting" jobs in the queue display.
-             Waiting jobs include jobs with job states:
-                H: Job is held due to unsatisfied dependency.
-                Q: Job is queued, eligible to run or routed.
-                W: Job is waiting for its execution start time (-a option) to be reached.
-                S: Job is suspended.
-             Active jobs include jobs with job states: 
-                T: Job is being transferred to a node.
-                R: Job is running on a node.
-                E: Job is exiting after having run on a node.
-                C: Job is completed.
-  j       Toggle display of Jobs in grid display.
-  w       With of grid display in number of cores.
-  /       Search jobs and display details. Search is not case sensitive.
-             Accepts i: prefix to limit search to job IDs (e.g. i:251).
-             Accepts j: prefix to limit search to job names (e.g. j:MyExperiment).
-             Accepts n: prefix to limit search to jobs running on a node (e.g. n:3)
-             Accepts s: prefix to limit search to jobs from a server (e.g. s:scheduler02)
-             Accepts u: prefix to limit search to jobs from certain users (e.g. u:myaccount)
-             Accepts q: prefix to limit search to jobs submitted to certain queue (e.g. q:test)
-  C       Toggle Colorization.
-  S       Toggle State summary.
-  G       Toggle Grid display.
-  Q       Toggle Queue display.
-
-Press any key to continue...
-__EOHELP__
-	refresh($helpwin);
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, 'Interactive commands are:');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '[space] Update Display.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'q       Quit.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'h       Print this Help.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'c       Color cores in grid display by job, user, queue or resource usage.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'u       Show only jobs for a subset of Users.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts comma seprated list for multiple users.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'n       Show only jobs for a subset of Nodes.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts comma separated list for multiple nodes (e.g. 02,05,10).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts dash separated range of node (e.g. 02-07).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 's       Seconds to refresh.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 't       Toggle display of "waiting" jobs in the queue display.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Waiting jobs include jobs with job states:');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              H: Job is held due to unsatisfied dependency.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              Q: Job is queued, eligible to run or routed.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              W: Job is waiting for its execution start time (-a option) to be reached.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              S: Job is suspended.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Active jobs include jobs with job states:');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              T: Job is being transferred to a node.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              R: Job is running on a node.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              E: Job is exiting after having run on a node.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '              C: Job is completed.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'j       Toggle display of Jobs in grid display.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'w       With of grid display in number of cores.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '/       Search jobs and display details. Search is not case sensitive.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts i: prefix to limit search to job IDs (e.g. i:251).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts j: prefix to limit search to job names (e.g. j:MyExperiment).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts n: prefix to limit search to jobs running on a node (e.g. n:3).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts s: prefix to limit search to jobs from a server (e.g. s:scheduler02).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts u: prefix to limit search to jobs from certain users (e.g. u:myaccount).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . '           Accepts q: prefix to limit search to jobs submitted to certain queue (e.g. q:test).');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'C       Toggle Colorization.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'S       Toggle State summary.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'G       Toggle Grid display.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	addstr($subpad_content, $indent . 'Q       Toggle Queue display.');
+	clrtoeol($subpad_content);
+	move($subpad_content, ++$line, 0);
+	
+	if ($content_height != $line) {
+		_PrintWarning('WARN: window size not calculated correctly. content_height is ' . $content_height . ', but we counted ' . $line . ' lines.');
+	}
+	
+	_UpdateSubWindow(@_);
+	
+	_PrintWarning('Press any non-navigation key to exit this ' . $title . ' window...');
+	
 	#
 	# Wait for the user to hit the any key.
 	#
-	cbreak;
-	nodelay($helpwin, 0);
-	getch($helpwin);
-	halfdelay(1);
-	prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-	move($cmdwin, 0, 0);
-	clrtoeol($cmdwin);
-	refresh($cmdwin);
-	delwin($helpwin);
+	#cbreak;
+	#nodelay($helpwin, 0);
+	#getch($helpwin);
+	#halfdelay(1);
+	#prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+	#move($cmdwin, 0, 0);
+	#clrtoeol($cmdwin);
+	#refresh($cmdwin);
+	#delwin($helpwin);
 	
 }
 
@@ -1988,7 +2326,7 @@ sub _PerformSearch {
 				$job_id_pattern = $1;
 				$server = $2;
 			}
-			if ($job =~ m/$job_id_pattern/i and (!defined($server) or $jobs->{$job}{'server'} =~ m/$server/)) {
+			if ($job =~ m/$job_id_pattern/i and (!defined($server) or ${$jobs}{$job}{'server'} =~ m/$server/)) {
 				$found = 1;
 			}
 		}
@@ -1998,20 +2336,20 @@ sub _PerformSearch {
 			}
 		}
 		if ($object_type eq 'Node' || $object_type eq 'Any') {
-			if (defined($jobs->{$job}{'node'})) {
+			if (defined(${$jobs}{$job}{'node'})) {
 				my $node_pattern = $search_pattern;
 				my $server;
 				if ($search_pattern =~ m/^(.+)\.[^\+\*\?\.]+$/) {
 					$node_pattern = $1;
 					$server = $2;
 				}
-				if ($jobs->{$job}{'node'} =~ m/$node_pattern/i and (!defined($server) or $jobs->{$job}{'server'} =~ m/$server/)) {
+				if (${$jobs}{$job}{'node'} =~ m/$node_pattern/i and (!defined($server) or ${$jobs}{$job}{'server'} =~ m/$server/)) {
 					$found = 1;
 				}
 			}
 		}
 		if ($object_type eq 'Server' || $object_type eq 'Any') {
-			if ($jobs->{$job}{'server'} =~ m/$search_pattern/i) {
+			if (${$jobs}{$job}{'server'} =~ m/$search_pattern/i) {
 				$found = 1;
 			}
 		}
@@ -2070,22 +2408,107 @@ sub _TopSleep {
 			refresh();
 			_UpdateDisplay(@_);
 		}
-		if (defined $input) {
-			if ($input eq 'q') {
-				if ($subwin) {
-					_DestroySubWindow();
-					_UpdateDisplay(@_);
+		if (defined($input)) {
+			if ($input eq KEY_HOME or $input eq KEY_SHOME or $input eq KEY_FIND) {
+				if ($subpad) {
+					$sub_partial_y = 0;
+					$sub_partial_x = 0;
+					_UpdateSubWindow();
 				} else {
-					endwin;
-					exit(0);
+					$partial_y = 0;
+					$partial_x = 0;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
 				}
+			} elsif ($input eq KEY_END or $input eq KEY_SEND or $input eq KEY_SELECT) {
+				if ($subpad) {
+					$sub_partial_y = $sub_last_y + 4 - $sub_Y;
+					$sub_partial_x = 0;
+					_UpdateSubWindow();
+				} else {
+					$partial_y = $last_y + 2 - $Y;
+					$partial_x = 0;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq KEY_PPAGE or $input eq KEY_SPREVIOUS or $input eq $CTRL_B) {
+				if ($subpad) {
+					$sub_partial_y -= $sub_Y - 4;
+					$sub_partial_y <= 0 and $sub_partial_y = 0;
+					_UpdateSubWindow();
+				} else {
+					$partial_y -= $Y - 2;
+					$partial_y <= 0 and $partial_y = 0;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq KEY_NPAGE or $input eq KEY_SNEXT or $input eq $CTRL_F) {
+				if ($subpad_box) {
+					$sub_partial_y += $sub_Y - 4;
+					$sub_partial_y >= $sub_last_y - $sub_Y + 4 and $sub_partial_y = $sub_last_y - $sub_Y + 4;
+					_UpdateSubWindow();
+				} else {
+					$partial_y += $Y - 2;
+					$partial_y >= $last_y - $Y + 2 and $partial_y = $last_y - $Y + 2;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq '8' or $input eq KEY_UP) {
+				if ($subpad) {
+					$sub_partial_y <= 0 and $sub_partial_y = 0, next;
+					$sub_partial_y--;
+					_UpdateSubWindow();
+				} else {
+					$partial_y <= 0 and $partial_y = 0, next;
+					$partial_y--;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq '2' or $input eq KEY_DOWN) {
+				if ($subpad) {
+					$sub_partial_y >= $sub_last_y - $sub_Y + 4 and next;
+					$sub_partial_y++;
+					_UpdateSubWindow();
+				} else {
+					$partial_y >= $last_y - $Y + 2 and next;
+					$partial_y++;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq '4' or $input eq KEY_LEFT) {
+				if ($subpad) {
+					$sub_partial_x <= 0 and $partial_x = 0, next;
+					$sub_partial_x--;
+					_UpdateSubWindow();
+				} else {
+					$partial_x <= 0 and $partial_x = 0, next;
+					$partial_x--;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($input eq '6' or $input eq KEY_RIGHT) {
+				if ($subpad) {
+					$sub_partial_x >= $sub_last_x - $sub_X and next;
+					$sub_partial_x++;
+					_UpdateSubWindow();
+				} else {
+					$partial_x >= $last_x - $X and next;
+					$partial_x++;
+					prefresh($pad, $partial_y, $partial_x, 0, 0, $Y - 2, $X - 1);
+				}
+			} elsif ($subpad && $input ne '-1') {
+				#
+				# User pressed the "any" key to close a sub window...
+				#
+				_DestroySubWindow();
+				_UpdateDisplay(@_);
+				clear($cmdwin);
+				move($cmdwin, 0, 0);
+				refresh($cmdwin);
+				#_PrintWarning('DEBUG: input was: ' . $input . '.');
+			} elsif ($input eq 'q') {
+				endwin;
+				exit(0);
 			} elsif ($input eq $CTRL_L) {
 				# Why doesn't curses do this automatically?
 				clear($pad);
 				clrtoeol($cmdwin);
 				_UpdateDisplay(@_);
 			} elsif ($input eq 'h' || $input eq '?') {
-				_PrintHelpWindow();
+				_PrintHelpPad();
 #			} elsif ($input =~ /^\d$/) {
 #				# Change the visible CPUs.
 #				# TODO: Don't allow the user to display CPUs that don't exist on any node.
@@ -2101,6 +2524,11 @@ sub _TopSleep {
 #				}
 #				_UpdateDisplay(@_);
 			} elsif ($input eq 's') {
+				if ($subpad) {
+					_DestroySubWindow();
+					_UpdateDisplay(@_);
+					return;
+				}
 				$input = _GetString('Number of seconds for refresh? ' . "[$sleeptime] ");
 				if ($input =~ m/^\d+$/ && $input >= 1) {
 					$sleeptime = $input;
@@ -2228,39 +2656,6 @@ sub _TopSleep {
 			} elsif ($input eq 'j') {
 				$show_jobs = !$show_jobs;
 				_UpdateDisplay(@_);
-			} elsif ($input eq KEY_HOME or $input eq KEY_SHOME or $input eq KEY_FIND) {
-				$py = 0;
-				$px = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_END or $input eq KEY_SEND or $input eq KEY_SELECT) {
-				$py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
-				$px = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_PPAGE or $input eq KEY_SPREVIOUS or $input eq $CTRL_B) {
-				$py -= $Y - 2;
-				$py <= 0 and $py = 0;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq KEY_NPAGE or $input eq KEY_SNEXT or $input eq $CTRL_F) {
-				$py += $Y - 2;
-				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2
-				  and $py = ($ly > $subY ? $ly : $subY) + 2 - $Y;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq '8' or $input eq KEY_UP) {
-				$py <= 0 and $py = 0, next;
-				$py--;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq '2' or $input eq KEY_DOWN) {
-				$py >= ($ly > $subY ? $ly : $subY) - $Y + 2 and next;
-				$py++;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq '4' or $input eq KEY_LEFT) {
-				$px <= 0 and $px = 0, next;
-				$px -= 2;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
-			} elsif ($input eq '6' or $input eq KEY_RIGHT) {
-				$px >= $lx - $X + 1 and next;
-				$px += 2;
-				prefresh($pad, $py, $px, 0, 0, $Y - 2, $X - 1);
 			} elsif ($input eq ' ') {
 				addstr($cmdwin, 0, 0, "Updating...");
 				clrtoeol($cmdwin);
@@ -2270,7 +2665,7 @@ sub _TopSleep {
 				return;
 			} elsif ($input eq '/') {
 				$input = _GetString('Search string? ');
-				_PerformSearch($input, $_[4]);
+				_PerformSearch($input, $_[3]);
 				_UpdateDisplay(@_);
 			} elsif ($input =~ m/^\n$/) {
 				#
@@ -2287,23 +2682,8 @@ sub _TopSleep {
 			} elsif ($input =~ m/[^\d\.-]/) {
 				_PrintWarning('ERROR: unsupported command ' . $input . '.');
 				return;
-#
-# TODO: below an old example of using a subwin.
-#
-#			} elsif ($input eq 'j'
-#				and $subwin
-#				and $searchobject{TYPE} eq "NODE")
-#			{
-#
-#				my $jobid = $_[1]->{ $searchobject{SERVER} }{ $searchobject{VALUE} }{job}{"0"};
-#				$searchobject{TYPE}   = "JOB";
-#				$searchobject{VALUE}  = $jobid;
-#				$searchobject{SERVER} = $_[2]->{$jobid}{server};
-#				$py                   = 0;
-#				$px                   = 0;
-#				_UpdateSubWindow(@_);
-#				doupdate();
 			}
+			#_PrintWarning("DEBUG: y = $y | x = $x | Y = $Y | X = $X | p_y = $partial_y | p_x = $partial_x | l_y = $last_y | l_x = $last_x | sub_Y = $sub_Y | sub_X = $sub_X | s_p_y = $sub_partial_y | s_p_x = $sub_partial_x.");
 		}
 	}
 }
