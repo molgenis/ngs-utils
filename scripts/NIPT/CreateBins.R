@@ -1,3 +1,8 @@
+###################################################################################################
+# This script bins reads per chromosome in bins of  size 50.000. Input is a .bed file and output
+# tsv file containing the matrix.
+###################################################################################################
+
 #Reads in commandline arguments (supplied by compute)
 args<-commandArgs(TRUE)
 

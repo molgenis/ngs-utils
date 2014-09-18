@@ -1,3 +1,9 @@
+#####################################################################################################
+# This script selects four sets of four best predictors each. Selection is based on adjusted R score
+#
+
+
+
 #################################################################################################################
                                 #FUNCTIONS#
 
@@ -117,6 +123,12 @@ GetNextPredictor <- function(samples, chrFocusReads, predictors, step)
 
 #Script
 #Stores the command line arguments in a vector 
+#args[1] = temp directory where files produced during run of pipeline are stored
+#args[2] = output, table with predictor sets and relevant statistics
+#args[3] = deprecated, cleaned up soon
+#args[4] = output, table with chromosomal fraction of all 50 control samples
+#args[5] = sample ID
+#args[6] = chromosome of focus, either 13, 18 or 21
 args<-commandArgs(TRUE)
 #Gets the chromosome (13, 18 or 21)
 chromo.focus = as.integer(args[6])
