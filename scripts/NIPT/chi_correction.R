@@ -23,49 +23,52 @@ parser$add_argument("-w", "--workdir",			type = "character",		metavar = "work di
 parser$add_argument("-v", "--verbose",			action="store_true",	default=TRUE,									help = "Shows with which parameters this script is called [default].")
 parser$add_argument("-q", "--quietly",			action="store_false",	dest="verbose",									help = "Print little or no output.")
 
-# Parse command line parameters
+#
+## Parse command line parameters
+#
 args = parser$parse_args()
 
-	# Proceed only if cmnd-line parameters correct
-	if (args$verbose) {
-		write("You have used the following arguments:", stdout())
-		write(paste("\t--input:  ", args$input), stdout())
-		write(paste("\t--output: ", args$output), stdout())
-		write(paste("\t--pdf:    ", args$pdf), stdout())
-		write("\nStart with binning... (may take minutes)\n", stdout())
+# Proceed only if cmnd-line parameters correct
+if (args$verbose) {
+	write("You have used the following arguments:", stdout())
+	write(paste("\t--input:  ", args$input), stdout())
+	write(paste("\t--output: ", args$output), stdout())
+	write(paste("\t--pdf:    ", args$pdf), stdout())
+	write("\nStart with binning... (may take minutes)\n", stdout())
+}
+
+#
+## Load functions
+#
+# First determine the location of this R-script
+LocationOfThisScript = function() # Function LocationOfThisScript returns the location of this .R script (may be needed to source other files in same dir)
+{
+	this.file = NULL
+	# This file may be 'sourced'
+	for (i in -(1:sys.nframe())) {
+		if (identical(sys.function(i), base::source)) this.file = (normalizePath(sys.frame(i)$ofile))
 	}
 
-# Load functions
-	# First determine the location of this R-script
-	LocationOfThisScript = function() # Function LocationOfThisScript returns the location of this .R script (may be needed to source other files in same dir)
-	{
-		this.file = NULL
-		# This file may be 'sourced'
-		for (i in -(1:sys.nframe())) {
-			if (identical(sys.function(i), base::source)) this.file = (normalizePath(sys.frame(i)$ofile))
-		}
+	if (!is.null(this.file)) return(dirname(this.file))
 
-		if (!is.null(this.file)) return(dirname(this.file))
+	# But it may also be called from the command line
+	cmd.args = commandArgs(trailingOnly = FALSE)
+	cmd.args.trailing = commandArgs(trailingOnly = TRUE)
+	cmd.args = cmd.args[seq.int(from=1, length.out=length(cmd.args) - length(cmd.args.trailing))]
+	res = gsub("^(?:--file=(.*)|.*)$", "\\1", cmd.args)
 
-		# But it may also be called from the command line
-		cmd.args = commandArgs(trailingOnly = FALSE)
-		cmd.args.trailing = commandArgs(trailingOnly = TRUE)
-		cmd.args = cmd.args[seq.int(from=1, length.out=length(cmd.args) - length(cmd.args.trailing))]
-		res = gsub("^(?:--file=(.*)|.*)$", "\\1", cmd.args)
+	# If multiple --file arguments are given, R uses the last one
+	res = tail(res[res != ""], 1)
+	if (length(res) > 0) return(dirname(res))
 
-		# If multiple --file arguments are given, R uses the last one
-		res = tail(res[res != ""], 1)
-		if (length(res) > 0) return(dirname(res))
+	# Both are not the case. Maybe we are in an R GUI?
+	return(NULL)
+}
 
-		# Both are not the case. Maybe we are in an R GUI?
-		return(NULL)
-	}
-	current.dir = LocationOfThisScript()
+# Load file with functions that we need
+source(paste(LocationOfThisScript(), "chi_correction_functions.R", sep="/"))
 
-	# Load file with functions that we need
-	source(paste(current.dir, "chi_correction_functions.R", sep="/"))
-
-# Load binned data
+# Load binned data of sample of interest
 sample.bins <- read.delim(args$input, header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE)
 
 # Select chromosomes on which we focus
@@ -77,12 +80,12 @@ control.file.base.name <- as.vector(read.table(args$controlsamples)[1:n.best.con
 # Loads the control bins
 control.bins <- get.control.files(control.file.base.name = control.file.base.name, control.dir = args$controldir, strand = args$strand, chromosomes.focus = chromosomes.focus))
 
-# Put sample of interest and control samples in one list for easy calculations
+# Calculate the chi square score per bin, based on only control samples
+chi.sum.bins <- sum.chi.scores(bins.list = control.bins)
+
+# Append sample of interest to list with control samples. Next correct all samples in list based on 'chi square score' in control samples.
 bins.list = control.bins
 bins.list[[ length(bin.list)] + 1 ] = sample.bins
-
-# Calculate the chi square score per bin
-chi.sum.bins <- sum.chi.scores(bins.list = bins.list)
 
 # Applies correction to bins
 correct.bins.list = correct.bins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, chi.dir = args$workdir, strand = args$strand, sample.name = args$name)
