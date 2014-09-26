@@ -10,7 +10,7 @@ n.best.control.samples	= 50	# number of best control samples that is used for th
 suppressPackageStartupMessages(library("argparse"))
 
 # Create parser object
-parser <- ArgumentParser(description = DOC)
+parser = ArgumentParser(description = DOC)
 
 # Define command line parameters
 
@@ -65,23 +65,27 @@ LocationOfThisScript = function() # Function LocationOfThisScript returns the lo
 	return(NULL)
 }
 
-# Load file with functions that we need
+# Load functions
 source(paste(LocationOfThisScript(), "chi_correction_functions.R", sep="/"))
 
-# Load binned data of sample of interest
-sample.bins <- read.delim(args$input, header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE)
-
-# Select chromosomes on which we focus
-sample.bins <- as.matrix(sample.bins[chromosomes.focus, ])
+#
+## Load data
+#
+# Load binned data of sample of interest and select chromosomes on which we focus
+sample.bins = read.delim(args$input, header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE)
+sample.bins = as.matrix(sample.bins[chromosomes.focus, ])
 
 # Load best control samples
-control.file.base.name <- as.vector(read.table(args$controlsamples)[1:n.best.control.samples, 1])
+control.file.base.name = as.vector(read.table(args$controlsamples)[1:n.best.control.samples, 1])
 
 # Loads the control bins
-control.bins <- get.control.files(control.file.base.name = control.file.base.name, control.dir = args$controldir, strand = args$strand, chromosomes.focus = chromosomes.focus))
+control.bins = get.control.files(control.file.base.name = control.file.base.name, control.dir = args$controldir, strand = args$strand, chromosomes.focus = chromosomes.focus))
 
+#
+## Start calculations
+#
 # Calculate the chi square score per bin, based on only control samples
-chi.sum.bins <- sum.chi.scores(bins.list = control.bins)
+chi.sum.bins = sum.chi.scores(bins.list = control.bins)
 
 # Append sample of interest to list with control samples. Next correct all samples in list based on 'chi square score' in control samples.
 bins.list = control.bins
