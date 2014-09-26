@@ -1,0 +1,1 @@
+Place here the files gold_standard_{forward,reverse}_reads.bed
