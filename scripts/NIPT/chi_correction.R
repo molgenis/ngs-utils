@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 DOC = "Calculate normalized chi square score per bin."
 
-# Define constants
+# Constants
 chi.square.cut.off		= 3.5	# explanation needed
 chromosomes.focus		= 1:22	# only autosomal chromosomes #--Risk-> What if order changes?
 n.best.control.samples	= 50	# number of best control samples that is used for this analysis
@@ -13,15 +13,14 @@ suppressPackageStartupMessages(library("argparse"))
 parser = ArgumentParser(description = DOC)
 
 # Define command line parameters
-
 parser$add_argument("-n", "--name",				type = "character",		metavar = "sample name (id)", 		required = T,	help = "Sample's unique identifier.")
 parser$add_argument("-i", "--input",			type = "character",		metavar = "binned data", 			required = T,	help = ".tsv file with number of reads per bin.")
 parser$add_argument("-s", "--strand",			type = "character",		metavar = "strand", 				required = T,	help = "Strand, either \"forward\" or \"reverse\" ")
 parser$add_argument("-d", "--controldir",		type = "character",		metavar = "control directory ",		required = T,	help = "Directory with control set.")
 parser$add_argument("-c", "--controlsamples",	type = "character",		metavar = "best control samples",	required = T,	help = "List with control samples, descending quality.")
 parser$add_argument("-w", "--workdir",			type = "character",		metavar = "work directory",			required = T,	help = "Intermediate results (needed by next steps in pipeline) are stored here.")
-parser$add_argument("-v", "--verbose",			action="store_true",	default=TRUE,									help = "Shows with which parameters this script is called [default].")
-parser$add_argument("-q", "--quietly",			action="store_false",	dest="verbose",									help = "Print little or no output.")
+parser$add_argument("-v", "--verbose",			action="store_true",	default=TRUE,										help = "Shows with which parameters this script is called [default].")
+parser$add_argument("-q", "--quietly",			action="store_false",	dest="verbose",										help = "Print little or no output.")
 
 #
 ## Parse command line parameters
@@ -92,11 +91,11 @@ bins.list = control.bins
 bins.list[[ length(bin.list)] + 1 ] = sample.bins
 
 # Applies correction to bins
-correct.bins.list = correct.bins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, chi.dir = args$workdir, strand = args$strand, sample.name = args$name)
+correct.bins.list = correct.bins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, strand = args$strand, sample.name = args$name)
 
 # Save sample as .tsv
 sample.bins = correct.bins.list[[length(correct.bins.list) + 1]]
-write.table(sample.bins, paste(chi.dir, "/", sample.name, ".", strand,  ".corrected.bins.table.tsv", sep=""), , quote = FALSE, sep ="\t", row.names = TRUE)
+write.table(sample.bins, paste(args$workdir, "/", args$name, ".", args$strand,  ".corrected.bins.table.tsv", sep=""), , quote = FALSE, sep ="\t", row.names = TRUE)
 
 # Remove sample of interest from list
 correct.bins.list[[-length(correct.bins.list)]]
@@ -105,7 +104,7 @@ correct.bins.list[[-length(correct.bins.list)]]
 control.sample.files = sub(".bins.", ".corrected.bins.", args$controlsamples)
 
 # Save control samples as RDS
-saveRDS(list(correct.bins.list[[-length(correct.bins.list)]], control.sample.files), paste(chi.dir, "/", sample.name, ".", strand, ".controlfiles.corrected.bins.rds", sep=""))
+saveRDS(list(correct.bins.list[[-length(correct.bins.list)]], control.sample.files), paste(args$workdir, "/", args$name, ".", args$strand, ".controlfiles.corrected.bins.rds", sep=""))
 
 # Quit with normal return code
 quit(save = "no", status = 0)
