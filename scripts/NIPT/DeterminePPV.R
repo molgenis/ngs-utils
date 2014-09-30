@@ -1,3 +1,7 @@
+###################################################################################################
+# This script calculates the positive predictive value 
+
+
 #Libs that make PPV .pdf tables
 library(gridExtra)
 library(lattice)
@@ -97,13 +101,18 @@ PreparePPVTableForPrint <- function(ppvtable, chromo.focus)
 
 #Script
 #Stores the command line arguments in a vector
+#args[1] = temp directory where files produced during run of pipeline are stored
+#args[2] = a priori risk chromosome 13 in integer
+#args[3] = a priori risk chromosome 18 in integer
+#args[4] = a priori risk chromosome 21 in integer
+#args[5] = sample ID
 args<-commandArgs(TRUE)
 #Workdir variable
-workdir <- args[4]
+workdir <- args[1]
 #A priori risks as integers
-risk13 <- as.numeric(args[1])
-risk18 <- as.numeric(args[2])
-risk21 <- as.numeric(args[3])
+risk13 <- as.numeric(args[2])
+risk18 <- as.numeric(args[3])
+risk21 <- as.numeric(args[4])
 #range of fetal percentages
 fetal.low <- 1
 fetal.high <- 30

@@ -1,3 +1,7 @@
+####################################################################################################
+# This script calculates the Z score between the predicted chromsomal fractions and 
+# the observed chromosomal fraction
+
 #Libs for nice pdf tables
 library(gridExtra)
 #Function that removes a column from a matrix
@@ -151,14 +155,14 @@ DetermineNCV <- function(totalReadsChrFocus)
   if(sd(normControls) < (1.15 * (1 / sqrt(totalReadsChrFocus))))
   {
     Zvalues <- (normControls - mean(normControls)) / (1.15*(1 / sqrt(totalReadsChrFocus)))
-    Zvalues[1:length(Zvalues)+1] <- (normSample - mean(normControls)) / (1.15*(1 / sqrt(totalReadsChrFocus)))
+    Zvalues[length(Zvalues)+1] <- (normSample - mean(normControls)) / (1.15*(1 / sqrt(totalReadsChrFocus)))
     corcof <<- "Yes"
   }
   # if not
   else
   {
    Zvalues <- (normControls - mean(normControls)) / sd(normControls)
-   Zvalues[1:length(Zvalues)+1] <- (normSample - mean(normControls)) / sd(normControls)
+   Zvalues[length(Zvalues)+1] <- (normSample - mean(normControls)) / sd(normControls)
    corcof <<- "No"
   }
   return (Zvalues)
@@ -169,7 +173,7 @@ WritePSSetsPDFs <- function(Zvalues, i)
   setwd(args[5])
   pdf(paste(args[3],"_Chromosome_", chromo.focus, "_Predictorset_4Predictors_Barplot_", i, ".pdf", sep = ""))
   barplot(Zvalues, col = ifelse(Zvalues < 6,'green','red'), axisnames = FALSE, 
-          main = paste("Sample NCV = ", round(Zvalues[1:length(Zvalues)], digits = 2), sep=""), xlab = corcof)
+          main = paste("Sample NCV = ", round(Zvalues[length(Zvalues)], digits = 2), sep=""), xlab = corcof)
   dev.off()
   pdf(paste(args[3],"_Chromosome_", chromo.focus, "_Predictorset_4Predictors_Boxplot_", i, ".pdf", sep = ""))
   boxplot(Zvalues[1:length(Zvalues) -1], col = ifelse(Zvalues < 6,'green','red'), main = paste("Mean control group = ", controlAv))
@@ -182,7 +186,13 @@ WritePSSetsPDFs <- function(Zvalues, i)
 #################################################################################################################
 
 #Script
-#Stores the command line arguments in a vector 
+#Stores the command line arguments in a vector
+#args[1] = table with chromosomal fraction of all 50 control samples
+#args[2] = table with predictor sets and relevant statistics
+#args[3] = sample ID
+#args[4] = output, table with predictor sets and relevant statistics with added Z score column
+#args[5] = temp directory where files produced during run of pipeline are stored
+#args[6] = chromosome of focus, either 13, 18 or 21
 args<-commandArgs(TRUE)
 
 #Gets the chromosome (13, 18 or 21) as a numeric
