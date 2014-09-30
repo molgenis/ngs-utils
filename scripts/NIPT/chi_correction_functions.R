@@ -1,5 +1,5 @@
 # Return list with bins of best control files
-getControlFiles = function(control.file.base.name, control.dir, strand, chromosomes.focus)
+GetControlFiles = function(control.file.base.name, control.dir, strand, chromosomes.focus)
 {
 	files = paste(control.dir, "/", file.base.name, ".", strand, ".bins.table.tsv", sep = "")
 	
@@ -35,7 +35,7 @@ sumChiScores = function(bins.list) {
 }
 
 # Corrects overdispersed bins in bins.list
-correctBins = function(bins.list, chi.sum.bins, strand, sample.name) {
+CorrectBins = function(bins.list, chi.sum.bins, strand, sample.name) {
 	# About the input parameters:
 	# bin.list = list(control sample 1, control sample 2, ..., sample of interest)
 	# chi.sum.bins is determined only on control samples
