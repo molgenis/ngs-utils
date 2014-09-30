@@ -1,208 +1,140 @@
-#####################################################################################################
-# This script selects four sets of four best predictors each. Selection is based on adjusted R score
+#!/usr/bin/env Rscript
+DOC = "Produces four different models. Each model predicts the fraction of reads mapping on the chromosome of interest. Each model contains four different predictors (e.g. 1F, 14R, 3F, 22F) to do so. Predictors are unique within and between models."
+
+# Constants
+chromosomes.trisomy		= c(13, 18, 21)									# chromosomes with potential trisomy
+chromosomes.background	= 1:22											# 'background' chromosomes used to predict trisomy
+control.chromosomes 	= chromosomes.background[-chromosomes.trisomy]	# chroms we want to use to predict chromosomes with potential trisomy
+n.best.control.samples	= 50											# number of best control samples that is used for this analysis
+n.models				= 4												# Number of models
+n.predictors.per.model	= 4												# Number of predictors per model
+round.n.decimals		= 3												# Number of digits on which results are rounded
+
+# Retrieve command line parameters
+suppressPackageStartupMessages(library("argparse"))
+
+# Create parser object
+parser = ArgumentParser(description = DOC)
+
+# Define command line parameters
+parser$add_argument("-n", "--chromosome",		type = "character",		metavar = "chromosome of interest",	required = T,	help = "The chromosome you want to predict.")
+parser$add_argument("-n", "--name",				type = "character",		metavar = "sample name (id)", 		required = T,	help = "Sample's unique identifier.")
+parser$add_argument("-w", "--workdir",			type = "character",		metavar = "work directory",			required = T,	help = "Intermediate results (needed by next steps in pipeline) are stored here.")
+parser$add_argument("-i", "--models",			type = "character",		metavar = "prediction model", 		required = T,	help = "Output file with prediction models.")
+parser$add_argument("-s", "--fractiontable",	type = "character",		metavar = "fraction table", 		required = T,	help = "Output file with per sample the fractions of each chromosome.")
+parser$add_argument("-v", "--verbose",			action="store_true",	default=TRUE,									help = "Shows with which parameters this script is called [default].")
+parser$add_argument("-q", "--quietly",			action="store_false",	dest="verbose",									help = "Print little or no output.")
+
 #
-
-
-
-#################################################################################################################
-                                #FUNCTIONS#
-
-#This function calculates the chromosomal fractions of all the controls (forward and reverse apart) and return the 
-#chromosomal fractions of all the control files
-#files = the control files
-#multiplier = This variable makes a distinction between forward and reverse. There are 22 autosomal chromosomes, the fractions 
-#are stored in rows in a matrix. For example, chromosome 7F is the 7th row in the matrix, and 7R is the 7+22 row in the matrix
+## Parse command line parameters
 #
-#returns a matrix with the chromosomal fractions of all the control files
-constructMatrix <- function(files, multiplier)
-{
-  autoChromosomes <-c(1:12, 14:17, 19:20, 22) 
-  for (j in 1:length(files))
-  {
-    file <- files[[j]]
-    total <- sum(file[autoChromosomes,])
-    
-    for (i in 1:22)
-    {
-      fraction <- sum(file[i,]) / total
-      allmatrix[i +  multiplier,j] <<- fraction
-    
-    }
-  }
-  
-}
-#This functions sets the row and column names of the dataframe. The input are the filenames.
-#A regular expression is used to convert these to filenames to sampelnames
-GetRowsAndCols <- function(filenamesForward)
-{
-  cols <- vector(length = 50)
-  for (g in 1:length(filenamesForward))
-  {
-    cols[g] <- sub("^([^.]*).*", "\\1", filenamesForward[g])
-    
-  }
-  rows<- c(paste("Chr", 1:22, "F", sep =""), paste("Chr", 1:22, "R", sep =""))
-  rownames(allmatrix) <<- rows
-  colnames(allmatrix) <<- cols
-}
-#This function removes a column from the dataframe. For instance, for removing a selected predictor
-removeCols <- function(transposedMatrix, chromo)
-{
-  transposedMatrix[, which(colnames(transposedMatrix)==chromo)] <- NULL
-  
-  return(transposedMatrix)
-}
-#This function selects the next predictor. 
-GetNextPredictor <- function(samples, chrFocusReads, predictors, step)
-{
-  #Vector to hold r square for predictions
-  RSquared <- vector(mode = "numeric")
-  #if step is 1, meaning first predictor is selected 
-  if (step == 1)
-  {
-    #All possible candidate predictors are used and their adjusted r square value stored in RSquared vector
-    for (i in 1:length(samples))
-    {
-    model <- lm(chrFocusReads ~ samples[,i])
-    RSquared[i] <- summary(model)$adj.r.square
-    }
-  }
-  #same as step1, but now for second predictor
-  if (step == 2)
-  {
-    for (i in 1:length(samples))
-    {
-      model <- lm(chrFocusReads ~ transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[1])] + samples[,i])
-      RSquared[i] <- summary(model)$adj.r.square
-    }
-  }
-  #same as step1, but now for third predictor
-  if (step == 3)
-  {
-    for (i in 1:length(samples))
-    {
-      model <- lm(chrFocusReads ~ transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[1])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[2])]
-                                             + samples[,i])
-      RSquared[i] <- summary(model)$adj.r.square
-    }
-  }
-  if (step == 4)
-  {
-    for (i in 1:length(samples))
-    {
-      model <- lm(chrFocusReads ~ transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[1])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[2])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[3])]
-                  + samples[,i])
-      RSquared[i] <- summary(model)$adj.r.square
-    }
-  }
-  
-  if (step == 5)
-  {
-    for (i in 1:length(samples))
-    {
-      model <- lm(chrFocusReads ~ transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[1])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[2])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[3])]
-                  + transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[4])]
-                  + samples[,i])
-      RSquared[i] <- summary(model)$adj.r.square
-    }
-  }
-  #Orders the adjusted r squared values by index in decreasing order
-  RSquaredOrdered <- order(RSquared, decreasing = TRUE)
-  #Gets all chromosomes remaining in the candidate predictors (for instance, Chr1F, Chr2F etc)
-  chromosomes <- names(samples)
-  #Returns 
-  return(chromosomes[RSquaredOrdered[1]])
+args = parser$parse_args()
+
+# Proceed only if cmnd-line parameters correct
+if (args$verbose) {
+	write("You have used the following arguments:", stdout())
+	for (i in 1:length(args)) write(paste('--', names(args[i]), ": ", args[[i]], sep=''), stdout())
+		
+	write("\nStarting analysis... (may take minutes)\n", stdout())
 }
 
-#################################################################################################################
-
-#Script
-#Stores the command line arguments in a vector 
-#args[1] = temp directory where files produced during run of pipeline are stored
-#args[2] = output, table with predictor sets and relevant statistics
-#args[3] = deprecated, cleaned up soon
-#args[4] = output, table with chromosomal fraction of all 50 control samples
-#args[5] = sample ID
-#args[6] = chromosome of focus, either 13, 18 or 21
-args<-commandArgs(TRUE)
-#Gets the chromosome (13, 18 or 21)
-chromo.focus = as.integer(args[6])
-#Sets the workdir where the Chi2 corrected files live
-setwd(args[1])
-#Reads the Chi2 corrected files and filelist
-forwardFileList <- readRDS(paste(args[5],".forward.controlfiles.corrected.bins.rds", sep=""))
-reverseFileList <- readRDS(paste(args[5],".reverse.controlfiles.corrected.bins.rds", sep=""))
-#Gets the Chi2 corrected files
-filesForward <- forwardFileList[[1]]
-filesReverse <- reverseFileList[[1]]
-#Makes and empty matrix
-allmatrix <- matrix(0, nrow=44, ncol=50)
-#Gets the filenames
-GetRowsAndCols(forwardFileList[[2]])
-#Fills the newly constructed matrix with chromosomal fractions
-constructMatrix(filesForward, multiplier = 0)
-constructMatrix(filesReverse, multiplier = 22)
-#Writes the fraction table to the temporary directory
-write.table(allmatrix,args[4], quote = FALSE, sep ="\t", row.names = TRUE,
-            col.names = TRUE)
-#Gets the reads for each of sample of the chromosome (13 18 or 21) and adds up forward and reverse
-chrFocusReads <- allmatrix[chromo.focus,] + allmatrix[(chromo.focus + 22),]
-#Makes an empty dataframe to store the predictors
-output <- as.data.frame(matrix(0, nrow=4, ncol=15))
-rownames(output)<- c("Set1", "Set2", "Set3", "Set4")
-colnames(output) <- c("Pred1", "Pred2", "Pred3", "Pred4", "RSquared", "AdjRSquared", "FStatistic", 
-                        "Sigma", "tStatIntercept", "tStatSlope", "Intercept", "Pred1Slope", "Pred2Slope",
-                      "Pred3Slope","Pred4Slope")
-#transposes allmatrix for easy column acces
-transposedSamples <- as.data.frame(t(allmatrix))
-#removes chromosomes 13, 18 and 21 from possible predictors
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 13, "F", sep=""))
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 13, "R", sep=""))
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 18, "F", sep=""))
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 18, "R", sep=""))
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 21, "F", sep=""))
-transposedSamples <- removeCols(transposedSamples, chromo = paste("Chr", 21, "R", sep=""))
-#copies the transposedsamples data frame
-transposedSamplesControl <- transposedSamples
-#this loops runs for 4 times, for 4 sets of predictors
-for (i in 1:4)
+#
+## Load functions
+#
+# First determine the location of this R-script
+LocationOfThisScript = function() # Function LocationOfThisScript returns the location of this .R script (may be needed to source other files in same dir)
 {
-  #Vector to hold predictors 
-  predictors <- vector(mode = "numeric")
-  #List to hold columns from the transposedsample dataframe
-  predictorModel <- list()
-    #This loop runs 4 times, for 4 predictors per set 
-    for (j in 1:4)
-    {  
-      #Selects the next predictor
-      predictors[j] <- GetNextPredictor(transposedSamples, chrFocusReads = chrFocusReads, predictors = predictors, step = j)
-      #Stores the column in a list to build the model later
-      predictorModel[[j]] <- transposedSamplesControl[, which(colnames(transposedSamplesControl)==predictors[j])]
-      #Removes a selected predictor from the data frame 
-      transposedSamples <- removeCols(transposedSamples, chromo = predictors[j])
-    }
-  #Builds the model
-  model <- lm(chrFocusReads ~ predictorModel[[1]]
-            + predictorModel[[2]]
-            + predictorModel[[3]]
-            + predictorModel[[4]])
-  #coefficients are extracted
-  cofs <- round(coef(model),3)
-  #f statistics are extracted
-  fstat <-round((summary(model)$fstatistic), 3)
-  tvalues <- summary(model)$coefficients
-  #Every iteration a row in the output data frame is added
-  output[i,] <- c(predictors[1], predictors[2], predictors[3], predictors[4], round((summary(model)$r.square) , 3),
-                  round((summary(model)$adj.r.square) ,3 ), fstat[1], (summary(model)$sigma), round(tvalues[1,3], 3),
-                  round(tvalues[2,3], 3), cofs[1], cofs[2], cofs[3], cofs[4], cofs[5])          
-             
-}
-#Writes the table with predictors and statistics to disk
-write.table(output, paste( chromo.focus, args[2],  sep=""), quote = FALSE, sep ="\t", row.names = TRUE,
-            col.names = TRUE)
+	this.file = NULL
+	# This file may be 'sourced'
+	for (i in -(1:sys.nframe())) {
+		if (identical(sys.function(i), base::source)) this.file = (normalizePath(sys.frame(i)$ofile))
+	}
 
+	if (!is.null(this.file)) return(dirname(this.file))
+
+	# But it may also be called from the command line
+	cmd.args = commandArgs(trailingOnly = FALSE)
+	cmd.args.trailing = commandArgs(trailingOnly = TRUE)
+	cmd.args = cmd.args[seq.int(from=1, length.out=length(cmd.args) - length(cmd.args.trailing))]
+	res = gsub("^(?:--file=(.*)|.*)$", "\\1", cmd.args)
+
+	# If multiple --file arguments are given, R uses the last one
+	res = tail(res[res != ""], 1)
+	if (0 < length(res)) return(dirname(res))
+
+	# Both are not the case. Maybe we are in an R GUI?
+	return(NULL)
+}
+
+# Load functions
+source(paste(LocationOfThisScript(), "determine_predictor_functions.R", sep="/"))
+
+# ---- File names in parameters!
+# ---- You load list with 2 elements. Please save/load these individually.
+# Load Chi^2 corrected files and file list
+forward.data = readRDS(paste(args$workdir, "/", args$name,".forward.controlfiles.corrected.bins.rds", sep=""))
+reverse.data = readRDS(paste(args$workdir, "/", args$name,".reverse.controlfiles.corrected.bins.rds", sep=""))
+
+# Gets the Chi2 corrected files
+bins.forward = forward.data[[1]]
+bins.reverse = reverse.data[[1]]
+control.file.names = forward.data[[2]]
+
+# Get 'chromosomal fractions'
+# chr.frac[sample, chrom] is the ratio '#reads on chrom-direction' / '#reads in sample-direction', where chrom is 1F, 2F, ... nF, 1R, 2R, ... or nR
+# ---- is this correct? I can imagine that we want '#reads on chrom-direction' / '#reads in sample-TOTAL'?
+chr.frac = ChromosomalFractionPerSample(control.file.names, bins.forward, bins.reverse)
+
+# Save 'chromosomal fractions' (transposed)
+# ---- Can't we just save chr.frac 'as is' (--> adapt later steps)
+write.table(t(chr.frac), args$fractiontable, quote = FALSE, sep ="\t", row.names = TRUE, col.names = TRUE)
+
+# Get #reads on chromosome with potential trisomy for each of the samples
+n.reads.chr.trisomy = chr.frac[args$chromosome,] + chr.frac[args$chromosome + length(chromosomes.background),]
+
+# Remove chromosomes that may have a trisomy so that they don't interfere with analysis
+chr.frac = chr.frac[, -c(chromosomes.trisomy, chromosomes.trisomy + length(chromosomes.background))] # Remove {13, 18, 21}F and {13, 18, 21}R, respectively.
+
+# Determine the n.models models with n.predictors.per.model predictors each (all predictors are 'unique' within and between the models)
+model.list		= NULL # the models
+predictor.list	= NULL # the predictors per model
+for (i.model in 1:n.models)
+{
+	# Select the best n.predictors.per.model predictors
+	chr.selected = NULL
+	for (i.predictor in 1:n.predictors.per.model)
+	{
+		chr.selected = c(chr.selected, BestPredictor(n.reads.chr.trisomy, chr.frac, chr.selected))
+	}
+	
+	model.list[i.model]		= lm(n.reads.chr.trisomy ~ chr.frac[, tail(chr.selected, n.predictors.per.model)])
+	predictor.list[i.model]	= chr.selected
+}
+
+# Compose matrix with results we want to save
+results = NULL
+for (i.model in 1:n.models)
+{
+	m = model.list[i.model]
+
+	# Predictors
+	preds			= predictor.list[i.model]
+	names(preds)	= paste("Pred", 1:n.predictors.per.model, sep="")
+	
+	# Coefficients
+	coefs			= m$coef
+	names(coefs)	= c("Intercept", paste("Coef", 2:n.predictors.per.model))
+	
+	# Custom round function
+	Round = function(x) round(x, round.n.decimals)
+		
+	result = c(preds, Round(coefs), Round(unlist(summary(lm(as.data.frame(mat)))[c("r.squared", "adj.r.squared", "fstatistic", "sigma")])))
+	
+	# Add new row with 
+	results = rbind(results, result)
+}
+rownames(results) = paste("Model", 1:n.models)
+
+# Save results
+# --- File names need to be composed outside of script (in parameters.csv or workflow.csv)
+write.table(as.data.frame(results), paste( args$chromosome, args$models,  sep=""), quote = FALSE, sep ="\t", row.names = TRUE, col.names = TRUE)
