@@ -78,20 +78,20 @@ sample.bins = as.matrix(sample.bins[chromosomes.focus, ])
 control.file.base.name = as.vector(read.table(args$controlsamples)[1:n.best.control.samples, 1])
 
 # Loads the control bins
-control.bins = get.control.files(control.file.base.name = control.file.base.name, control.dir = args$controldir, strand = args$strand, chromosomes.focus = chromosomes.focus))
+control.bins = getControlFiles(control.file.base.name = control.file.base.name, control.dir = args$controldir, strand = args$strand, chromosomes.focus = chromosomes.focus))
 
 #
 ## Start calculations
 #
 # Calculate the chi square score per bin, based on only control samples
-chi.sum.bins = sum.chi.scores(bins.list = control.bins)
+chi.sum.bins = sumChiScores(bins.list = control.bins)
 
 # Append sample of interest to list with control samples. Next correct all samples in list based on 'chi square score' in control samples.
 bins.list = control.bins
 bins.list[[ length(bin.list)] + 1 ] = sample.bins
 
 # Applies correction to bins
-correct.bins.list = correct.bins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, strand = args$strand, sample.name = args$name)
+correct.bins.list = correctBins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, strand = args$strand, sample.name = args$name)
 
 # Save sample as .tsv
 sample.bins = correct.bins.list[[length(correct.bins.list) + 1]]
