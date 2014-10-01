@@ -66,7 +66,7 @@ use warnings;
 use vars qw/$VERSION/;
 use Curses;
 
-$VERSION = "5.5.3";
+$VERSION = "5.5.4";
 
 #
 # Initialize global vars.
@@ -972,7 +972,7 @@ sub _PrintGrid {
 				if ($color_by eq 'user') {
 					$color = ${$users}{$user}{color};
 				} elsif ($color_by eq 'queue') {
-					$color = ${$queue}{$queue}{color};
+					$color = ${$queues}{$queue}{color};
 				} elsif ($color_by eq 'resources') {
 					$color = 7; # white on black.
 					if (defined(${$jobs}{$job}{cpu_s}) && defined(${$jobs}{$job}{mem_s})) {

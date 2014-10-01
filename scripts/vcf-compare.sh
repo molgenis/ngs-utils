@@ -7,22 +7,27 @@ set -e  # Exit if any subcommand or pipeline returns a non-zero status.
 set -u  # Exit if any uninitialised variable is used.
 
 usage() {
-    echo "################################# help ##########################################"
-    echo "This tool compares 2 VCF files and shows only the different rows bases on the following columns:"
-    echo " CHROM, POS, REF, ALT, FILTER, INFO:DP and SampleID:GT"
+    echo '##################################################################################################'
+    echo ' This tool compares 2 VCF files and shows only the different rows based on the following columns:'
+    echo '   CHROM, POS, REF, ALT, FILTER, INFO:DP and SampleID:GT'
+    echo ' The read depth (INFO:DP) can be used to select only variants with a read depth >= threshold.'
+    echo ' This tool will work well if the amount of differences is small, '
+    echo ' but may become slow when the number differences is large.'
     echo
-    echo "The read depth (INFO:DP) is used to select only variants with a read depth >= threshold."
+    echo ' Usage:'
+    echo '   bash vcf-compare.sh -1 <input_vcf_file> -2 <input_vcf_file> -d <minimal_depth> -o <output_folder>'
     echo
-    echo "Usage: sh vcf-compare.sh -1 <vcf1> -2 <vcf2> -d <INT> -o <path>"
-    echo
-    echo "Example: sh vcf-compare.sh -1 old_analysis.snps.final.vcf -2 new_analysis.snps.final.vcf -d 20 -o ./results/"
-    echo
-    echo "################################################################################"
+    echo ' Example:'
+    echo '   bash vcf-compare.sh -1 old_analysis.snps.final.vcf \'
+    echo '                       -2 new_analysis.snps.final.vcf \'
+    echo '                       -d 20 \'
+    echo '                       -o ./results/'
+    echo '##################################################################################################'
 }
 
 declare VCF1=""
 declare VCF2=""
-declare DEPTH=""
+declare DEPTH="0"
 declare OUT=""
 
 #
@@ -32,7 +37,7 @@ while getopts ":1:2:d:o:h" option; do
     case "${option}" in
         1)  VCF1=${OPTARG};;
         2)  VCF2=${OPTARG};;
-        d)   DEPTH=${OPTARG};;
+        d) DEPTH=${OPTARG};;
         o)   OUT=${OPTARG};;
         h)
             usage
@@ -51,7 +56,7 @@ done
 #
 # Check if all parameters are set.
 #
-if [[ ${VCF1} && ${VCF2} && ${DEPTH} && ${OUT} ]]; then
+if [[ ${VCF1} && ${VCF2} && ${OUT} ]]; then
     echo
     echo "Comparing ${VCF1} to ${VCF2}..."
     echo
@@ -60,7 +65,7 @@ else
     echo
     echo "ERROR: missing required argument. Try \"$(basename $0) -h\" for help."
     echo
-        exit 1
+    exit 1
 fi
 
 #
@@ -93,51 +98,84 @@ module load vcftools
 module list
 echo
 
+
+
 #
 # Extract depth (DP) from INFO field dropping any other INFO subfields.
 #
 vcftools --recode --recode-INFO DP --vcf ${VCF1} --out "${SCRATCH}/${vcf01}.stripped"
 vcftools --recode --recode-INFO DP --vcf ${VCF2} --out "${SCRATCH}/${vcf02}.stripped"
+bgzip "${SCRATCH}/${vcf01}.stripped.recode.vcf"
+bgzip "${SCRATCH}/${vcf02}.stripped.recode.vcf"
+tabix -p vcf "${SCRATCH}/${vcf01}.stripped.recode.vcf.gz"
+tabix -p vcf "${SCRATCH}/${vcf02}.stripped.recode.vcf.gz"
 
 #
 # Select only the following columns: CHROM (1), POS (2), REF(4), ALT(5), FILTER(7), INFO:DP and SampleID:GT (10). 
 #
-vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' "${SCRATCH}/${vcf01}.stripped.recode.vcf" > "${SCRATCH}/${vcf01}.stripped.txt"
-vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' "${SCRATCH}/${vcf02}.stripped.recode.vcf" > "${SCRATCH}/${vcf02}.stripped.txt"
+vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' "${SCRATCH}/${vcf01}.stripped.recode.vcf.gz" > "${SCRATCH}/${vcf01}.stripped.txt"
+vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' "${SCRATCH}/${vcf02}.stripped.recode.vcf.gz" > "${SCRATCH}/${vcf02}.stripped.txt"
 #vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%SAMPLE=%GT]\n' "${OUT}/TMP01/${vcf01}.stripped.recode.vcf" > "${OUT}/TMP01/${vcf01}.stripped.txt"
 #vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%SAMPLE=%GT]\n' "${OUT}/TMP02/${vcf02}.stripped.recode.vcf" > "${OUT}/TMP02/${vcf02}.stripped.txt"
 
-#
-# Remove variants with DP <= $DEPTH. 
-#
-awk -F "\t" 'BEGIN { OFS=FS } $6 > '"${DEPTH}"'-1 { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf01}.stripped.txt" > "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt"
-awk -F "\t" 'BEGIN { OFS=FS } $6 > '"${DEPTH}"'-1 { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf02}.stripped.txt" > "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt"
+if [ ${DEPTH} > 0 ]; then
+    #
+    # Remove variants with DP <= $DEPTH. 
+    #
+    awk -F "\t" 'BEGIN { OFS=FS } $6 > '"${DEPTH}"'-1 { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf01}.stripped.txt" > "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt"
+    awk -F "\t" 'BEGIN { OFS=FS } $6 > '"${DEPTH}"'-1 { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf02}.stripped.txt" > "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt"
+else
+    awk -F "\t" 'BEGIN { OFS=FS } { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf01}.stripped.txt" > "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt"
+    awk -F "\t" 'BEGIN { OFS=FS } { print $1,$2,$3,$4,$5,$6,$7 }' "${SCRATCH}/${vcf02}.stripped.txt" > "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt"
+fi
 
 #
-# Reformat and add header: small output for diff.
+# Check if we have any variants left.
 #
-vcf01_sample_IDs=$(vcf-query -l "${SCRATCH}/${vcf01}.stripped.recode.vcf")
-vcf02_sample_IDs=$(vcf-query -l "${SCRATCH}/${vcf02}.stripped.recode.vcf")
+if [[ ! -s "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt" ]]; then
+	echo
+	echo "WARN: ${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt is empty."
+	echo "      There were no variants left after filtering for a minimal read depth of ${DEPTH}."
+	echo
+fi
+if [[ ! -s "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt" ]]; then
+	echo
+	echo "WARN: ${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt is empty."
+	echo "      There were no variants left after filtering for a minimal read depth of ${DEPTH}."
+	echo
+fi
+if [[ ! -s "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt" && ! -s "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt" ]]; then
+	echo
+	echo "ERROR: There were no variants left after filtering for a minimal read depth of ${DEPTH} in either VCF file."
+	echo
+	exit 1
+fi 
+
+#
+# Reformat and add header: create small output for diff.
+#
+vcf01_sample_IDs=$(vcf-query -l "${SCRATCH}/${vcf01}.stripped.recode.vcf.gz")
+vcf02_sample_IDs=$(vcf-query -l "${SCRATCH}/${vcf02}.stripped.recode.vcf.gz")
 printf "%-6s  %10s  %-10s  %-10s  %-s\n" "#CHROM" "POS" "REF" "ALT" "${vcf01_sample_IDs}:GT" \
-  > "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt.small.reformatted"
+  > "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt.small.reformatted"
 awk -F "\t" '{printf "%-6s  %10s  %-10s  %-10s  %-s\n", $1,$2,$3,$4,$7 }' \
-    "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt" \
- >> "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt.small.reformatted"
+    "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt" \
+ >> "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt.small.reformatted"
 #
 printf "%-6s  %10s  %-10s  %-10s  %-s\n" "#CHROM" "POS" "REF" "ALT" "${vcf02_sample_IDs}:GT" \
-  > "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small.reformatted"
+  > "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt.small.reformatted"
 awk -F "\t" '{printf "%-6s  %10s  %-10s  %-10s  %-s\n", $1,$2,$3,$4,$7 }' \
-    "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt" \
- >> "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small.reformatted"
+    "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt" \
+ >> "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt.small.reformatted"
 
 #
 # Intermediate cleanup.
 #
-mv ${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt.small{.reformatted,}
-mv ${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small{.reformatted,}
+mv ${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt.small{.reformatted,}
+mv ${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt.small{.reformatted,}
 
 #
-# Intermediate comparison the subset of VCF data for the two files using diff.
+# Intermediate comparison of the subset of VCF data for the two files using diff.
 #  * List only lines NOT starting with "#". Hence skip all meta-data and header lines.
 #  * List all lines starting with a [<>] and write them to a new file.
 #    These will then be used to search the corresponding complete/original files for the same variants, 
@@ -145,8 +183,8 @@ mv ${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small{.reformatted,}
 #
 vcf_diff_result="${SCRATCH}/diff_${vcf01}_vs_${vcf02}.txt.small"
 diff -w -d \
-   "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt.small" \
-   "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small" \
+   "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt.small" \
+   "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt.small" \
  | grep -v '^#' \
  | grep -P '^[<>]' \
  | awk 'BEGIN {OFS="\t"} {print $2,$3}' \
@@ -157,8 +195,8 @@ diff -w -d \
 # Count the total amount of sites taken into account: same in both VCFs + only present in VCF 1 + only present in VCF2.
 #
 number_of_sites_total=$(cat \
-    "${SCRATCH}/${vcf01}.stripped.minDP.${DEPTH}.txt.small" \
-    "${SCRATCH}/${vcf02}.stripped.minDP.${DEPTH}.txt.small" \
+    "${SCRATCH}/${vcf01}.stripped.minDP${DEPTH}.txt.small" \
+    "${SCRATCH}/${vcf02}.stripped.minDP${DEPTH}.txt.small" \
  | grep -v '^#' \
  | awk '{print $1,$2}' \
  | sort -u \
@@ -171,33 +209,47 @@ number_of_sites_total=$(cat \
 while read -r chr pos; do
     #echo "DEBUG: Searching for variant @ coordinate: ${chr}:${pos}."
     set +e
-    grep_match=$(grep -P "^${chr}\t${pos}\t" "${SCRATCH}/${vcf01}.stripped.txt")
-    grep_status=$?
-    if [ ${grep_status} -eq 0 ]; then
-        echo "$grep_match" >> "${SCRATCH}/${vcf01}.stripped.txt.for.report"
-    elif [ ${grep_status} -eq 1 ]; then
+#    grep_match=$(grep -P "^${chr}\t${pos}\t" "${SCRATCH}/${vcf01}.stripped.txt")
+#    grep_status=$?
+#    if [ ${grep_status} -eq 0 ]; then
+#        echo "$grep_match" >> "${SCRATCH}/${vcf01}.stripped.txt.for.report"
+#    elif [ ${grep_status} -eq 1 ]; then
+#        # No matches were found: write that explicitly to result to prevent spurious partial diff matches.
+#        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "${chr}" "${pos}" "-" "-" "." "." "./." >> "${SCRATCH}/${vcf01}.stripped.txt.for.report"
+#    else
+#        echo
+#        echo "ERROR: Cannot grep \"^${chr}\\t${pos}\\t\" in ${SCRATCH}/${vcf01}.stripped.txt."
+#        echo "       Exit value is: $?"
+#        echo
+#        exit 1
+#    fi
+#    grep_match=$(grep -P "^${chr}\t${pos}\t" "${SCRATCH}/${vcf02}.stripped.txt")
+#    grep_status=$?
+#    if [ ${grep_status} -eq 0 ]; then
+#        echo "$grep_match" >> "${SCRATCH}/${vcf02}.stripped.txt.for.report"
+#    elif [ ${grep_status} -eq 1 ]; then
+#        # No matches were found: write that explicitly to result to prevent spurious partial diff matches.
+#        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "${chr}" "${pos}" "-" "-" "." "." "./." >> "${SCRATCH}/${vcf02}.stripped.txt.for.report"
+#    else
+#        echo
+#        echo "ERROR: Cannot grep \"^${chr}\\t${pos}\\t\" in ${SCRATCH}/${vcf02}.stripped.txt."
+#        echo "       Exit value is: $?"
+#        echo
+#        exit 1
+#    fi
+    query_match=$(vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' -r ${chr}:${pos}-${pos} "${SCRATCH}/${vcf01}.stripped.recode.vcf.gz")
+    if [ -n "${query_match}" ]; then
+        echo "$query_match" >> "${SCRATCH}/${vcf01}.stripped.txt.for.report"
+    else
         # No matches were found: write that explicitly to result to prevent spurious partial diff matches.
         printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "${chr}" "${pos}" "-" "-" "." "." "./." >> "${SCRATCH}/${vcf01}.stripped.txt.for.report"
-    else
-        echo
-        echo "ERROR: Cannot grep \"^${chr}\\t${pos}\\t\" in ${SCRATCH}/${vcf01}.stripped.txt."
-        echo "       Exit value is: $?"
-        echo
-        exit 1
     fi
-    grep_match=$(grep -P "^${chr}\t${pos}\t" "${SCRATCH}/${vcf02}.stripped.txt")
-    grep_status=$?
-    if [ ${grep_status} -eq 0 ]; then
-        echo "$grep_match" >> "${SCRATCH}/${vcf02}.stripped.txt.for.report"
-    elif [ ${grep_status} -eq 1 ]; then
+    query_match=$(vcf-query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER\t%INFO/DP[\t%GT]\n' -r ${chr}:${pos}-${pos} "${SCRATCH}/${vcf02}.stripped.recode.vcf.gz")
+    if [ -n "${query_match}" ]; then
+        echo "$query_match" >> "${SCRATCH}/${vcf02}.stripped.txt.for.report"
+    else
         # No matches were found: write that explicitly to result to prevent spurious partial diff matches.
         printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "${chr}" "${pos}" "-" "-" "." "." "./." >> "${SCRATCH}/${vcf02}.stripped.txt.for.report"
-    else
-        echo
-        echo "ERROR: Cannot grep \"^${chr}\\t${pos}\\t\" in ${SCRATCH}/${vcf02}.stripped.txt."
-        echo "       Exit value is: $?"
-        echo
-        exit 1
     fi
     set -e
 done < "${vcf_diff_result}"
