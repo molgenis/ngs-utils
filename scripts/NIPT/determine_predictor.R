@@ -5,7 +5,6 @@ DOC = "Produces four different models. Each model predicts the fraction of reads
 chromosomes.trisomy		= c(13, 18, 21)									# chromosomes with potential trisomy
 chromosomes.background	= 1:22											# 'background' chromosomes used to predict trisomy
 control.chromosomes 	= chromosomes.background[-chromosomes.trisomy]	# chroms we want to use to predict chromosomes with potential trisomy
-n.best.control.samples	= 50											# number of best control samples that is used for this analysis
 n.models				= 4												# Number of models
 n.predictors.per.model	= 4												# Number of predictors per model
 round.n.decimals		= 3												# Number of digits on which results are rounded
