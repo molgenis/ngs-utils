@@ -120,6 +120,7 @@ sample.bins = read.table(paste(args$workdir, "/", args$name, ".", args$strand,  
 n.reads.sample.chromosome = sample.bins[args$chromosome,] + sample.bins[args$chromosome + length(chromosomes.background),]
 
 # TODO ---- Describe background! 
+# I guess you mean sd.observed and sd.theoretical here (see below)
 cv.theoretical = cv.correction.factor / sqrt(length(n.reads.sample.chromosome))
 
 #
@@ -138,6 +139,8 @@ for (i.model in 1:n.models)
 	trisomy.overrepresentation.mean.model[i.model] = mean(trisomy.overrepresentation)
 
 	# See http://en.wikipedia.org/wiki/Coefficient_of_variation
+	# Z-score has sd in denominator, not CV, so I guess you mean sd.observed and sd.theoretical here
+	# This can be correct, because mean(trisomy.overrepresentation) should be 1?
 	cv.observed = (1 + 1 / (4 * length(trisomy.overrepresentation))) * sd(trisomy.overrepresentation) / mean(trisomy.overrepresentation)
 	
 	cv = max(cv.theoretical, cv.observed)
