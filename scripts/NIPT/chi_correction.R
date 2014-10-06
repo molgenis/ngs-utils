@@ -94,8 +94,9 @@ bins.list[[ 1 + length(bin.list) + 1 ]] = sample.bins
 correct.bins.list = CorrectBins(bins.list = bins.list, chi.sum.bins = chi.sum.bins, strand = args$strand, sample.name = args$name)
 
 # Save sample as .tsv
+# TODO ---- do not construct file name here, but compose in parameters
 sample.bins = correct.bins.list[[1 + length(correct.bins.list)]]
-write.table(sample.bins, paste(args$workdir, "/", args$name, ".", args$strand,  ".corrected.bins.table.tsv", sep=""), , quote = FALSE, sep ="\t", row.names = TRUE)
+write.table(sample.bins, paste(args$workdir, "/", args$name, ".", args$strand,  ".corrected.bins.table.tsv", sep=""), quote = FALSE, sep ="\t", row.names = TRUE)
 
 # Remove sample of interest from list
 correct.bins.list[[-length(correct.bins.list)]]
