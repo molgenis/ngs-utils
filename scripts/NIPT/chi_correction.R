@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-DOC = "Calculate normalized chi square score per bin."
+DOC = "Correct bins with high chi square score."
 
 # Constants
 chi.square.cut.off		= 3.5	# explanation needed
