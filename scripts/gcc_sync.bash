@@ -112,13 +112,16 @@ function createConfigTemplate () {
 ##########################################################
 
 #
-# System account, group and perms for tools + resources.
-#
+# System account, group used for the rsync.
 #  * Group on SOURCE will be recursively changed to this one before sync.
-#  * These permissions will be applied recursively on SOURCE before sync.
 #
 #SYS_USER='envsync'
 #SYS_GROUP='depad'
+#
+# Perms for tools + resources on SOURCE
+#  * These permissions will be applied recursively on SOURCE before sync.
+#  * These are NOT the permissions applies to the DESTINATION (those are controlled by rsync options.)
+#
 #SYS_FILE_PERMS='g+rwX,o+rX,o-w'
 #SYS_FOLDER_PERMS='g+rwXs,o+rX,o-w'
 
@@ -343,10 +346,16 @@ echo "INFO: RSYNC_SOURCES contains ${RSYNC_SOURCES[@]}"
 #
 # Define rsync options.
 #
-#RSYNC_OPTIONS='-avRK' Archive mode (-a) = -rlptgoD.
+# Fairly standard RSYNC_OPTIONS='-avRK'
+#   where -a = archive mode = -rlptgoD.
 # We don't sync ownership of the files.
 # Instead all secondary copies on the destinations are owned by ${SYS_USER}.
+#
 RSYNC_OPTIONS='-rlptgDvRK'
+#
+# We don't sync permissions and change them explicitly.
+#
+RSYNC_OPTIONS="${RSYNC_OPTIONS} --perms --chmod=u=rwX,go=rX"
 if [ "${DELETE_OLD}" -eq 1 ]; then
   echo "WARN: Cleanup of outdated ${SOURCE_ROOT_DIR} data is enabled for ${DESTINATION_ROOT_DIRS[@]}."
   RSYNC_OPTIONS="${RSYNC_OPTIONS} --delete-after"
