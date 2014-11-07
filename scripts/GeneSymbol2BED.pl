@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 
 #
 # Script to create a BED file with genomic regions for HGNC GeneSymbols
