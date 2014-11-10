@@ -140,7 +140,7 @@ rm ${AGILENT_SS_KIT_DIR}/gcc_version_indexed_for_human_g1k_v37/${FLANKED_BED_FIL
 #
 # Rename final file for consistency and readability.
 #
-mv ${AGILENT_SS_KIT_DIR}/gcc_version_indexed_for_human_g1k_v37/${FLANKED_BED_FILE_PREFIX}.sorted.stripped.flanked20bp.regionMerged.bed.tmp \
+mv ${AGILENT_SS_KIT_DIR}/gcc_version_indexed_for_human_g1k_v37/${FLANKED_BED_FILE_PREFIX}.sorted.stripped.flanked20bp.regionMerged.bed \
    ${AGILENT_SS_KIT_DIR}/gcc_version_indexed_for_human_g1k_v37/Agilent_SureSelect_Human_Inherited_Disease_V1_S0684402_UMCG.sorted.stripped.flanked20bp.regionMerged.labelled.bed
 
 ###########################################################################################################
