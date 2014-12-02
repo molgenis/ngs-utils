@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata
+END
+getdata.sh
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata/getdata.sh
+END
+110303_SN163_0393_A80MP0ABXX_L4_TAATTT.human_g1k_v37.dedup.metrics
+K 25
+svn:wc:ra_dav:version-url
+V 135
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata/110303_SN163_0393_A80MP0ABXX_L4_TAATTT.human_g1k_v37.dedup.metrics
+END
+111018_SN163_0434_AD0AP0ACXX_L5_TAATTT.human_g1k_v37.dedup.metrics
+K 25
+svn:wc:ra_dav:version-url
+V 135
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata/111018_SN163_0434_AD0AP0ACXX_L5_TAATTT.human_g1k_v37.dedup.metrics
+END
+110303_SN163_0393_A80MP0ABXX_L4_AGAGAT.human_g1k_v37.dedup.metrics
+K 25
+svn:wc:ra_dav:version-url
+V 135
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata/110303_SN163_0393_A80MP0ABXX_L4_AGAGAT.human_g1k_v37.dedup.metrics
+END
+111018_SN163_0434_AD0AP0ACXX_L5_AGAGAT.human_g1k_v37.dedup.metrics
+K 25
+svn:wc:ra_dav:version-url
+V 135
+/svn/!svn/ver/1132/ngs_scripts/trunk/getDedupInfo_23mar2012/testdata/111018_SN163_0434_AD0AP0ACXX_L5_AGAGAT.human_g1k_v37.dedup.metrics
+END
