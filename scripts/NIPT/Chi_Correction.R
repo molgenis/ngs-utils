@@ -17,20 +17,26 @@ parser <- add.argument(parser, "-f",  help = ".tsv file with number of reads per
 parser <- add.argument(parser, "-r",  help = ".tsv file with number of reads per bin reverse strand.")
 parser <- add.argument(parser, "-temp",       help = "Temp directory where files produced during pipeline run are stored")
 parser <- add.argument(parser, "-sample", 	help = "Sample ID ")
-parser <- add.argument(parser, "-strand", help = "Strand, either forward or reverse")
 parser <- add.argument(parser, "-d", help = "Directory with control set.")
-parser <- add.argument(parser, "-c",   help = "List with control samples, descending quality.")
 parser <- add.argument(parser, "-q", 		help = "Print little or no output.")
 
 args <- parse.args(parser, argv = commandArgs(trailingOnly = TRUE))
 
+GetFiles <- function(controlDir, strand, sampleID)
+{
+  setwd(controlDir)
+  files <- list.files( pattern = paste("*", strand,".bins.table.tsv", sep = ""))
+  sampleID <- paste(sampleID,".", strand, ".bins.table.tsv", sep ="")
+  files <- files[!files %in% sampleID]
+  return (files)
+}
+
 # Return list with bins of best control files
 GetControlFiles = function(control.file.base.name, control.dir, strand, chromosomes.focus)
 {
-  files = paste(control.dir, "/", control.file.base.name, ".", strand, ".bins.table.tsv", sep = "")
   control.file.bin = list()
-  for (i in 1:length(files) ){
-    binfile = as.matrix(read.delim(files[i], header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE))
+  for (i in 1:length(control.file.base.name) ){
+    binfile = as.matrix(read.delim(control.file.base.name[i], header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE))
     
     # Only select relevant chromosomes
     control.file.bin[[i]] = binfile[chromosomes.focus, ]
@@ -39,9 +45,10 @@ GetControlFiles = function(control.file.base.name, control.dir, strand, chromoso
   return (control.file.bin)
 }
 
+
 SumChiScores = function(bins.list) {
   # Scale each sample in bins.list so that all samples have the same number of reads
-  bins.overall.mean = sum(unlist(bins.list)) / length(bins.list)
+  bins.overall.mean = sum(as.numeric(unlist(bins.list))) / length(bins.list)
   mean.correction = function(m) m * bins.overall.mean / sum(m)
   bins.list.scaled = lapply(bins.list, mean.correction)
   
@@ -140,11 +147,11 @@ sample.bins.forward = as.matrix(sample.bins.forward[chromosomes.focus, ])
 sample.bins.reverse = read.delim(args$r, header = TRUE, sep = "\t", quote = "\"", dec = ".", fill = TRUE)
 sample.bins.reverse = as.matrix(sample.bins.reverse[chromosomes.focus, ])
 # Load best control samples
-control.file.base.name = as.vector(read.table(args$c)[1:n.best.control.samples, 1])
-
+control.file.base.name.forward = GetFiles(args$d, strand="forward", args$sample)
+control.file.base.name.reverse = GetFiles(args$d, strand="reverse", args$sample)
 # Loads the control bins
-control.bins.forward = GetControlFiles(control.file.base.name = control.file.base.name, control.dir = args$d, strand = "forward" , chromosomes.focus = chromosomes.focus)
-control.bins.reverse = GetControlFiles(control.file.base.name = control.file.base.name, control.dir = args$d, strand = "reverse" , chromosomes.focus = chromosomes.focus)
+control.bins.forward = GetControlFiles(control.file.base.name.forward , control.dir = args$d, chromosomes.focus = chromosomes.focus)
+control.bins.reverse = GetControlFiles(control.file.base.name.reverse , control.dir = args$d, chromosomes.focus = chromosomes.focus)
 control.bins <- c(control.bins.forward, control.bins.reverse)
 #
 ## Start calculations
@@ -173,11 +180,11 @@ correct.bins.list.forward[length(correct.bins.list.forward)] <- NULL
 correct.bins.list.reverse[length(correct.bins.list.reverse)] <- NULL
 
 # Compose file names of control samples for storage
-control.sample.files = sub(".bins.", ".corrected.bins.", control.file.base.name)
-
+control.sample.files.forward = sub(".bins.", ".corrected.bins.", control.file.base.name.forward)
+control.sample.files.reverse = sub(".bins.", ".corrected.bins.", control.file.base.name.reverse)
 # Save control samples as RDS
-saveRDS(list(correct.bins.list.forward, control.sample.files), paste(args$temp, "/", args$sample, ".forward.controlfiles.corrected.bins.rds", sep=""))
-saveRDS(list(correct.bins.list.reverse, control.sample.files), paste(args$temp, "/", args$sample, ".reverse.controlfiles.corrected.bins.rds", sep=""))
+saveRDS(list(correct.bins.list.forward, control.sample.files.forward), paste(args$temp, "/", args$sample, ".forward.controlfiles.corrected.bins.rds", sep=""))
+saveRDS(list(correct.bins.list.reverse, control.sample.files.reverse), paste(args$temp, "/", args$sample, ".reverse.controlfiles.corrected.bins.rds", sep=""))
 
 # Quit with normal return code
 quit(save = "no", status = 0)
