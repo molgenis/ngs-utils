@@ -4,7 +4,7 @@ DOC = "Correct bins with high chi square score."
 # Constants 
 chi.square.cut.off  	= 3.5	# explanation needed
 chromosomes.focus		= 1:22	# only autosomal chromosomes #--Risk-> What if order changes?
-n.best.control.samples  = 50	# number of best control samples that is used for this analysis
+
 
 # Retrieve command line parameters
 suppressPackageStartupMessages(library("argparser"))
@@ -149,10 +149,16 @@ sample.bins.reverse = as.matrix(sample.bins.reverse[chromosomes.focus, ])
 # Load best control samples
 control.file.base.name.forward = GetFiles(args$d, strand="forward", args$sample)
 control.file.base.name.reverse = GetFiles(args$d, strand="reverse", args$sample)
+
+n.best.control.samples  = length(control.file.base.name.forward)
+
 # Loads the control bins
 control.bins.forward = GetControlFiles(control.file.base.name.forward , control.dir = args$d, chromosomes.focus = chromosomes.focus)
 control.bins.reverse = GetControlFiles(control.file.base.name.reverse , control.dir = args$d, chromosomes.focus = chromosomes.focus)
+
 control.bins <- c(control.bins.forward, control.bins.reverse)
+
+print(length(control.bins))
 #
 ## Start calculations
 #
