@@ -28,7 +28,7 @@ GetFiles <- function(controlDir, strand, sampleID)
   files <- list.files( pattern = paste("*", strand,".bins.table.tsv", sep = ""))
   sampleID <- paste(sampleID,".", strand, ".bins.table.tsv", sep ="")
   files <- files[!files %in% sampleID]
-  return (files)
+  return (sort(files))
 }
 
 # Return list with bins of best control files
@@ -72,7 +72,7 @@ CorrectBins = function(bins.list, chi.sum.bins, strand, sample.name) {
   # bin.list = list(control sample 1, control sample 2, ..., sample of interest)
   # chi.sum.bins is determined only on control samples
   
-  degrees.of.freedom = (n.best.control.samples * 2 )- 1 # number of control samples minus one
+  degrees.of.freedom = n.best.control.samples- 1 # number of control samples minus one
   
   # Convert chi squares to a normal distribution score 
   chi.sum.bins.normalized = (chi.sum.bins - degrees.of.freedom) / (sqrt( 2 * degrees.of.freedom))
@@ -156,7 +156,11 @@ n.best.control.samples  = length(control.file.base.name.forward)
 control.bins.forward = GetControlFiles(control.file.base.name.forward , control.dir = args$d, chromosomes.focus = chromosomes.focus)
 control.bins.reverse = GetControlFiles(control.file.base.name.reverse , control.dir = args$d, chromosomes.focus = chromosomes.focus)
 
-control.bins <- c(control.bins.forward, control.bins.reverse)
+control.bins <- NULL
+for (p in 1:length(control.bins.forward))
+{
+  control.bins[[p]] <- control.bins.forward[[p]] + control.bins.reverse[[p]]
+}
 
 print(length(control.bins))
 #
