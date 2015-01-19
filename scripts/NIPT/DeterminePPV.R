@@ -129,7 +129,7 @@ fetal.low.wide <- 1
 fetal.high.wide <- 23
 
 fetal.low.narrow <- 6
-fetal.high.narrow <- 16
+fetal.high.narrow <- 18
 
 #vector for apriori risks in fractions
 apriori <- c( 1 / risk13, 1 / risk18, 1 / risk21) 
