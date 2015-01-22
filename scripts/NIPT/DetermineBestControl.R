@@ -169,12 +169,12 @@ bestNames <- round(bestNames, 8)
 allmatrix[45,] <- bestNames 
 #Sorts the sum of squares 
 bestNames <- sort(bestNames)
-bestNames <- as.vector(names(bestNames[1:177]))
+bestNames <- as.vector(names(bestNames))
 #Adds the total sum of squares to the last row of the matrix
 controlTable <- as.data.frame(allmatrix[45, bestNames])
 #Colname for the sum of square tables 
 colnames(controlTable) <-  "Sum of Squares"
-#Writes the sum of squares table in PDF formar 
+#Writes the sum of squares table in PDF format 
 pdf("best50Controls.pdf", height=15, width=7)
 grid.table(controlTable)
 dev.off()
