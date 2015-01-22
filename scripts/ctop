@@ -662,10 +662,10 @@ sub _GetInfo {
 			}
 		} elsif (/^\s*queue = (.+)/i) {
 			${$jobs}{$job}{'queue'} = $1;
-		} elsif (/^\s*Resource_List.nodes = ([0-9]+):ppn=([0-9]+)/i) {
+		} elsif (/^\s*Resource_List.nodes = ([1-9][0-9]*):ppn=([1-9][0-9]*)/i) {
 			${$jobs}{$job}{'ncount'}  = $1;
 			${$jobs}{$job}{'cores_r'} = $2 * $1;
-		} elsif (/^\s*Resource_List.nodes = ([0-9]+)$/i) {
+		} elsif (/^\s*Resource_List.nodes = ([1-9][0-9]*)$/i) {
 			${$jobs}{$job}{'ncount'}  = $1;
 			${$jobs}{$job}{'cores_r'} = 1 * $1; # no cores were specified -> defaults to 1. 
 		} elsif (/^\s*Resource_List.(p?mem) = ([0-9]+)([a-z]+)$/i) {
@@ -736,8 +736,10 @@ sub _SupplementInfo {
 			#_PrintWarning("DEBUG: walltime_sec = $walltime[0] | $walltime[1] | $walltime[2]");
 			#_PrintWarning("DEBUG: cputime = ${$jobs}{$job}{cputime_u} | walltime = ${$jobs}{$job}{walltime_u} | cputime_sec = $cputime_sec | walltime_sec = $walltime_sec");
 		}
-		if (defined(${$jobs}{$job}{'cores_r'})) {
+		if (defined(${$jobs}{$job}{'cores_r'}) && ${$jobs}{$job}{'cores_r'} > 0) {
 			${$jobs}{$job}{'cpu_r'} = ${$jobs}{$job}{'cores_r'} * 100;
+		} else {
+			${$jobs}{$job}{'cpu_r'} = undef;
 		}
 		if (defined(${$jobs}{$job}{'cpu_u'} && defined(${$jobs}{$job}{'cpu_r'}))) {
 			my $cpu_u = ${$jobs}{$job}{'cpu_u'};
