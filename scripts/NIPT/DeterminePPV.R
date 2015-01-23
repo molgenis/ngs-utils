@@ -29,8 +29,26 @@ GetFetalUpperLower <- function(fetal, vc)
 {
   return ((fetal * 0.5) / vc)
 }
+CalculatePPV <- function(fetal.high, fetal.low, vc, z.obs, apriori)
+{
+  #Gets upper fetal limit
+  upper <- GetFetalUpperLower(fetal.high, vc)
+  #Gets fetal lower limit
+  lower <- GetFetalUpperLower(fetal.low, vc)
+  #Calculates the integral
+  fetal.perc <-integrate(GetZExp, lower, upper, lower.lim = lower, upper.lim = upper , z.obs = z.obs)
+  #Multiplies the integeral with the apriori risk
+  fetal.apriori <- fetal.perc$value * apriori
+  #Calculates PPV fractions
+  ppv.frac <- fetal.apriori + (1 - apriori) * exp(-(z.obs)^2/2)
+  #Converts fraction to percentage
+  ppv.perc <- ((fetal.apriori / ppv.frac) * 100)
+  
+  return(ppv.perc)
+}
 
-GetPPV <- function(zscore, fetal.high, fetal.low, apriori, risk)
+
+GetPPV <- function(zscore, fetal.high.wide, fetal.low.wide, apriori, risk, fetal.high.narrow, fetal.low.narrow)
 {
   #Logical vector to determine which PPv scores are used for median 
   normal.distributed <- vector(mode="logical", length= 4)
@@ -46,18 +64,9 @@ GetPPV <- function(zscore, fetal.high, fetal.low, apriori, risk)
     vc <- zscore[j,1]
     #Gets observed Z score
     z.obs <- zscore[j,3]
-    #Gets upper fetal limit
-    upper <- GetFetalUpperLower(fetal.high, vc)
-    #Gets fetal lower limit
-    lower <- GetFetalUpperLower(fetal.low, vc)
-    #Calculates the integral
-    fetal.perc <-integrate(GetZExp, lower, upper, lower.lim = lower, upper.lim = upper , z.obs = z.obs)
-    #Multiplies the integeral with the apriori risk
-    fetal.apriori <- fetal.perc$value * apriori
-    #Calculates PPV fractions
-    ppv.frac <- fetal.apriori + (1 - apriori) * exp(-(z.obs)^2/2)
-    #Converts fraction to percentage
-    ppv.perc <- ((fetal.apriori / ppv.frac) * 100)
+    ppv.perc.wide <- CalculatePPV(fetal.high.wide, fetal.low.wide, vc, z.obs, apriori)
+    ppv.perc.narrow <- CalculatePPV(fetal.high.narrow, fetal.low.narrow, vc, z.obs, apriori)
+    ppv.perc <- (ppv.perc.wide * 0.4 + ppv.perc.narrow * 0.6)  
     #Adds PPv score to table
     zscore[j,4] <- round(ppv.perc,3) 
     names(zscore)[4] <- "PPV (%)"
@@ -113,9 +122,15 @@ workdir <- args[1]
 risk13 <- as.numeric(args[2])
 risk18 <- as.numeric(args[3])
 risk21 <- as.numeric(args[4])
+
+risk.vector <- c(risk13, risk18, risk21)
 #range of fetal percentages
-fetal.low <- 1
-fetal.high <- 30
+fetal.low.wide <- 1
+fetal.high.wide <- 23
+
+fetal.low.narrow <- 6
+fetal.high.narrow <- 18
+
 #vector for apriori risks in fractions
 apriori <- c( 1 / risk13, 1 / risk18, 1 / risk21) 
 #Gets file names
@@ -127,7 +142,8 @@ ppv.tables <- list()
 #For each table, the PPV and median PPV are calculated
 for (k in 1:length(files))
 {
-  ppv.tables[[k]] <- GetPPV(zscore = files[[k]], fetal.high = fetal.high, fetal.low = fetal.low, apriori = apriori[k], risk = args[k])
+  ppv.tables[[k]] <- GetPPV(zscore = files[[k]], fetal.high.wide = fetal.high.wide, fetal.low.wide = fetal.low.wide, apriori = apriori[k], risk = risk.vector[k],
+                            fetal.high.narrow = fetal.high.narrow, fetal.low.narrow = fetal.low.narrow)
 }
 #List to store the tables, but now converted to grobs
 ppv.pdf <- list()
