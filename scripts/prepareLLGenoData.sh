@@ -9,11 +9,11 @@ set -e
 RunId=""
 Data=""
 PseudoDir="/gcc/groups/lifelines/home/rsnieders/GenoPseudo"
-Compute5="/gcc/groups/lifelines/tmp03/lifelines/tools/molgenis_compute5/molgenis-compute-core-0.0.1-SNAPSHOT-20130920/"
 SampleSheet="/gcc/groups/lifelines/prm02/samplesheets/"
 makedir="mkdir -p -m 770"
 SNPSubset="all"
 
+module load LL_genodata/20150311
 #
 # Load tools into environment.
 #
@@ -110,10 +110,8 @@ echo "INFO: Using data      ${Data}."
 echo "INFO: Using snpsubset ${SNPSubset}."
 
 #copy pseudofile to tmp
-if [ ! -f "/gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt" ]; 
-then
-	cp /gcc/groups/lifelines/prm02/pseudoFiles/${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt
-fi
+cp /gcc/groups/lifelines/prm02/pseudoFiles/${RunId}.txt /gcc/groups/lifelines/tmp03/lifelines/pseudoFiles/${RunId}.txt
+
 #
 # Go to samplesheets on permanent storage.
 #
@@ -174,9 +172,9 @@ Jobs="/gcc/groups/lifelines/tmp03/lifelines/projects/lifelines_${RunId}/${Data}/
 #
 # Generate jobs.
 #
-sh ${Compute5}/molgenis_compute.sh -b pbs -p ${SampleSheet}/${RunId}_${Data}.csv \
--p ${Compute5}/pipelines/LifeLines_update_genotype_data/parameters.csv \
--w ${Compute5}/pipelines/LifeLines_update_genotype_data/${WORKFLOW} \
+sh ${LL_GENO_HOME}/molgenis_compute.sh -b pbs -p ${SampleSheet}/${RunId}_${Data}.csv \
+-p ${LL_GENO_HOME}/pipelines/LifeLines_update_genotype_data/parameters.csv \
+-w ${LL_GENO_HOME}/pipelines/LifeLines_update_genotype_data/${WORKFLOW} \
 -rundir ${Jobs} \
 -weave
 
