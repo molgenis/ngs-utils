@@ -10,8 +10,6 @@ suppressPackageStartupMessages(library("argparser"))
 
 parser <- arg.parser(DOC, name="bins")
 
-print(parser)
-
 parser <- add.argument(parser, "--input",  help = "Bed file with reads.")
 parser <- add.argument(parser, "-o",  help = ".tsv file with number of reads per bin.")
 parser <- add.argument(parser, "-p", 			help = ".pdf file that visualizes distribution of reads accross bins (log-scale).")
