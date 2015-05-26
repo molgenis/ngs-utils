@@ -14,7 +14,7 @@ Unzip it, and compile:
 ```
 
 ## Download phiX ref genome
-On [http://www.ncbi.nlm.nih.gov/nuccore/9626372?report=fasta] you'll find "Enterobacteria phage phiX174 sensu lato, complete genome". Save its sequence in 'phiX174_ref.fasta'
+On [http://www.ncbi.nlm.nih.gov/nuccore/9626372?report=fasta]{:target="_blank"} you'll find "Enterobacteria phage phiX174 sensu lato, complete genome". Save its sequence in 'phiX174_ref.fasta'
 
 
 ## Append phiX to human reference genome
