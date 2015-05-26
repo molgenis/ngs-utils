@@ -2,11 +2,11 @@
 Rough idea is to simulate reads from phiX with known SNPs, spike-in those reads at the start of our pipeline, and if successful, our pipeline should find and QC-report those SNPs.
 
 ## Download and compile simulation software
-We have chosen to use 'wgsim' (`[https://github.com/lh3/wgsim]`) to simulate reads.
+We have chosen to use 'wgsim' (https://github.com/lh3/wgsim) to simulate reads.
 
 Download the software
 ```bash
-	wget [https://github.com/lh3/wgsim/archive/master.zip]
+	wget https://github.com/lh3/wgsim/archive/master.zip
 ```
 Unzip it and compile:
 ```bash
@@ -115,7 +115,7 @@ Which gives output like:
 	gi|9626372|ref|NC_001422.1|	1915	T	C	-
 ```	
 
-Please see [http://www.bioinformatics.org/sms/iupac.html] for substitution rules (e.g. R = A or G).
+Please see http://www.bioinformatics.org/sms/iupac.html] for substitution rules (e.g. R = A or G).
 
 ### Align reads and quickly check results
 ```bash
