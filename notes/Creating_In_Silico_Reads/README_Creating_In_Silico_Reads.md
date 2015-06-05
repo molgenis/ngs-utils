@@ -165,11 +165,12 @@ Save following sample sheet `InSilicoData.csv` there:
 
 Make copy of paramters file `cp /gcc/tools/NGS_DNA-2.1.0/parameters.csv .` and update references to index (NB please update exact directory):
 ```bash
+	humanPhiXdir,/gcc/resources/inSilicoData/humanPhiX
 	indexFileID,human_g1k_v37_phiX
-	indexFileDictionary,/gcc/groups/gcc/home/mdijkstra/development/InSilicoData/data/humanPhiX/human_g1k_v37_phiX.dict
+	indexFileDictionary,${humanPhiXdir}/human_g1k_v37_phiX.dict
 	indexFileIDtest,${indexFileID}
-	indexFile,/gcc/groups/gcc/home/mdijkstra/development/InSilicoData/data/humanPhiX/human_g1k_v37_phiX.fasta
-	intervalListDir,/gcc/groups/gcc/home/mdijkstra/development/InSilicoData/data/humanPhiX/intervals/
+	indexFile,${humanPhiXdir}/human_g1k_v37_phiX.fasta
+	intervalListDir,${humanPhiXdir}/intervals/
 ```
 
 Create following script `generate_run_dna2.1.0.sh` to generate our pipeline:
