@@ -115,7 +115,7 @@ curl http://www.bbmriwiki.nl/svn/ngs_scripts/trunk/GeneSymbol2BED.pl > GeneSymbo
 #
 # Optionally for debugging you can try a small subset:
 #
-#export CGD_FILE_SUBSET="CGD_10_genes_2014-03-12_updated.txt"
+#export CGD_FILE_SUBSET="CGD_10_genes_2014-10-08_updated.txt"
 #head -11 ${CGD_DIR}/${CGD_FILE} > ${CGD_DIR}/${CGD_FILE_SUBSET}
 #
 #./GeneSymbol2BED.pl \
