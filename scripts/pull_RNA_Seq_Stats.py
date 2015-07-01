@@ -293,10 +293,10 @@ def main(argv):
       print("{0:<40s}\t{1:<3.3f}".format(key, R2_raw_GC[key]))
   
   #print flagstat stats in tablular format 
-  print "flagstat:"
-  map2Full = data['map2Full']
-  for key in map2Full.keys():
-    print("{0:<40s}\t{1:<11}".format(key, map2Full[key]))
+  #print "flagstat:"
+  #map2Full = data['map2Full']
+  #for key in map2Full.keys():
+  #  print("{0:<40s}\t{1:<11}".format(key, map2Full[key]))
   
   #print CollectRnaSeqMetrics stats in tablular format
   print "CollectRnaSeqMetrics:"
