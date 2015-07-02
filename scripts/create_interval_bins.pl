@@ -8,6 +8,8 @@ use POSIX;
 
 my ($help, $dict, $binSize, $inputbed, $output);
 
+
+
 #### get options
 GetOptions(
                 "h"                             => \$help,
@@ -42,7 +44,10 @@ my $number=0;
 my $regnum = 1;
 while (my $lines=<INPUT>){
         chomp $lines;
-        if ($lines !~ m/^track.+/gs) {
+	if ($lines eq ""){
+		
+	}
+        elsif ($lines !~ m/^track.+/gs) {
                 #print $lines . "\n";
                 #Remove chr before chrNumber and substitute M with MT
                 $lines =~ s/^chr//gs;
@@ -56,7 +61,7 @@ while (my $lines=<INPUT>){
                 my $name = $array[3];
                 my $region = ($stop-$start);
                 #Iterate over region and create bins
-                for (my $i=$start; $i<=$stop; $i=($i+$binSize)){
+                for (my $i=$start; $i<$stop; $i+=$binSize){
                     #Check if number is even, else write away in file2
                     if ($number % 2 == 0) {
                         open (OUTPUT, ">>", "$output.1.interval_list" ) or die $!;
@@ -76,9 +81,17 @@ while (my $lines=<INPUT>){
                         }
                         
                     }else {
-                        print OUTPUT "$chr\t$i\t" . ($i+$binSize) . "\t+\tregion$regnum\_chunk$idx\n";
-                        $idx++;
-                        $number++;
+                    	if (($i+$binSize+$binSize+$idx)>$stop){
+                        	print OUTPUT "$chr\t" . ($i+$idx-1) . "\t$stop\t+\tregion$regnum\_chunk$idx\n";
+                            last;
+                            $number++;
+                            }
+                            else {
+                        	                      	
+                        	print OUTPUT "$chr\t$i\t" . ($i+$binSize) . "\t+\tregion$regnum\_chunk$idx\n";
+                        	$idx++;
+                        	$number++;
+                        	}
                     }
                     #$number++;
                     close(OUTPUT);
