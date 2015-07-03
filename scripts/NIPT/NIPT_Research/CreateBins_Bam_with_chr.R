@@ -10,6 +10,8 @@ suppressPackageStartupMessages(library("argparser"))
 
 parser <- arg.parser(DOC, name="bins")
 
+print(parser)
+
 parser <- add.argument(parser, "--input",  help = "Bed file with reads.")
 parser <- add.argument(parser, "-o",  help = ".tsv file with number of reads per bin.")
 parser <- add.argument(parser, "-p", 			help = ".pdf file that visualizes distribution of reads accross bins (log-scale).")
@@ -38,6 +40,17 @@ chr = as.vector(sample$chrom)
 
 # Start position of read is used to determine the bin
 pos = sample$startpos
+
+
+##Added to rename chromosome names; add chr so output is recognized. Added 20150702 LJ##
+# Naming of chromosomes may be 1..22,X,Y or chr1..chr22,chrX,chrY
+# Make chr.focus 
+if ("chr" == substr(chr[1],1,3))
+{
+	chr.focus = paste("chr", chr.focus, sep = "")
+}
+###
+
 
 # Removes reads which are not in chr.focus (for chr.focus, see top of this script)
 index.remove = which(! chr %in% chr.focus)
