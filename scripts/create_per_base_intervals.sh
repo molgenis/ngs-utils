@@ -60,8 +60,10 @@ if [[ -z "${OUTPUTFOLDER-}" ]]; then
 	OUTPUTFOLDER=/gcc/resources/b37/intervals/
 fi
 
+module load ngs-utils
+
 NAME=$(basename $INPUT)
-perl /gcc/tools/scripts/create_per_base_intervals.pl -input $INPUT -output $NAME -outputfolder $OUTPUTFOLDER
+perl ${NGS_UTILS_HOME}/create_per_base_intervals.pl -input $INPUT -output $NAME -outputfolder $OUTPUTFOLDER
 
 echo "INPUTNAME:$INPUT"
 echo "OUTPUTFOLDER:$OUTPUTFOLDER"

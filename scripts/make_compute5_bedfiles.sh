@@ -32,7 +32,7 @@ ${bold}Arguments${normal}
 	-t|--tmp		Give tmpfolder location (default: tmp03)"
 }
 
-SCRIPTSFOLDER=/gcc/tools/scripts
+module load ngs-utils
 PARSED_OPTIONS=$(getopt -n "$0"  -o n:o:e:r:c:d:t: --long "name:,intervalfolder:extension:reference:coverageperbase:data:tmp"  -- "$@")
 
 #
@@ -243,12 +243,14 @@ then
 	exit 0
 fi
 
+module load ngs-utils
+
 if [ $COVPERBASE == "true" ] 
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then 
 		echo "starting to create_per_base_intervals, this may take a while"
-		perl ${SCRIPTSFOLDER}/create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
+		perl ${NGS_UTILS_HOME}/create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
 		rm ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed
