@@ -28,10 +28,12 @@ ${bold}Arguments${normal}
 				choose between exome (92 autosomal, 7X, 1Y), targeted (22 autosomal, 2X, 1Y) or wgs(185 autosomal, 14X, 1Y) 
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: /gcc/resources/b37/intervals)
-	-r|--reference 		Which reference file is used (default: /gcc/resources/b37/indices/human_g1k_v37.dict)"
+	-r|--reference 		Which reference file is used (default: /gcc/resources/b37/indices/human_g1k_v37.dict)
+	-t|--tmp		Give tmpfolder location (default: tmp03)"
 }
 
-PARSED_OPTIONS=$(getopt -n "$0"  -o n:o:e:r:c:d: --long "name:,intervalfolder:extension:reference:coverageperbase:data"  -- "$@")
+SCRIPTSFOLDER=/gcc/tools/scripts
+PARSED_OPTIONS=$(getopt -n "$0"  -o n:o:e:r:c:d:t: --long "name:,intervalfolder:extension:reference:coverageperbase:data:tmp"  -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
@@ -76,6 +78,10 @@ while true; do
                 case "$2" in
                 *) REFERENCE=$2 ; shift 2 ;;
             esac ;;
+	-t|--tmp)
+                case "$2" in
+                *) TMP=$2 ; shift 2 ;;
+            esac ;;
         --) shift ; break ;;
         *) echo "Internal error!" ; exit 1 ;;
   esac
@@ -102,6 +108,8 @@ if [[ -z "${COVPERBASE-}" ]]; then
 fi
 if [[ -z "${DATA-}" ]]; then
         DATA="targeted"
+if [[ -z "${TMP-}" ]]; then
+        DATA="/gcc/groups/gcc/tmp03/tmp"
 fi
 
 BATCHCOUNT=22
@@ -146,7 +154,7 @@ else
 	echo "removed and created ${MAP}"
 fi
 
-cp /gcc/resources/b37/intervals/1000G_phase1.indels_Mills_and_1000G_gold_standard.indels.b37.human_g1k_v37.* ${MAP}
+cp ${INTERVALFOLDER}/1000G_phase1.indels_Mills_and_1000G_gold_standard.indels.b37.human_g1k_v37.* ${MAP}
 
 
 
@@ -235,13 +243,12 @@ then
 	exit 0
 fi
 
-TMP="/gcc/groups/gcc/tmp03/tmp"
 if [ $COVPERBASE == "true" ] 
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then 
 		echo "starting to create_per_base_intervals, this may take a while"
-		perl /gcc/tools/scripts/create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
+		perl ${SCRIPTSFOLDER}/create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
 		rm ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed
@@ -254,6 +261,15 @@ then
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
+	awk '{
+	if ($0 !~ /^@/){ 
+		minus=($2 + 1); 
+		print $1"\t"minus"\t"$3"\t"$4"\t"$5 
+	}
+	else 
+		print $0
+	}' ${baits}.uniq.per_base.interval_list > ${baits}.uniq.per_base.interval_list.tmp
+	mv ${baits}.uniq.per_base.interval_list.tmp ${baits}.uniq.per_base.interval_list
 
 fi
 
@@ -273,7 +289,7 @@ else
 	cat ${phiXRef} > ${chrXNONPARInterval}
 
 	cat ${baits}.withoutChrX.bed >> ${AllWithoutchrXInterval}
-	
+
 	awk '{
 		if ($1 == "X"){
 	       		if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
@@ -288,6 +304,17 @@ else
 	then
 	        cat ${chrXPARBed} >> ${AllWithoutchrXInterval}
 	fi
+	
+	awk '{
+	if ($0 !~ /^@/){
+                minus=($2 + 1);
+                print $1"\t"minus"\t"$3"\t"$4"\t"$5
+        }
+        else
+                print $0
+        }' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
+	mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}	
+
 
 	#autosomal
 	java -jar  -Xmx4g -XX:ParallelGCThreads=4 ${PICARD_HOME}/picard.jar IntervalListTools \
@@ -378,6 +405,19 @@ else
 		mv ${line}.tmp $line 
 	done<${MAP}/chompLines.txt
 	
+	##### Because bed is 0-based and intervallist 1-based, do start minus 1
+	for i in $(ls ${baits}.batch*.bed) 
+	do
+		awk '{
+        	if ($0 !~ /^@/){
+                	minus=($2 - 1);
+                	print $1"\t"minus"\t"$3"\t"$4"\t"$5
+        	}
+        	else
+        	        print $0
+        	}' $i > ${i}.tmp 
+		#mv ${i}.tmp $i	
+	done
 
 	echo "batching complete"
 	rm -rf ${batchIntervallistDir}/temp_0*

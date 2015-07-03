@@ -38,8 +38,8 @@ while (my $lines=<INPUT>){
         if ($lines !~ m/^track.+/gs) {
                 #print $lines . "\n";
                 #Remove chr before chrNumber and substitute M with MT
-                $lines =~ s/^chr//gs;
-                $lines =~ s/^M/MT/gs;
+                $lines =~ s/^chr//i;
+		$lines =~ s/^M\t/MT\t/i;
                 #Split line
                 my @array = split("\t", $lines);
                 my $chr = $array[0];
@@ -67,9 +67,9 @@ sub usage {
 This script splits a bed file in regions of a length specified by the user.
 #########################################################################################
 Usage: ./create_per_base_intervals.pl
-\t-input                    Input bed file.
-\t-output                   Output prefix
-\t-outputfolder		    Outputfolder	
+\t-input\t\t\tInput bed file.
+\t-output\t\t\tOutput prefix
+\t-outputfolder\t\tOutputfolder	
 Example usage: perl create_per_base_intervals.pl -input target_exons.bed -output exonIntervals
 #########################################################################################
 EOF
