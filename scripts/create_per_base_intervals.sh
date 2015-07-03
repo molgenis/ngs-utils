@@ -63,7 +63,7 @@ fi
 module load ngs-utils
 
 NAME=$(basename $INPUT)
-perl ${NGS_UTILS_HOME}/create_per_base_intervals.pl -input $INPUT -output $NAME -outputfolder $OUTPUTFOLDER
+perl create_per_base_intervals.pl -input $INPUT -output $NAME -outputfolder $OUTPUTFOLDER
 
 echo "INPUTNAME:$INPUT"
 echo "OUTPUTFOLDER:$OUTPUTFOLDER"

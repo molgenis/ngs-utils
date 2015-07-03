@@ -250,7 +250,7 @@ then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then 
 		echo "starting to create_per_base_intervals, this may take a while"
-		perl ${NGS_UTILS_HOME}/create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
+		perl create_per_base_intervals.pl -input ${baits}.bed -output ${NAME}_baits_${phiXExt} -outputfolder $TMP
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
 		rm ${TMP}/${NAME}_baits_${phiXExt}.per_base.bed
