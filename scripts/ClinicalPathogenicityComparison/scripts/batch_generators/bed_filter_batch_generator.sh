@@ -16,6 +16,17 @@
 
 currentDir=${PWD}
 pathToVcfFiles=$1
+bedFile=$2
+
+if [ "$1" = "" ]; then 
+	echo "This script generates bash scripts for filtering vcf files based on genomic locations specified in supplied BED file."
+	echo "It also bgzips and generates Tabix index files for these filtered vcf files, the original filtered vcf is also maintained."
+	echo "Requires a template script located in the same folder as this script. The template script is left intact.\n"
+	echo "output: bash scripts with a bed filtering command specified by the commandline option bed file."
+	echo "usage: bed_filter_batch_generator.sh <path to folder containing vcf files> <bedfile>"
+
+	exit
+fi
 
 cd $pathToVcfFiles
 for item in $( ls -1 *.vcf.gz.gz ); do
@@ -25,7 +36,7 @@ for item in $( ls -1 *.vcf.gz.gz ); do
 	
 	BgZipCmd="bgzip -c ./filtered.${strippedFileName}.recode.vcf > ./filtered.${strippedFileName}.recode.vcf.gz"
 	TabixCmd="tabix -s 1 -b 2 -e 3 ./filtered.${strippedFileName}.recode.vcf.gz"
-	bedFilterCommand="vcftools --gzvcf ${pathToVcfFiles}${item} --bed /gcc/groups/gcc/tmp01/bmiedema/scripts/vcf-filter-batch/canonical_exon_sequences_filtered_headered_sorted.bed --out filtered.${strippedFileName} --recode --remove-indels --recode-INFO-all > ${outputPath}filtered.${item}.log"
+	bedFilterCommand="vcftools --gzvcf ${pathToVcfFiles}${item} --bed ${bedFile} --out filtered.${strippedFileName} --recode --remove-indels --recode-INFO-all > ${outputPath}filtered.${item}.log"
 	
 	sed "s|<line>|${bedFilterCommand}|g" bedfilter.template > bed_filtered.${item}.sh
 	sed -i "s|<bgzip>|${BgZipCmd}|g" bed_filtered.${item}.sh

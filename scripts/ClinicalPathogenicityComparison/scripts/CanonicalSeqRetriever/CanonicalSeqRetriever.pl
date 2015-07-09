@@ -1,9 +1,21 @@
 #!/usr/bin/env perl
 
-# Check protein coding canonical sequences
+# This scripts retrieves protein coding canonical exon sequences from EnsEMBL and creates a BED file representing canonical exon ranges.
 # Coded by A.T Miedema (a [dot] t [dot] miedema [at] st [dot] hanze [dot] nl)
+#
+# usage "CanonicalSeqRetriever.pl [output file]"
+
+my $file= "";
+if (@a){
+	$file = $ARGV[0];
+}else{
+	print("This script retrieves protein coding canonical exon sequences from EnsEMBL and creates a BED file representing canonical exon ranges.\n");	
+	print("usage \"CanonicalSeqRetriever.pl [output file]\".\n");
+	exit 0;
+}
 
 # make things easier
+
 use strict;
 use warnings;
 
@@ -144,7 +156,7 @@ while (my $gene_id = shift(@{$gene_ids})) {
 }
 
 
-my $file = "/Users/molgenis/Desktop/afstuderen/scripts/canonical_exon_sequences.bed";
+
 
 open (my $fh, ">>", $file)
   or die("Error opening $file: $!");
