@@ -1,5 +1,4 @@
 #!/bin/bash
-echo "hoi"
 set -u
 set -e
 underline=`tput smul`
