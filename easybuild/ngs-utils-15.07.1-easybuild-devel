@@ -1,0 +1,65 @@
+#%Module
+
+if { ![ is-loaded FFTW-3.3.4-gompi-1.7.20-easybuild-devel ] } {
+    module load FFTW-3.3.4-gompi-1.7.20-easybuild-devel
+}
+
+if { ![ is-loaded gompi-1.7.20-easybuild-devel ] } {
+    module load gompi-1.7.20-easybuild-devel
+}
+
+if { ![ is-loaded Text-CSV-1.33-goolf-1.7.20-easybuild-devel ] } {
+    module load Text-CSV-1.33-goolf-1.7.20-easybuild-devel
+}
+
+if { ![ is-loaded hwloc-1.10.1-GCC-4.8.4-easybuild-devel ] } {
+    module load hwloc-1.10.1-GCC-4.8.4-easybuild-devel
+}
+
+if { ![ is-loaded goolf-1.7.20-easybuild-devel ] } {
+    module load goolf-1.7.20-easybuild-devel
+}
+
+if { ![ is-loaded numactl-2.0.10-GCC-4.8.4-easybuild-devel ] } {
+    module load numactl-2.0.10-GCC-4.8.4-easybuild-devel
+}
+
+if { ![ is-loaded OpenMPI-1.8.4-GCC-4.8.4-easybuild-devel ] } {
+    module load OpenMPI-1.8.4-GCC-4.8.4-easybuild-devel
+}
+
+if { ![ is-loaded EasyBuild-2.1.1-easybuild-devel ] } {
+    module load EasyBuild-2.1.1-easybuild-devel
+}
+
+if { ![ is-loaded ScaLAPACK-2.0.2-gompi-1.7.20-OpenBLAS-0.2.13-LAPACK-3.5.0-easybuild-devel ] } {
+    module load ScaLAPACK-2.0.2-gompi-1.7.20-OpenBLAS-0.2.13-LAPACK-3.5.0-easybuild-devel
+}
+
+if { ![ is-loaded GCC-4.8.4-easybuild-devel ] } {
+    module load GCC-4.8.4-easybuild-devel
+}
+
+if { ![ is-loaded Perl-5.20.2-goolf-1.7.20-bare-easybuild-devel ] } {
+    module load Perl-5.20.2-goolf-1.7.20-bare-easybuild-devel
+}
+
+if { ![ is-loaded OpenBLAS-0.2.13-GCC-4.8.4-LAPACK-3.5.0-easybuild-devel ] } {
+    module load OpenBLAS-0.2.13-GCC-4.8.4-LAPACK-3.5.0-easybuild-devel
+}
+setenv	_ModuleTable_Sz_		"3"
+setenv	LIBRARY_PATH		"/apps/software/EasyBuild/2.1.1/lib"
+setenv	LMOD_DEFAULT_MODULEPATH		"/apps/modules/all:/apps/modules/bio:/etc/modulefiles:/usr/share/modulefiles:/usr/share/lmod/5.7.5/modulefiles/Core:/gcc/groups/gcc/home/rkanninga/modules:/usr/share/Modules/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core"
+setenv	PYTHONPATH		"/apps/software/EasyBuild/2.1.1/lib/python2.6/site-packages"
+setenv	LOADEDMODULES		"EasyBuild/2.1.1"
+setenv	_ModuleTable001_		"X01vZHVsZVRhYmxlXz17WyJhY3RpdmVTaXplIl09MSxiYXNlTXBhdGhBPXsiL2FwcHMvbW9kdWxlcy9hbGwiLCIvYXBwcy9tb2R1bGVzL2JpbyIsIi9ldGMvbW9kdWxlZmlsZXMiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9sbW9kLzUuNy41L21vZHVsZWZpbGVzL0NvcmUiLCIvZ2NjL2dyb3Vwcy9nY2MvaG9tZS9ya2FubmluZ2EvbW9kdWxlcyIsIi91c3Ivc2hhcmUvTW9kdWxlcy9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsiY19yZWJ1aWxkVGltZSJdPTg2NDAwLFsiY19zaG9ydFRpbWUi"
+setenv	EBDEVELEASYBUILD		"/apps/software/EasyBuild/2.1.1/easybuild/EasyBuild-2.1.1-easybuild-devel"
+setenv	_ModuleTable002_		"XT1mYWxzZSxmYW1pbHk9e30saW5hY3RpdmU9e30sbVQ9e0Vhc3lCdWlsZD17WyJGTiJdPSIvYXBwcy9tb2R1bGVzL2FsbC9FYXN5QnVpbGQvMi4xLjEiLFsiZGVmYXVsdCJdPTAsWyJmdWxsTmFtZSJdPSJFYXN5QnVpbGQvMi4xLjEiLFsibG9hZE9yZGVyIl09MSxwcm9wVD17fSxbInNob3J0Il09IkVhc3lCdWlsZCIsWyJzdGF0dXMiXT0iYWN0aXZlIix9LH0sbXBhdGhBPXsiL2FwcHMvbW9kdWxlcy9hbGwiLCIvYXBwcy9tb2R1bGVzL2JpbyIsIi9ldGMvbW9kdWxlZmlsZXMiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzIiwiL3Vzci9zaGFyZS9sbW9kLzUuNy41L21vZHVsZWZpbGVzL0NvcmUiLCIvZ2NjL2dyb3Vwcy9nY2MvaG9tZS9ya2FubmluZ2EvbW9kdWxlcyIsIi91c3Iv"
+setenv	_ModuleTable003_		"c2hhcmUvTW9kdWxlcy9tb2R1bGVmaWxlcyIsIi91c3Ivc2hhcmUvbW9kdWxlZmlsZXMvTGludXgiLCIvdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmUiLCIvdXNyL3NoYXJlL2xtb2QvbG1vZC9tb2R1bGVmaWxlcy9Db3JlIix9LFsic3lzdGVtQmFzZU1QQVRIIl09Ii9ldGMvbW9kdWxlZmlsZXM6L3Vzci9zaGFyZS9tb2R1bGVmaWxlczovdXNyL3NoYXJlL01vZHVsZXMvbW9kdWxlZmlsZXM6L3Vzci9zaGFyZS9tb2R1bGVmaWxlcy9MaW51eDovdXNyL3NoYXJlL21vZHVsZWZpbGVzL0NvcmU6L3Vzci9zaGFyZS9sbW9kL2xtb2QvbW9kdWxlZmlsZXMvQ29yZSIsWyJ2ZXJzaW9uIl09Mix9"
+setenv	LD_LIBRARY_PATH		"/apps/software/EasyBuild/2.1.1/lib"
+setenv	EBROOTEASYBUILD		"/apps/software/EasyBuild/2.1.1"
+setenv	MANPATH		"/usr/share/lmod/lmod/share/man"
+setenv	PATH		"/apps/modules:/apps/software/EasyBuild/2.1.1/bin:/usr/share/lmod/lmod/libexec:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:/home/umcg-rkanninga/bin"
+setenv	_LMFILES_		"/apps/modules/all/EasyBuild/2.1.1"
+setenv	EBVERSIONEASYBUILD		"2.1.1"
+setenv	MODULEPATH		"/apps/modules/all:/apps/modules/bio:/etc/modulefiles:/usr/share/modulefiles:/usr/share/lmod/5.7.5/modulefiles/Core:/gcc/groups/gcc/home/rkanninga/modules:/usr/share/Modules/modulefiles:/usr/share/modulefiles/Linux:/usr/share/modulefiles/Core:/usr/share/lmod/lmod/modulefiles/Core"
