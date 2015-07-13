@@ -29,7 +29,7 @@ To start off using these scripts it is needed to get the following datasets.
 
 ## 3. Filtering
  By using the provided CanonicalSeqRetriever script it is possible to get all exonic regions from genome build grch37 (http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/). 
- The script uses the Ensembl API becouse of this it cannot function without the API being installed. The resulting bed file (canonical_exon_sequences_filtered_headered_sorted.bed) is also located in the Bedfiles folder and has already been sorted and headered and ready for use.
+ The script uses the Ensembl API becouse of this it cannot function without the API being installed. The resulting bed file (canonical_exon_sequences_filtered_headered_sorted.bed) is also located in the Bedfiles folder and has already been sorted and headered and ready for use. There is also a small bed file provided for test purposes.
  
  With the use of vcftools you can use this bed file (or any bed file) to extract the locations of interest.
  There is a bed file filter script generator available to create bash scripts to conduct this filtering.
