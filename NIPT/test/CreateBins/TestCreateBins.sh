@@ -1,0 +1,2 @@
+../../CreateBins.R  --input ../data/testReads/gold_standard_forward_reads.bed --output output/TEST_GoldsStandards_bins_forward.csv --pdf output/TEST_GoldsStandards_bins_forward.pdf
+../../CreateBins.R  --input ../data/testReads/gold_standard_reverse_reads.bed --output output/TEST_GoldsStandards_bins_reverse.csv --pdf output/TEST_GoldsStandards_bins_reverse.pdf

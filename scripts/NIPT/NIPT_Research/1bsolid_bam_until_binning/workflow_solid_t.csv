@@ -1,1 +1,0 @@
-step,protocol,dependenciesMarkDuplicates,protocols/MarkDuplicates.sh,MergeBam;CreateBinsForward,protocols/CreateBins.sh,MarkDuplicates;dedupBam=dedupBam;strand=forward;CreateBinsReverse,protocols/CreateBins.sh,MarkDuplicates;dedupBam=dedupBam;strand=reverse;
