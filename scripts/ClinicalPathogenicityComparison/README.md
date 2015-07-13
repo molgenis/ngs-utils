@@ -1,6 +1,6 @@
 # Clinival Pathogenicity Comparison
 
-These scripts can be used to create a single merged dataset using different population datatsets.
+The scripts presented in this can be used to create a single merged dataset using different population datatsets.
 The resulting dataset can be annotated with different kinds of extra information from external sources, for example ClinVar data or CADD scores.
 
 The procedure below tells you how to use these scripts and create your very own merged and annotated population dataset in VCF format.
@@ -36,7 +36,7 @@ To start off using these scripts it is needed to get the following datasets.
  Besides the initial filtering it also compresses the file using bgzip and creates tabix index files for the vcf files.
  
 ## 4. Annotation
- With the use of the molgenis annotators it is possible to add the information of other resources to the desired dataset.
+ With the use of the molgenis annotators (https://github.com/molgenis/molgenis) it is possible to add the information of other resources to the desired dataset.
  The commandline version only supports VCF files which is provided in annotator folder. 
  
 
