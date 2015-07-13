@@ -3,7 +3,7 @@
 These scripts can be used to create a single merged dataset using different population datatsets.
 The resulting dataset can be annotated with different kinds of extra information from external sources, for example ClinVar data or CADD scores.
 
-The procedure below tells you How to use these scripts and create your very own annotated merged populationset 
+The procedure below tells you how to use these scripts and create your very own merged and annotated population dataset in VCF format.
 
 # dependecies
 The dependencies listed below are need to run the all the scripts, each script has a usage shown when executed without arguments.  
@@ -25,7 +25,7 @@ To start off using these scripts it is needed to get the following datasets.
 
 ## 2. Merging
  By using any merging tool it is possible to create one big file to be used as a template for annotating.
- In the merge folder a script is provided for merging different datasets based on the VCF standard (http://samtools.github.io/hts-specs/VCFv4.3.pdf), however this script will strip away teh infor collumn to ensure a less verbose input file.
+ In the merge folder a script is provided for merging different datasets based on the VCF standard (http://samtools.github.io/hts-specs/VCFv4.3.pdf), however this script will strip away the INFO collumn to ensure a less verbose input file.
 
 ## 3. Filtering
  By using the provided CanonicalSeqRetriever script it is possible to get all exonic regions from genome build grch37 (http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/). 
