@@ -1,33 +1,129 @@
 #!/bin/sh
 
-if [ -z "$1" ]; then echo "This script compares overlap between your target panel and ./refseq.bed and ./ccds.bed. Please provide path to your panel as argument!"; fi
-
-# define refseq and ccds bed files
-refseq="refseq.bed"
-ccds="ccds.bed"
-
+set -u
+set -e
+underline=`tput smul`
+normal=`tput sgr0`
+bold=`tput bold`
 space="           " # format output
 
-# exit if they don't exist
-if [ ! -f $refseq ]; then
-	echo "ERROR file not found: ./$refseq"
-	exit 1
-fi
+function usage () {
+echo "
+${bold}This script prints the mismatches between your target panel and two given (RefSeq and CCDS) bed files.
 
-if [ ! -f $ccds ]; then
-        echo "ERROR file not found: ./$ccds"
+Arguments${normal}
+        Required:
+        -p|--panel		Your gene panel (BED file)
+
+        Optional:
+        -r|--refseq		Path to RefSeq file (default: /gcc/resources/RefSeq/refseq.gz)
+        -c|--ccdsq		Path to CCDS file (default: /gcc/resources/CCDS/ccds.gz)
+        -o|--output		Output folder, will be created if non-existent (default: ./compare/)"
+}
+
+PARSED_OPTIONS=$(getopt -n "$0"  -o p:r:c:o --long "panel:,refseq:ccds:output" -- "$@")
+
+#
+# Bad arguments, something has gone wrong with the getopt command.
+#
+if [ $? -ne 0 ]; then
+        usage
+
+        echo "FATAL: Wrong arguments."
         exit 1
 fi
 
-mkdir -p compare
+eval set -- "$PARSED_OPTIONS"
+
+# Iterate through all the options with a case and using shift to analyse 1 argument at a time.
+while true; do
+  case "$1" in
+        -p|--panel)
+                case "$2" in
+                "") shift 2 ;;
+                *) PANEL=$2 ; shift 2 ;;
+            esac ;;
+        -r|--refseq)
+                case "$2" in
+                *) REFSEQ=$2 ; shift 2 ;;
+            esac ;;
+        -c|--ccds)
+                case "$2" in
+                *) CCDS=$2 ; shift 2 ;;
+            esac ;;
+        -o|--output)
+                case "$2" in
+                *) OUTPUT=$2 ; shift 2 ;;
+            esac ;;
+        --) shift ; break ;;
+        *) echo "Internal error!" ; exit 1 ;;
+  esac
+done
+
+# Check required options were provided.
+if [[ -z "${PANEL-}" ]]; then
+	usage
+	echo ""
+        echo "FATAL: missing required parameter."
+        echo ""
+	exit 1
+fi
+
+# Fill in defaults for parameters that were not required
+if [[ -z "${REFSEQ-}" ]]; then
+        REFSEQ="/gcc/resources/RefSeq/refseq.gz"
+fi
+if [[ -z "${CCDS-}" ]]; then
+        CCDS="/gcc/resources/CCDS/ccds.gz"
+fi
+if [[ -z "${OUTPUT-}" ]]; then
+        OUTPUT="compare/"
+fi
+
+# exit if they don't exist
+if [ ! -f $PANEL ]; then
+        echo "ERROR file not found: $PANEL"
+        exit 1
+fi
+
+if [ ! -f $REFSEQ ]; then
+	echo "ERROR file not found: $REFSEQ"
+	exit 1
+fi
+
+if [ ! -f $CCDS ]; then
+        echo "ERROR file not found: $CCDS"
+        exit 1
+fi
+
+# Print values of parameters
+echo
+echo "We use these parameters:"
+echo "${space}Your panel:       $PANEL"
+echo "${space}Refseq:           $REFSEQ"
+echo "${space}CCDS:             $CCDS"
+echo "${space}Output path:      $OUTPUT"
+echo
+
+echo "Start working..."
+echo "${space}Create $OUTPUT if non-existent"
+mkdir -p ${OUTPUT}
+
+echo "${space}Copy (and unzip) your files to $OUTPUT..."
+PANEL_FILE_NAME=$(basename $PANEL)
+REFSEQ_FILE_NAME=refseq
+CCDS_FILE_NAME=ccds
+cp   $PANEL    ${OUTPUT}/${PANEL_FILE_NAME}.original
+zcat $REFSEQ > ${OUTPUT}/${REFSEQ_FILE_NAME}.original
+zcat $CCDS   > ${OUTPUT}/${CCDS_FILE_NAME}.original
+
+cd $OUTPUT
 
 echo "${space}Remove prefix 'chr' from first column..."
-	declare -a files=("$1" "$refseq" "$ccds")
+	declare -a files=("$PANEL_FILE_NAME" "$REFSEQ_FILE_NAME" "$CCDS_FILE_NAME")
 	for file in ${files[@]}; do
-		awk -F '\t' 'BEGIN {OFS=FS} { print $1,$2,$3,$4 }' $file | sed '/^chr/s/^...//' > compare/$file
+		awk -F '\t' 'BEGIN {OFS=FS} { print $1,$2,$3,$4 }' ${file}.original | sed '/^chr/s/^...//' > $file
 	done
-
-cd compare/
 
 echo "${space}Load bedtools..."
 	module load bedtools/2.22.0
@@ -58,10 +154,11 @@ function create_coverage_files {
 	sort -V -k 1,2 ${bed2vs1}.touchedRegions.notFullyCovered > ${bed2vs1}.touchedRegions.notFullyCovered.sorted
 }
 
-echo "${space}REFSEQ..."
-	create_coverage_files $1 $refseq
+echo "${space}Determine overlap your panel with REFSEQ..."
+	create_coverage_files $PANEL_FILE_NAME $REFSEQ_FILE_NAME
 
-echo "${space}CCDS..."
-	create_coverage_files $1 $ccds
+echo "${space}Determine overlap your panel with CCDS..."
+	create_coverage_files $PANEL_FILE_NAME $CCDS_FILE_NAME
 echo
-echo Done! Please find your results in ./compare/
+echo Done! Please find your results in $OUTPUT
+echo
