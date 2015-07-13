@@ -20,8 +20,9 @@ bedFile=$2
 
 if [ "$1" = "" ]; then 
 	echo "This script generates bash scripts for filtering vcf files based on genomic locations specified in supplied BED file."
-	echo "It also bgzips and generates Tabix index files for these filtered vcf files, the original filtered vcf is also maintained."
+	echo "It also bgzips and generates Tabix index files for the filtered vcf files, the original filtered vcf is also maintained."
 	echo "Requires a template script located in the same folder as this script. The template script is left intact.\n"
+	echo "Also requires and installation of VCFtools (at least 1.12b), tabix and bgzip. "
 	echo "output: bash scripts with a bed filtering command specified by the commandline option bed file."
 	echo "usage: bed_filter_batch_generator.sh <path to folder containing vcf files> <bedfile>"
 
