@@ -37,7 +37,7 @@ To start off using these scripts it is needed to get the following datasets.
  
 ## 4. Annotation
  With the use of the molgenis annotators (https://github.com/molgenis/molgenis) it is possible to add the information of other resources to the desired dataset.
- The commandline version only supports VCF files which is provided in annotator folder. 
+ The commandline version only supports VCF files which is provided in annotator folder. A precompiled JAR (Version 1.9) is provided in the annotator folder.
  
 
 
