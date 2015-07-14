@@ -21,7 +21,7 @@ Arguments${normal}
         -o|--output		Output folder, will be created if non-existent (default: ./compare/)"
 }
 
-PARSED_OPTIONS=$(getopt -n "$0"  -o p:r:c:o --long "panel:,refseq:ccds:output" -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o p:r:c:o: --long "panel:,refseq:ccds:output" -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
