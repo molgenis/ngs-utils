@@ -6,9 +6,10 @@ Collection of notes and scripts related to NGS.
 
 
 # Make git work on our cluster:
+## Via https:
 git clone https://github.com/YOUR_USER_NAME/ngs-utils.git
 
-# Make git work via ssh
+## Via ssh:
 NB This does not work yet. Probably we have to upgrade our git module?
 
 Look up your git email (go to github.com, click your photo / 
