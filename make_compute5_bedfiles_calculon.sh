@@ -23,8 +23,8 @@ ${bold}Arguments${normal}
 	
 	Optional:
 	-c|--coverageperbase	true or false (default: false)
-	-d|--data		What kind of data. If exome: batchsize is automatically 100 , wgs=200 (default: targeted = batchsize of 25)
-				choose between exome (92 autosomal, 7X, 1Y), targeted (22 autosomal, 2X, 1Y) or wgs(185 autosomal, 14X, 1Y) 
+	-d|--data               What kind of data. If exome or wgs: batchsize is automatically 100 , (default: targeted = batchsize of 25)
+                                in case of wgs samples there should be no padding (this will automatically skipped when wgs is chosen)
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: this folder)
 	-r|--reference 		Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.dict)
@@ -119,14 +119,10 @@ batchCount_X=2
 
 
 #check which data
-if [ $DATA == "wgs" ]
-then
-	BATCHCOUNT=185
-	batchCount_X=14
-elif [ $DATA == "exome" ]
+if [ $DATA == "exome" ] || [ $DATA == "wgs" ]
 then 
 	BATCHCOUNT=92
-	batchCount_X=7		
+	batchCount_X=7
 fi
 
 echo "NAME: $NAME"
@@ -267,7 +263,7 @@ else
 	then
 	        cat ${chrXPARBed} >> ${AllWithoutchrXInterval}
 	fi
-	
+
 	awk '{
 	if ($0 !~ /^@/){
                 minus=($2 + 1);
@@ -278,12 +274,11 @@ else
         }' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
 	mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}	
 
-
+	if [ $DATA == "wgs" ]
 	#autosomal
 	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
 	INPUT=${AllWithoutchrXInterval} \
 	OUTPUT=${batchIntervallistDir} \
-	PADDING=150 \
 	UNIQUE=true \
 	SCATTER_COUNT=${BATCHCOUNT}
 
@@ -292,7 +287,6 @@ else
 	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
      	INPUT=${chrXNONPARInterval} \
      	OUTPUT=${batchIntervallistDir} \
-     	PADDING=150 \
      	UNIQUE=true \
      	SCATTER_COUNT=${batchCount_X} \
 
@@ -316,10 +310,51 @@ else
 			echo "$i is meer dan 10"
 			mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
                         tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
-		fi	
+		fi
 	done
+	else
+		#autosomal
+        java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+        INPUT=${AllWithoutchrXInterval} \
+        OUTPUT=${batchIntervallistDir} \
+        PADDING=150 \
+        UNIQUE=true \
+        SCATTER_COUNT=${BATCHCOUNT}
 
-		
+        echo "AUTOSOMAL DONE"
+        #non PAR region
+        java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+        INPUT=${chrXNONPARInterval} \
+        OUTPUT=${batchIntervallistDir} \
+        PADDING=150 \
+        UNIQUE=true \
+        SCATTER_COUNT=${batchCount_X} \
+
+        echo "PAR DONE"
+        BATCH_ALL=$((BATCHCOUNT + batchCount_X))
+        #move the X chromosome folders
+        lengthR=`less ${phiXRef} | wc -l`
+        echo "lengthR: $lengthR"
+        lengthRef=$(( ${lengthR} + 2 ))
+        for i in $(seq 1 ${batchCount_X})
+        do
+                bi=$(( BATCHCOUNT + i  ))
+                ba=${baits}.batch-${bi}X
+                echo "ba=$ba bi=$bi"
+                if [[ ${i} -lt 10 ]]
+                then
+                        echo "$i is minder dan 10"
+                        mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
+                        tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+                else
+                        echo "$i is meer dan 10"
+                        mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
+                        tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+                fi
+        done
+
+	fi
+
 	BATCH_Y=$((BATCH_ALL + 1))
 
 	cat ${phiXRef} > ${baits}.batch-${BATCH_Y}Y.interval_list
