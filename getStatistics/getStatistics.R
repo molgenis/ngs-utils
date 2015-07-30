@@ -127,6 +127,7 @@ if (!precise) for (i in 3:ncol(mat)) {
 	mat[,i] = round(as.numeric(as.vector(mat[,i])), 2)
 }
 
+
 # add nice column headers
 mat = substitute.col.names(as.matrix(mat))
 
@@ -137,7 +138,6 @@ colnames(tmat) = NULL
 # write table
 write.table(tmat[, -ncol(tmat)], csvout, quote=F, col.names=F, sep=',')
 
-
 # remove second line and add it to 'latex description' later
 baitSet = tmat[ 2, ]
 tmat 	= tmat[-2, ]
@@ -146,23 +146,27 @@ tmat 	= tmat[-2, ]
 # as a _side effect_ 'lateXDescription' is also made global
 # create multiple tables with 4 samples per table if there are > 4 samples
 
-latexString = NULL
-ncols = 3
-for (i in 0 : ((ncol(tmat)-2) %/% ncols))
+saveAsLatex = F
+if (saveAsLatex)
 {
-	index = unique(pmin(i * ncols + 1 : ncols, ncol(tmat) - 1))
-	index = c(index, ncol(tmat))
-	latexString = str_c(latexString, mat2Latex(tmat[, index]))	
-} 
+	latexString = NULL
+	ncols = 3
+	for (i in 0 : ((ncol(tmat)-2) %/% ncols))
+	{
+		index = unique(pmin(i * ncols + 1 : ncols, ncol(tmat) - 1))
+		index = c(index, ncol(tmat))
+		latexString = str_c(latexString, mat2Latex(tmat[, index]))	
+	}
 
 
-#latexDescription = str_c(latexDescription,  "\\\\ \n ",  "\\\\ \n ", baitSet[length(baitSet)], ": ", unique(baitSet[1:(length(baitSet)-1)]), "\\\\ \n ")
+	#latexDescription = str_c(latexDescription,  "\\\\ \n ",  "\\\\ \n ", baitSet[length(baitSet)], ": ", unique(baitSet[1:(length(baitSet)-1)]), "\\\\ \n ")
 
-# write statistics
-write(latexString, tableout)
+	# write statistics
+	write(latexString, tableout)
 
-# write description of statistics
-write(latexDescription, descriptionout)
+	# write description of statistics
+	write(latexDescription, descriptionout)
+}
 
 # write bait set
 write(unique(baitSet[1:(length(baitSet)-1)]), baitsetout)
