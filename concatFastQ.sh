@@ -1,3 +1,6 @@
+set -e 
+set -u
+
 function usage () {
 echo "
 Arguments
@@ -73,8 +76,6 @@ fi
 if [[ -z "${OUTPUT-}" ]]; then
         OUTPUT="/gcc/groups/gaf/tmp03/rawdata/ngs/"
 fi
-set -e
-set -u
 
 FASTQ=${NAME}
 FASTQDIR=${PRM}/${FASTQ}
@@ -82,13 +83,11 @@ RAWDATATMP=${OUTPUT}/${FASTQ}_combined/
 
 if [ ! -d ${RAWDATATMP} ]
 then    
-	echo "bla"
         mkdir -p ${RAWDATATMP}
 	echo "mkdir -p ${RAWDATATMP}"
 fi
 
 TMP="/gcc/groups/gaf/tmp03/tmp/"
-
 
 if [ -f ${TMP}/allBarcodes.txt ]
 then
@@ -96,18 +95,19 @@ then
 fi 
 
 OLDIFS=$IFS
-
+IFS="_"
 for i in $(ls -1 ${FASTQDIR}/*.fq.gz)
 do
 
 IN="${i}"
 set -- "$IN"
-IFS="_"; declare -a Array=($*)
+declare -a Array=($*)
 echo "${Array[8]}" >> ${TMP}/allBarcodes.txt
 done
 
-sort -u ${TMP}/allBarcodes.txt > ${TMP}/allUniqBarcodes.txt
 IFS=$OLDIFS
+
+sort -u ${TMP}/allBarcodes.txt > ${TMP}/allUniqBarcodes.txt
 
 while read line
 do 
