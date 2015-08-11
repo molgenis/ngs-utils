@@ -8,22 +8,21 @@ bold=`tput bold`
 function usage () {
 echo "
 ${bold}This script is a small pipeline of 3 seperate scripts creating:
-- an interval_list 
-- per chromosome bed file 
+- an interval_list
+- per chromosome bed file
 - optionally a coverage_per_base bed file and interval_list ${normal}
-	
+
 These scripts are also available to run seperately, please run the scripts below from the /gcc/tools/scripts folder:
 To make interval lists          --> create_interval_listV4.pl
 To split bed into batches	--> scatter_gather.sh
-Make coverage per base file	--> coverage_per_base.sh	
+Make coverage per base file	--> coverage_per_base.sh
 
 ${bold}Arguments${normal}
-        Required:
-        -n|--name              BED name (without extension)
-	
 	Optional:
+        -n|--name              BED name (without extension) (default: captured)
+
 	-c|--coverageperbase	true or false (default: false)
-	-d|--data               What kind of data. If exome or wgs: batchsize is automatically 100 , (default: targeted = batchsize of 25)
+	-d|--data               What kind of data. exome (10 batches) or wgs (20 batches). (default: targeted = batchsize of 6 (3 + 2X + 1Y)
                                 in case of wgs samples there should be no padding (this will automatically skipped when wgs is chosen)
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: this folder)
@@ -89,9 +88,7 @@ done
 #
 # Check required options were provided.
 if [[ -z "${NAME-}" ]]; then
-        usage
-        echo "FATAL: missing required parameter."
-        exit 1
+	NAME="captured"
 fi
 if [[ -z "${INTERVALFOLDER-}" ]]; then
 	INTERVALFOLDER="./"
@@ -112,17 +109,18 @@ if [[ -z "${TMP-}" ]]; then
         DATA="/groups/umcg-gaf/tmp04/tmp"
 fi
 
-BATCHCOUNT=22
+BATCHCOUNT=3
 phiXRef=${REFERENCE}_phiX.dict
 phiXExt=${EXTENSION}_phiX
 batchCount_X=2
 
-
 #check which data
-if [ $DATA == "exome" ] || [ $DATA == "wgs" ]
-then 
-	BATCHCOUNT=92
-	batchCount_X=7
+if [ $DATA == "wgs" ]
+then
+        BATCHCOUNT=17
+elif [ $DATA == "exome" ]
+then
+        BATCHCOUNT=7
 fi
 
 echo "NAME: $NAME"
@@ -149,7 +147,7 @@ colcount=`awk '{print NF}' ${baits}.bed | sort | tail -n 1`
 
 
 #check for the presence of phiX region
-if [ -f ${baits}.bed ] 
+if [ -f ${baits}.bed ]
 then
 	a=`grep phiX174 ${baits}.bed | wc -l`
 else
@@ -158,7 +156,7 @@ fi
 cat ${baits}.bed > ${baits}.bed.tmp
 
 
-if [ $a == 0 ] 
+if [ $a == 0 ]
 then
 	if [ "$colcount" == "4" ]
 	then
@@ -169,7 +167,7 @@ then
 fi
 
 echo "colcount: $colcount"
-if [ "${colcount}" == "4" ] 
+if [ "${colcount}" == "4" ]
 then
 	awk '{print $1"\t"$2"\t"$3"\t+\t"$4}' ${baits}.bed.tmp > ${baits}.bed
 	echo "added strand information"
@@ -180,7 +178,7 @@ fi
 
 if [ -f ${baits}.withoutChrX.bed ]
 then
-	rm ${baits}.withoutChrX.bed 
+	rm ${baits}.withoutChrX.bed
 fi
 
 awk '{
@@ -191,7 +189,7 @@ awk '{
 
 
 
-if [ -f ${baits}.batch-1.bed ] 
+if [ -f ${baits}.batch-1.bed ]
 then
         echo "splitting in batches skipped"
 elif [[ ${NAME} == *"baits"*  ]] || [[ ${NAME} == *"v37"* ]] || [[ ${NAME} == *"exons"* ]] || [[ ${NAME} == *".bed"* ]]
@@ -202,10 +200,10 @@ fi
 
 module load ngs-utils
 
-if [ $COVPERBASE == "true" ] 
+if [ $COVPERBASE == "true" ]
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
-	then 
+	then
 		echo "starting to create_per_base_intervals, this may take a while"
 		create_per_base_intervals.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
 
@@ -215,17 +213,17 @@ then
 		echo "intervals per base done: ${baits}.uniq.per_base.bed"
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
-	fi 
-	
+	fi
+
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
 	awk '{
-	if ($0 !~ /^@/){ 
-		minus=($2 + 1); 
-		print $1"\t"minus"\t"$3"\t"$4"\t"$5 
+	if ($0 !~ /^@/){
+		minus=($2 + 1);
+		print $1"\t"minus"\t"$3"\t"$4"\t"$5
 	}
-	else 
+	else
 		print $0
 	}' ${baits}.uniq.per_base.interval_list > ${baits}.uniq.per_base.interval_list.tmp
 	mv ${baits}.uniq.per_base.interval_list.tmp ${baits}.uniq.per_base.interval_list
@@ -272,9 +270,11 @@ else
         else
                 print $0
         }' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
-	mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}	
+	mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}
 
+##IF WGS NO PADDING!!! ####
 	if [ $DATA == "wgs" ]
+	then
 	#autosomal
 	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
 	INPUT=${AllWithoutchrXInterval} \
@@ -312,8 +312,10 @@ else
                         tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
 		fi
 	done
+
+### NO WGS ###
 	else
-		#autosomal
+        #autosomal
         java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
         INPUT=${AllWithoutchrXInterval} \
         OUTPUT=${batchIntervallistDir} \
@@ -344,7 +346,7 @@ else
                 if [[ ${i} -lt 10 ]]
                 then
                         echo "$i is minder dan 10"
-                        mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
+                        mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
                         tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
                 else
                         echo "$i is meer dan 10"
@@ -352,7 +354,6 @@ else
                         tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
                 fi
         done
-
 	fi
 
 	BATCH_Y=$((BATCH_ALL + 1))
@@ -369,7 +370,7 @@ else
 		elif [[ ${i} -gt 99 ]]
 		then
 			mv ${batchIntervallistDir}/temp_0${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-                        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed		
+                        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
         	else
                         mv ${batchIntervallistDir}/temp_00${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
                         tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
@@ -379,7 +380,7 @@ else
 
 	rm ${baits}.batch*.interval_list
 
-	for i in $(seq $((${BATCHCOUNT}-10)) ${BATCHCOUNT})
+	for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
 	do
 	awk '{
 	        if($1 == "Y"){
@@ -389,12 +390,11 @@ else
 	}' ${baits}.batch-${i}.bed >> ${baits}.batch-${BATCH_Y}Y.bed
 	done
 
-	for i in $(seq $((${BATCHCOUNT}-10)) ${BATCHCOUNT})
+	for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
 	do
 		sed '/^Y/ d' ${baits}.batch-${i}.bed > ${baits}.batch-${i}.bed.tmp ; mv ${baits}.batch-${i}.bed.tmp ${baits}.batch-${i}.bed
 	done
 
-	echo ""
 	for i in $(ls ${MAP}/*batch-*.bed); do cat $i | awk -v var="$i" '{if( $2==$3){print var}}';done > ${MAP}/chompLines.txt	
 
 	while read line
@@ -402,9 +402,9 @@ else
 		awk '{if ($2!=$3){ print $0}}' $line > ${line}.tmp
 		mv ${line}.tmp $line 
 	done<${MAP}/chompLines.txt
-	
+
 	##### Because bed is 0-based and intervallist 1-based, do start minus 1
-	for i in $(ls ${baits}.batch*.bed) 
+	for i in $(ls ${baits}.batch*.bed)
 	do
 		awk '{
         	if ($0 !~ /^@/){
@@ -413,8 +413,8 @@ else
         	}
         	else
         	        print $0
-        	}' $i > ${i}.tmp 
-		#mv ${i}.tmp $i	
+        	}' $i > ${i}.tmp
+		mv ${i}.tmp $i
 	done
 
 	echo "batching complete"
@@ -427,6 +427,7 @@ if [ -f ${baits}.interval_list ]
 then
 	echo "interval_list already exists, skipping"
 else
-	create_interval_listV4.pl -Ref ${phiXRef}  -Exons ${baits}  -Baits ${baits}
+	perl ${EBROOTNGSMINUTILS}/create_interval_listV4.pl -Ref ${phiXRef}  -Exons ${baits}  -Baits ${baits}
 	echo "intervals created"
 fi
+
