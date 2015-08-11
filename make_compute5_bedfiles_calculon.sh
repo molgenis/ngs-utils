@@ -276,7 +276,7 @@ else
 	if [ $DATA == "wgs" ]
 	then
 	#autosomal
-	java -jar  -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
 	INPUT=${AllWithoutchrXInterval} \
 	OUTPUT=${batchIntervallistDir} \
 	UNIQUE=true \
@@ -284,7 +284,7 @@ else
 
 	echo "AUTOSOMAL DONE"
 	#non PAR region
-	java -jar  -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
      	INPUT=${chrXNONPARInterval} \
      	OUTPUT=${batchIntervallistDir} \
      	UNIQUE=true \
@@ -316,7 +316,7 @@ else
 ### NO WGS ###
 	else
         #autosomal
-        java -jar  -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+        java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
         INPUT=${AllWithoutchrXInterval} \
         OUTPUT=${batchIntervallistDir} \
         PADDING=150 \
@@ -325,7 +325,7 @@ else
 
         echo "AUTOSOMAL DONE"
         #non PAR region
-        java -jar  -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+        java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
         INPUT=${chrXNONPARInterval} \
         OUTPUT=${batchIntervallistDir} \
         PADDING=150 \
