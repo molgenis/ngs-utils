@@ -414,7 +414,7 @@ else
         	else
         	        print $0
         	}' $i > ${i}.tmp
-		#mv ${i}.tmp $i
+		mv ${i}.tmp $i
 	done
 
 	echo "batching complete"
