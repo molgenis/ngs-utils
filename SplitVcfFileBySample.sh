@@ -12,9 +12,7 @@ ${bold}This tool is to split a vcf by sample${normal}
         Optional:
 	-o|--outputfolder	specify the outputfolder (default:/gcc/groups/gaf/tmp03/${WHO}/SplitVcf --> folder will be created if not exists )
 	-r|--reference    	which reference file is used (default:/gcc/resources/b37/indices/Homo_sapiens.GRCh37.GATK.illumina.fasta)
-
 "
-
 }
 
 PARSED_OPTIONS=$(getopt -n "$0"  -o i:r:o --long "inputfile:reference:outputfolder:"  -- "$@")
@@ -97,16 +95,3 @@ do
 	-o ${OUTPUT}/${i}.splitted \
 	-sn ${i}
 done
-
-
-#
-#for i in U160344CM2015D09529 U160344PF2015D09530 U160344PM2015D09531
-#do
-#	echo "$i"
-#	java -Xmx2g -jar /gcc/tools/GATK-3.4-0-g7e26428/GenomeAnalysisTK.jar \
-#	-R /gcc/resources/b37/indices/Homo_sapiens.GRCh37.GATK.illumina.fasta \
-#	-T SelectVariants \
-#	--variant 150714_D00267_0310_AHN32MADXXUMCG.filtered_VARIANTS.vcf \
-#	-o output_150714_D00267_0310_AHN32MADXXUMCG/${i}.splitted \
-#	-sn ${i}
-#done
