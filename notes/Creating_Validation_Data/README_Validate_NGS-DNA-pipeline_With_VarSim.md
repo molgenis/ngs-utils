@@ -7,6 +7,30 @@ We have built and downloaded VarSim and its dependencies as is described on:
 	http://bioinform.github.io/varsim/
 	Our version: https://github.com/bioinform/varsim/releases/download/v0.5.1/varsim-0.5.1.tar.gz
 
+The installation can be reproduced by following these steps:
+
+	# Download varsim
+	wget https://github.com/bioinform/varsim/releases/download/v0.5.0/varsim-0.5.0.tar.gz
+	tar xfz varsim-0.5.0.tar.gz
+	
+	# Download reference and variant databases
+	wget http://goo.gl/lgT18V
+	wget http://web.stanford.edu/group/wonglab/varsim/insert_seq.txt
+	wget http://web.stanford.edu/group/wonglab/varsim/GRCh37_hg19_supportingvariants_2013-07-23.txt
+	wget http://goo.gl/NUG0dy
+	gunzip hs37d5.fa.gz
+	
+	# make index
+	module load SAMtools
+	samtools faidx hs37d5.fa
+	
+	# Download ART
+	mkdir ART
+	cd ART
+	wget http://www.niehs.nih.gov/research/resources/assets/docs/artbinvanillaicecream031114linux64tgz.tgz
+	tar xfz artbinvanillaicecream031114linux64tgz.tgz
+	cd ..
+
 Next, we have made a module to make future use easier.
 
 ## Simulate reads with all kinds of variation
