@@ -18,8 +18,10 @@ To split bed into batches	--> scatter_gather.sh
 Make coverage per base file	--> coverage_per_base.sh
 
 ${bold}Arguments${normal}
+
+	Required:
+	-n|--name              	BED name (${bold}SHOULD ALWAYS BE the name 'captured')${normal}
 	Optional:
-        -n|--name              BED name (without extension) (default: captured)
 
 	-c|--coverageperbase	true or false (default: false)
 	-d|--data               What kind of data. exome (10 batches) or wgs (20 batches). (default: targeted = batchsize of 6 (3 + 2X + 1Y)
@@ -31,7 +33,7 @@ ${bold}Arguments${normal}
 }
 
 module load ngs-utils
-PARSED_OPTIONS=$(getopt -n "$0"  -o n:o:e:r:c:d:t: --long "name:,intervalfolder:extension:reference:coverageperbase:data:tmp"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o n:o:e:r:c:d:t: --long "name:intervalfolder:extension:reference:coverageperbase:data:tmp:"  -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
@@ -48,7 +50,6 @@ eval set -- "$PARSED_OPTIONS"
 # Now goes through all the options with a case and using shift to analyse 1 argument at a time.
 # $1 identifies the first argument, and when we use shift we discard the first argument, so $2 becomes $1 and goes again through the case.
 #
-
 while true; do
   case "$1" in
         -n|--name)
@@ -85,13 +86,15 @@ while true; do
   esac
 done
 
+empty=""
 #
 # Check required options were provided.
 if [[ -z "${NAME-}" ]]; then
-	NAME="captured"
+	usage
+	exit 1
 fi
 if [[ -z "${INTERVALFOLDER-}" ]]; then
-	INTERVALFOLDER="./"
+	INTERVALFOLDER="./"	
 fi
 if [[ -z "${EXTENSION-}" ]]; then
         EXTENSION="human_g1k_v37"
@@ -106,7 +109,7 @@ if [[ -z "${DATA-}" ]]; then
         DATA="targeted"
 fi
 if [[ -z "${TMP-}" ]]; then
-        DATA="/groups/umcg-gaf/tmp04/tmp"
+       	DATA="/groups/umcg-gaf/tmp04/tmp"
 fi
 
 BATCHCOUNT=3
