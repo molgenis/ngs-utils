@@ -34,12 +34,28 @@ Convert sra to fasta (takes a while):
 
 Each .sra file corresponds to one run and resulted in two .fastq files (for each end one; _1 and _2). Each .fastq file however covers two lanes. Next step is to split the reads corresponding to their lane:
 
-TODO FIX: only 3 lines are produces (line with the @ is missing)
-========
-awk 'BEGIN {FS = ":"} {lane=$4 ; print > "lane."lane".fastq" ; for (i = 1; i <= 3; i++) {getline ; print > "SRR2008148_L"lane"_1.fastq"}}' < SRR2008148_1.fastq &
-awk 'BEGIN {FS = ":"} {lane=$4 ; print > "lane."lane".fastq" ; for (i = 1; i <= 3; i++) {getline ; print > "SRR2008148_L"lane"_2.fastq"}}' < SRR2008148_2.fastq &
-awk 'BEGIN {FS = ":"} {lane=$4 ; print > "lane."lane".fastq" ; for (i = 1; i <= 3; i++) {getline ; print > "SRR2015126_L"lane"_1.fastq"}}' < SRR2015126_1.fastq &
-awk 'BEGIN {FS = ":"} {lane=$4 ; print > "lane."lane".fastq" ; for (i = 1; i <= 3; i++) {getline ; print > "SRR2015126_L"lane"_2.fastq"}}' < SRR2015126_2.fastq &
+	awk 'BEGIN {FS = ":"} {
+	        lane=$4 
+	        print $0 > "SRR2008148_L"lane"_1.fastq"
+	        for (i = 1; i <= 3; i++) {
+	                getline ;
+	                print $0 > "SRR2008148_L"lane"_1.fastq"
+	        }
+	}' < SRR2008148_1.fastq
+
+	echo "Done with SRR2008148_1.fastq"
+             
+
+	awk 'BEGIN {FS = ":"} {
+	        lane=$4 
+	        print $0 > "SRR2008148_L"lane"_2.fastq"
+	        for (i = 1; i <= 3; i++) {
+	                getline ;
+	                print $0 > "SRR2008148_L"lane"_2.fastq"
+	        }
+	}' < SRR2008148_2.fastq
+
+	echo "Done with SRR2008148_2.fastq"
 
 #### Move, gzip and md5
 	

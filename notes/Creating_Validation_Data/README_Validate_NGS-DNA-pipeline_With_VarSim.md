@@ -100,31 +100,81 @@ Varsim provides a tool 'vcfcompare' to compare the outcome of our pipeline to wh
 	module load varsim/0.5.1
 	module load jdk/1.8.0_25
 
-	cd gcc/tools/varsim_0.5.1
-	java -jar VarSim.jar vcfcompare -true_vcf /gcc/resources/validation_data/varsim/out_20150817/simu.truth.vcf -prefix simu /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/Validate_VarSim.delly.vcf >  /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly.stats
+	cd /gcc/tools/varsim_0.5.1
+	java -jar VarSim.jar vcfcompare -true_vcf /gcc/resources/validation_data/varsim/out_20150817/simu.truth.vcf -prefix /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_DEL.simu /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/Validate_VarSim.delly_DEL.vcf >  /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_DEL.stats 2>&1
+	java -jar VarSim.jar vcfcompare -true_vcf /gcc/resources/validation_data/varsim/out_20150817/simu.truth.vcf -prefix /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_DUP.simu /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/Validate_VarSim.delly_DUP.vcf >  /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_DUP.stats 2>&1
+	java -jar VarSim.jar vcfcompare -true_vcf /gcc/resources/validation_data/varsim/out_20150817/simu.truth.vcf -prefix /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_INV.simu /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/Validate_VarSim.delly_INV.vcf >  /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_INV.stats 2>&1
+	#java -jar VarSim.jar vcfcompare -true_vcf /gcc/resources/validation_data/varsim/out_20150817/simu.truth.vcf -prefix /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_TRA.simu /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/Validate_VarSim.delly_TRA.vcf >  /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly_TRA.stats 2>&1
+
+NB Don't forget the '2>&1'.
+
+Unfortunately, Delly's translocations are not found back by VarSim's vcfcompare.
 
 ### Visualising the results
-We start of with investigating the performance of Delly with respect to deletions. Therefore, we first manually select the CSV data that summarizes the statistics on deletions from:
-
-	/gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly.stats
-
-and save that in a separate file, c.q. 'ValidationDelly.stats.DEL'.
-
-We have created the following R-script for the visualization:
-
-	a=read.csv('ValidationDelly.stats.DEL', header=T)
+We start of with investigating the performance of Delly with respect to deletions, duplications, inversions and trans locations.
 	
-	nTrue_Interval = paste("#", a$T, " with length ", rownames(a), sep="")
-	
-	par(mai = c(3.02, 0.82, 0.82, 0.42))
-	barplot(rbind(a$TPR, a$FDR), col=c('lightblue', 'mistyrose'), beside=T, legend.text=c('TPR', 'FDR'), args.legend=list(x="topleft"), main="Delly's DELs on VarSim (2 lanes, 30x, 1 sample)", ylab="Percentage (%)", names.arg = nTrue_Interval, las=2)
-	abline(h=85,lty=2, lwd = 3, col = "gray")
+	cd /gcc/groups/gaf/tmp03/tmp/Validate_VarSim/run01/CompareVarsim/ValidationDelly.stats
 
-We conclude that
+Start R:
+	module load R
+	R
+
+And copy/paste the following:
+
+	library(stringr)
+
+	stats.file = t(c("Deletion", "ValidationDelly_DEL.stats"))
+	stats.file = rbind(stats.file, t(c("Tandem_Duplication", "ValidationDelly_DUP.stats")))
+	stats.file = rbind(stats.file, t(c("Inversion", "ValidationDelly_INV.stats")))
+
+	for (j in 1:nrow(stats.file))
+	{
+		DELLYTYPE = stats.file[j,1]
+		lines = readLines(stats.file[j,2])
+
+
+		xLabels = NULL
+		FDR = NULL
+		TPR = NULL
+		for (i in 1:length(lines))
+		{
+			if (DELLYTYPE == lines[i]) break
+		}
+
+		while (">" != str_sub(lines[i], 2, 2)) i = i + 1
+		i = i + 1
+
+		while ("[" == str_sub(lines[i], 1, 1))
+		{
+			xLabels	= c(xLabels, lines[i])
+			vals	= str_split(lines[i], ",")[[1]]
+			TPR		= c(TPR, as.numeric(str_split(vals[2], ":")[[1]][2]))
+			FDR		= c(FDR, as.numeric(vals[3]))
+	
+			i = i + 1
+		}
+
+		pdf(paste0(stats.file[j,2], ".pdf"))
+			par(mai = c(4.02, 0.82, 0.82, 0.42))
+			barplot(rbind(TPR, FDR), col=c('lightblue', 'mistyrose'), beside=T, legend.text=c('TPR', 'FDR'), args.legend=list(x="topleft"), main=paste0("Delly's ", DELLYTYPE, " on VarSim (2 lanes, 30x, 1 sample)"), xlab = "", ylab="Percentage (%)", names.arg = xLabels, las=2)
+			title(xlab = "[length]: TPR, FDR, TP, FP, T", line=18)
+		dev.off()
+	}
+
+Which produces three PDFs: ValidationDelly_DEL.stats.pdf, ValidationDelly_DUP.stats.pdf, and ValidationDelly_INV.stats.pdf.
+
+#### Conclusions DELetions
+Based on the PDF produced in previous step, we conclude that
 - True Positive Rate (TPR) is > 85% for DELs longer than 400 nucleotides
-- Falde Discover Rate (FDR) is < 4% for DELs longer than 1600 nucleotides
+- False Discovery Rate (FDR) is < 4% for DELs longer than 1600 nucleotides
 - Please note, this is the case for DELs up to 1 milion. No longer DELs were simulated, however, Delly still wrongly claimed 46 False Positives with length > 1 milion nucleotides.
 
-In the figure below, the labels on the x-axis have the following syntax: "#a with length [b-c]", which means that for that bin "a" DELs are simulated with a length in the interval "[b-c]".
+![Alt text](ValidationDelly_DEL.stats.pdf)
 
-![Alt text](validation_delly_with_varsim.png)
+#### Conclusions DUPlications
+Delly seems not really suitable for calling DUPlications:
+![Alt text](ValidationDelly_DUP.stats.pdf)
+
+#### Conclusions INVersions
+Delly seems not really suitable for calling Inversions:
+![Alt text](ValidationDelly_INV.stats.pdf)
