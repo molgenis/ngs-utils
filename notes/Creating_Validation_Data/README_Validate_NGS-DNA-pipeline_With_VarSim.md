@@ -168,13 +168,15 @@ Based on the PDF produced in previous step, we conclude that
 - True Positive Rate (TPR) is > 85% for DELs longer than 400 nucleotides
 - False Discovery Rate (FDR) is < 4% for DELs longer than 1600 nucleotides
 - Please note, this is the case for DELs up to 1 milion. No longer DELs were simulated, however, Delly still wrongly claimed 46 False Positives with length > 1 milion nucleotides.
--
+
 ![Alt text](ValidationDelly_DEL.stats.png)
 
 #### Conclusions DUPlications
 Delly seems not really suitable for calling DUPlications:
+
 ![Alt text](ValidationDelly_DUP.stats.png)
 
 #### Conclusions INVersions
 Delly seems not really suitable for calling Inversions:
+
 ![Alt text](ValidationDelly_INV.stats.png)
