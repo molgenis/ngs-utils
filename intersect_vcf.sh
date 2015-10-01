@@ -2,7 +2,11 @@
 module load bedtools/2.19.1
 module list
 
-HOME="/gcc/groups/gcc/tmp01/rkanninga/vcf_compare/"
+### Make intersect file because NextGene is calling whole genome
+### Step 1: make a HOME directory
+### Step 2: copy the bed file that you need to your HOME and call it captured.bed  
+
+HOME=""
 TRUTH="NextGene"
 COMPARE="3.1.2"
 
