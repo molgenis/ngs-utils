@@ -78,9 +78,7 @@ if [[ -z "${COMPARE-}" ]]; then
         exit 1
 fi
 if [[ -z "${OUTPUT-}" ]]; then
-        usage
-        echo "FATAL: missing required parameter ${bold} outputfolder" ${normal}
-        exit 1
+	OUTPUT="${WORKDIR}/output"
 fi
 if [[ -z "${TRUTH-}" ]]; then
         TRUTH="NextGene"
