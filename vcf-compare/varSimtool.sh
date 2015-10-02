@@ -16,10 +16,10 @@ Step 3: make 2 directories in the WORKDIR and put the vcf files in the different
 Arguments${normal}
         Required:
         -w|--workdir		This will be your working directory
-        -o|--outputfolder     	Path to outputfolder
         -c|--compare		What is the name of the project which is to be compared
 
         Optional:
+        -o|--outputfolder     	Path to outputfolder (default: WORKDIR/output
         -t|--truth    		what is the name of the project which is considered as the truth (default: NextGene) "
 }
 
@@ -78,9 +78,7 @@ if [[ -z "${COMPARE-}" ]]; then
         exit 1
 fi
 if [[ -z "${OUTPUT-}" ]]; then
-        usage
-        echo "FATAL: missing required parameter ${bold} outputfolder" ${normal}
-        exit 1
+	OUTPUT="${WORKDIR}/output"
 fi
 if [[ -z "${TRUTH-}" ]]; then
         TRUTH="NextGene"
@@ -120,6 +118,8 @@ then
         fi
 fi
 
+echo "starting with intersect"
+
 cd ${WORKDIR}/${TRUTH}
 for i in $(ls *.vcf)
 do
@@ -154,8 +154,6 @@ cd  ${WORKDIR}/${COMPARE}/
 LISTOFSAMPLES=($(for i in $(ls -1 *vcf); do echo $i | sed -e 's/.final.vcf//';done))
 
 cd $THISDIR
-
-echo "hoihoihoi"
 
 for SAMPLE in ${LISTOFSAMPLES[@]}
 do
