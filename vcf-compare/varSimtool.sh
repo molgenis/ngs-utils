@@ -8,7 +8,7 @@ bold=`tput bold`
 function usage () {
 echo "
 ${bold}
-### Make intersect file  + runVarsim tool
+### runVarsim tool
 Step 1: make a WORKDIR, this will be the working directory (e.g. /my/path/to/workdir/)
 Step 2: copy the bed file that you need to your WORKDIR and call it captured.bed
 Step 3: make 2 directories in the WORKDIR and put the vcf files in the different directories (e.g. /my/path/to/workdir/3.1.2)
@@ -87,59 +87,7 @@ fi
 module load varsim
 module load R
 module load ngs-utils
-module load BEDTools
 module list
-
-### MAKE INTERSECT FILES
-
-if [ ! -d $WORKDIR ]
-then
-	exit 1
-fi
-if [ ! -d $WORKDIR/$TRUTH/intersect/ ]
-then
-	if [ ! -d $WORKDIR/$TRUTH/ ]
-	then
-		echo "There is no $TRUTH directory in your WORKDIR"
-		exit 1
-	else
-	    	mkdir $WORKDIR/$TRUTH/intersect/
-	fi
-fi
-
-if [ ! -d $WORKDIR/$COMPARE/intersect/ ]
-then
-	if [ ! -d $WORKDIR/$COMPARE/ ]
-        then
-            	echo "There is no $COMPARE directory in your WORKDIR "
-                exit 1
-        else
-                mkdir $WORKDIR/$COMPARE/intersect/
-        fi
-fi
-
-echo "starting with intersect"
-
-cd ${WORKDIR}/${TRUTH}
-for i in $(ls *.vcf)
-do
-bedtools intersect -a $i -b ${WORKDIR}/captured.bed > $WORKDIR/$TRUTH/intersect/${i}.intersect.vcf
-echo "$i done"
-done
-echo ""
-echo "TRUTH done"
-echo ""
-
-cd ${WORKDIR}/${COMPARE}
-for i in $(ls *.vcf)
-do
-	bedtools intersect -a ${i} -b ${WORKDIR}/captured.bed > $WORKDIR/$COMPARE/intersect/$i.intersect.vcf
-	echo "$i done"
-done
-
-echo ""
-echo "COMPARE done"
-echo ""
 
 ### Varsim part ###
 
@@ -157,13 +105,14 @@ cd $THISDIR
 
 for SAMPLE in ${LISTOFSAMPLES[@]}
 do
-	echo "S1:${TRUTH}/intersect/${SAMPLE}*.intersect.vcf"
-	echo "S2:${COMPARE}/${SAMPLE}*.intersect.vcf"
+	echo "S1:${TRUTH}/${SAMPLE}*.vcf"
+	echo "S2:${COMPARE}/${SAMPLE}*.vcf"
 	mkdir -p ${OUTPUT}/${SAMPLE}/
 
-	java -jar ${EBROOTVARSIM}/VarSim.jar vcfcompare -true_vcf ${WORKDIR}/${TRUTH}/intersect/${SAMPLE}*intersect.vcf \
+	java -jar ${EBROOTVARSIM}/VarSim.jar vcfcompare -true_vcf ${WORKDIR}/${TRUTH}/${SAMPLE}*.vcf \
+	-bed ${WORKDIR}/captured.bed \
 	-prefix ${OUTPUT}/${SAMPLE}/${SAMPLE}_${TRUTH}_VS_${COMPARE} \
-	${WORKDIR}/${COMPARE}/intersect/${SAMPLE}*intersect.vcf > ${OUTPUT}/${SAMPLE}/${SAMPLE}_${TRUTH}_VS_${COMPARE}.stats 2>&1
+	${WORKDIR}/${COMPARE}/${SAMPLE}*.vcf > ${OUTPUT}/${SAMPLE}/${SAMPLE}_${TRUTH}_VS_${COMPARE}.stats 2>&1
 
 	echo "${OUTPUT}/${SAMPLE}/${SAMPLE}_${TRUTH}_VS_${COMPARE}.stats"
 	perl -pi -e 's|Num new variants read.*|Num new variants read \nALLVARIANTS|' ${OUTPUT}/${SAMPLE}/${SAMPLE}_${TRUTH}_VS_${COMPARE}.stats
