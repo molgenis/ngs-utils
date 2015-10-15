@@ -70,6 +70,7 @@ do
         touch $line.finished
 	ENV=${line%???}
         touch $ENV.env
+	chmod 755 $ENV.env
 
 done<${THISDIR}/filenaam.txt
 

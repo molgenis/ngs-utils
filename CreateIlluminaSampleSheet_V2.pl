@@ -68,7 +68,7 @@ my $source	= $opts{'s'};
 #
 # Provides default if user did not specify log level:
 $log_level = (defined($log_level) ? $log_level : 'INFO');
-$source = (defined($source) ? $source : '/gcc/resources/PrepKits/');
+$source = (defined($source) ? $source : '/gcc/resources/PrepKits');
 
 
 # Reset log level to default if user specified illegal log level.
@@ -341,14 +341,14 @@ sub _WriteIlluminaSampleSheet {
 	my ($output, $experiments, $prepKit, $source) = @_;
 	
 	$logger->info('Writing Illumina sample sheet: ' . $output);
-	
+	$logger->info('PREPPIE:' . $prepKit);	
 	my %prepKits =();
 	%prepKits = ('TruSeq' => 'TruSeq.txt',
 			'Nextera'=>'Nextera.txt');
          
 	my $prepK = "";	
 	foreach my $key (keys %prepKits){
-		if (index($prepKit, $key) != -1) {
+		if (index(lc($prepKit), lc($key)) != -1) {
 			$prepK = $prepKits{$key};
 		} 
 	} 
@@ -372,6 +372,7 @@ sub _WriteIlluminaSampleSheet {
 	}
 	
 	$logger->info('source:' . $source);
+	$logger->info('SOURCY'.$source . $prepK);
 	open(my $prepkit_fh,"<",$source . $prepK) or die;
 	while(my $line =<$prepkit_fh>){
 		print($output_fh $line);
@@ -380,8 +381,8 @@ sub _WriteIlluminaSampleSheet {
 	#
 	# Write header.
 	#
-	print($output_fh "\n" . '[Data]' . "\n");
-	print($output_fh 'FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject' . "\n");
+	print($output_fh '[Data]' . "\n");
+	print($output_fh 'FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleName,SampleProject' . "\n");
 	
 	#
 	# Write records.
@@ -396,7 +397,7 @@ sub _WriteIlluminaSampleSheet {
 					$record		.= $lane . ',';
 					# We don't use the sample IDs here: these are used to create FastQ file names
 					# Therefore use the lane numbers to create predictable FastQ filenames.
-					$record		.= 'lane' . $lane . ',';
+					$record		.= 'lane' . $lane . '_' . $barcode .',';
 					# We don't use the Illumina software for alignment of reads vs. a reference genome.
 					# Hence the referene genome is irrelevant; use "Unknown".
 					$record		.= 'Unknown' . ',';
@@ -408,6 +409,7 @@ sub _WriteIlluminaSampleSheet {
 					$record 	.= 'GAF' . ',';
 					# We don't use the project names here: these are used to create subfolders for the FastQ files.
 					# Therefore use the flowcells to create predictable subdirs.
+					$record         .= 'lane' . $lane . '_' . $barcode .',';
 					$record 	.= ${experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . "\n";
 					print($output_fh $record);
 				}
@@ -428,7 +430,7 @@ sub _WriteIlluminaSampleSheet {
 				$record		.= $lane . ',';
 				# We don't use the sample IDs here: these are used to create FastQ file names
 				# Therefore use the lane numbers to create predictable FastQ filenames.
-				$record		.= 'lane' . $lane . ',';
+				$record		.= 'lane' . $lane . '_' . $barcode .',';
 				# We don't use the Illumina software for alignment of reads vs. a reference genome.
 				# Hence the referene genome is irrelevant; use "Unknown".
 				$record		.= 'Unknown' . ',';
@@ -442,6 +444,7 @@ sub _WriteIlluminaSampleSheet {
 				$record 	.= 'GAF' . ',';
 				# We don't use the project names here: these are used to create subfolders for the FastQ files.
 				# Therefore use the flowcells to create predictable subdirs.
+				$record         .= 'lane' . $lane . '_' . $barcode .',';
 				$record 	.= $flowcell . "\n";
 					
 				print($output_fh $record);
