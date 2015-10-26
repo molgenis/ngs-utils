@@ -423,6 +423,10 @@ else
 	echo "batching complete"
 	rm -rf ${batchIntervallistDir}/temp_0*
 fi
+if [ ! -f ${MAP}/captured.femaleY.bed ]
+then
+	echo -e 'Y\t1\t2\t+' > ${MAP}/captured.femaleY.bed
+fi
 
 #for f in ${MAP}/*_baits_*; do cp $f ${f/_baits_/_exons_}; done
 
