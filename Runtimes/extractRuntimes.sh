@@ -69,7 +69,43 @@ paste -d "\t" ${tmpFolder}/runtimeNames.txt ${tmpFolder}/runtimeTimes.txt | sort
 
 python count.py --input ${tmpFolder}/combinedSortedRuntimeNameAndTime.txt --output ${tmpFolder}/calculationRuntimes.txt
 
-cat ${tmpFolder}/calculationRuntimes.txt | sort -V -k1 | sed '1istep\tmax\tmean'
+cat ${tmpFolder}/calculationRuntimes.txt | sort -V -k1 > combinedSortedRuntimeNameAndTime.txt
 echo -e "\nOutput is also written to: ${OUTPUT}/runtimes.txt"
 
 cat combinedSortedRuntimeNameAndTime.txt | sort -V -k1 | sed '1istep\tmax\tmean' > ${OUTPUT}/runtimes.txt
+echo "cat combinedSortedRuntimeNameAndTime.txt | sort -V -k1 | sed '1istep\tmax\tmean' > ${OUTPUT}/runtimes.txt"
+
+awk '
+function red(s) {
+printf ("%s%s%s", "\033[1;31m", s, "\033[0m \n") }
+function green(s) {
+printf ("%s%s%s", "\033[1;32m", s, "\033[0m \n") }
+
+function blue(s) {
+printf ("%s%s%s", "\033[1;34m", s, "\033[0m \n") }
+
+function unknown1(s) {
+printf ("%s%s%s", "\033[1;36m", s, "\033[0m \n") }
+
+function unknown2(s) {
+printf ("%s%s%s", "\033[1;35m", s, "\033[0m \n") } 
+
+
+{
+	if ($3 < 30 ){
+      		green($0)
+      	}
+       	else if($3 < 60){
+       		blue($0)
+       	}
+       	else if($3 < 120){
+       		unknown1($0)
+       	}
+       	else if($3 < 180){
+       		unknown2($0)
+        }
+	else{
+		red($0)
+        }
+
+}' ${OUTPUT}/runtimes.txt
