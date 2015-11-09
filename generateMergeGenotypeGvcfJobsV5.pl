@@ -9,7 +9,7 @@ use POSIX qw(ceil);
 use POSIX qw(floor);
 
 #Commandline variables
-my ($help, $outputDir, $gatkVersion, $onekgGenomeFasta, $haplotyperDir, $samplesheet);
+my ($help, $outputDir, $gatkVersion, $onekgGenomeFasta, $haplotyperDir, $intervalsDir, $samplesheet);
 
 #### Get options
 GetOptions(
@@ -18,6 +18,7 @@ GetOptions(
                 "gatkVersion=s"         => \$gatkVersion,
                 "onekgGenomeFasta=s"    => \$onekgGenomeFasta,
                 "haplotyperDir=s"       => \$haplotyperDir,
+                "intervalsDir=s"		=> \$intervalsDir,
                 "outputDir=s"           => \$outputDir
           );
 usage() and exit(1) if $help;
@@ -27,6 +28,7 @@ usage() and exit(1) unless $gatkVersion;
 usage() and exit(1) unless $outputDir;
 usage() and exit(1) unless $onekgGenomeFasta;
 usage() and exit(1) unless $haplotyperDir;
+usage() and exit(1) unless $intervalsDir;
 
 
 ### Global vars
@@ -112,7 +114,7 @@ if java -Xmx30g -XX:ParallelGCThreads=8 -Djava.io.tmpdir=$haplotyperDir \\
 -T CombineGVCFs \\
 -R $onekgGenomeFasta \\
 -o $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz \\
--L $chr \\
+-L $intervalsDir/human_g1k_v37.chr$chr.interval_list \\
 \$inputs 
 
 then
@@ -180,6 +182,7 @@ Usage: ./generateMergeGenotypeGvcfJobsV4.pl <samplesheet.csv> <gatkVersion> <one
 -haplotyperDir\t\tDirectory in which the input gVCF files are located. The merged
 \t\t\toutput project gVCF file is also written to this directory, using the
 \t\t\t"project" name as defined in the samplesheet.csv
+-intervalsDir\t\tDirectory in which all interval files are located.
 -outputDir\t\tPath to output directory for jobs
 
 #########################################################################################################
