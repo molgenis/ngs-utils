@@ -120,7 +120,10 @@ if java -Xmx30g -XX:ParallelGCThreads=8 -Djava.io.tmpdir=$haplotyperDir \\
 then
  echo \"returncode: \$?\"; 
 
- putFile $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz
+if [ ! -f $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz ]; then
+    echo "$haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz does not exist"
+    exit 1
+fi
 cd $haplotyperDir
 md5sum \$(basename $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz)> \$(basename $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz).md5sum
  cd -
