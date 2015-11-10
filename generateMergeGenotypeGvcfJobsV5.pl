@@ -121,7 +121,7 @@ then
  echo \"returncode: \$?\"; 
 
 if [ ! -f $haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz ]; then
-    echo "$haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz does not exist"
+    echo \"$haplotyperDir/$project.batch$batch\_chr$chr.g.vcf.gz does not exist\"
     exit 1
 fi
 cd $haplotyperDir
