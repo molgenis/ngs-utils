@@ -27,12 +27,15 @@ for i in my_hash.keys():
 	if i == "s03_FastQC" or i == "s14b_CollectHSMetrics" or i == "s14c_CollectGCBiasMetrics" or i == "s14d_CollectBamIndexMetrics" or i == "s11_MakeDedupBamMd5" or i == "s12_SequenomConcordanceCheck" or i == "s13_CoveragePerBase":
 		print "skipped " + i
 	else:
-		totalMax+=max(my_hash[i])
-		totalMean+=sum(my_hash[i])/len(my_hash[i])
+		if i == "s10a_Delly" or i == "s09a_Delly":
+			totalDelly=(totalMax+max(my_hash[i]))
+		else:
+			totalMax+=max(my_hash[i])
+			totalMean+=sum(my_hash[i])/len(my_hash[i])
 
 fileW.write("total time (max): " + str(totalMax) +"\n")
 fileW.write("total time (max), skipping steps: " + str(totalMax) + " minutes. That is " + str(totalMax/60) + " hours. That is "+ str((float(totalMax)/float(1440)))  + " days \n")
+fileW.write("total time till Delly, including Delly: " + str(totalDelly) + " minutes. That is " + str(totalDelly/60) + " hours. That is "+ str((float(totalDelly)/float(1440)))  + " days \n")
 fileW.write("total time (mean): " + str(totalMean))
 file.close()
 fileW.close()
-
