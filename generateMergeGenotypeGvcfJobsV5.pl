@@ -72,11 +72,11 @@ for (my $i=1; $i<=$numSamples; $i++){
     my $project = $arr[$projectIdx];
     #my $toPush = "--variant $haplotyperDir/$sampleName.chr$chr.g.vcf";
     push(@samplesToAnalyze, $sampleName);
-    if ($count == 200 || $i == $numSamples) {
-        
+    if ($count == 200 || $i == $numSamples) {        
         for (my $chr=1; $chr <=25; $chr++){
             my @samp;
             foreach my $ele (@samplesToAnalyze){
+                if (! -f $haplotyperDir . "/" . $sampleName . ".chr" . $chr . ".g.vcf.gz") {print $haplotyperDir . "/" . $sampleName . ".chr" . $chr . ".g.vcf.gz" . " does not exist, skip\n"; next;} 
                 my $toPush = "--variant $haplotyperDir/$ele.chr$chr.g.vcf.gz";
                 push(@samp, $toPush);
             }
@@ -86,8 +86,8 @@ my $toPrint="#!/bin/bash
 #SBATCH --job-name=MergeGvcfs_batch$batch\_chr$chr
 #SBATCH --output=$outputDir/MergeGvcfs_batch$batch\_chr$chr.out
 #SBATCH --error=$outputDir/MergeGvcfs_batch$batch\_chr$chr.err
-#SBATCH --partition=ll
-#SBATCH --time=14-23:59:59
+#SBATCH --partition=nodes
+#SBATCH --time=3-23:59:59
 #SBATCH --cpus-per-task 8
 #SBATCH --mem 32gb
 #SBATCH --nodes 1
