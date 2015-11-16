@@ -76,7 +76,7 @@ for (my $i=1; $i<=$numSamples; $i++){
         for (my $chr=1; $chr <=25; $chr++){
             my @samp;
             foreach my $ele (@samplesToAnalyze){
-                if (! -f $haplotyperDir . "/" . $sampleName . ".chr" . $chr . ".g.vcf.gz") {print $haplotyperDir . "/" . $sampleName . ".chr" . $chr . ".g.vcf.gz" . " does not exist, skip\n"; next;} 
+                if (! -f $haplotyperDir . "/" . $ele . ".chr" . $chr . ".g.vcf.gz") {print $haplotyperDir . "/" . $ele . ".chr" . $chr . ".g.vcf.gz" . " does not exist, skip\n"; next;} 
                 my $toPush = "--variant $haplotyperDir/$ele.chr$chr.g.vcf.gz";
                 push(@samp, $toPush);
             }
