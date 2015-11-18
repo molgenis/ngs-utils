@@ -3,13 +3,19 @@ library(PPVforNIPT)
 library(rmarkdown)
 library(knitr)
 
-inputpath <- "/Users/ljohansson/"
-outputpath <- "/Users/ljohansson/NIPT_Project//Test_diagnostics/"
-sample_name <- "Test sample"
-control_group_rds <- file.path(inputpath,"NIPTeR_Package/NIPT_Project_control_group//NIPT_Project_control_group_separate.rds")
-raw_sample_bam <- file.path(inputpath,"NIPT_Project/bams_NIPT_Project_control_group//Illumina_0495_QNA_163_Exp1_S14_QNAkit.merged.dedup.bam")
-Rmarkdownfile_Diagnostic_output_table <- "/Users/ljohansson/NIPT_Project/Test_diagnostics/Diagnostics_NIPT_Report.Rmd"
-Rmarkdownfile_QC <- "/Users/ljohansson/NIPT_Project/Test_diagnostics/Diagnostics_NIPT_QC_Report.Rmd"
+args <- commandArgs(TRUE)
+## Default setting when no arguments passed
+if(length(args) < 1) {
+  args <- c("--help")
+}
+
+outputpath <- args[1]
+sample_name <- args[2]
+control_group_rds <- args[3]
+raw_sample_bam <- args[4]
+Rmarkdownfile_Diagnostic_output_table <- args[5]
+Rmarkdownfile_QC <- args[6]
+
 a_priori_13 <- 2
 a_priori_18 <- 2
 a_priori_21 <- 2
