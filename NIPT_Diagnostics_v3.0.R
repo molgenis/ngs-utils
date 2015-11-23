@@ -16,9 +16,9 @@ raw_sample_bam <- args[4]
 Rmarkdownfile_Diagnostic_output_table <- args[5]
 Rmarkdownfile_QC <- args[6]
 
-a_priori_13 <- 2
-a_priori_18 <- 2
-a_priori_21 <- 2
+a_priori_13 <- args[7]
+a_priori_18 <- args[8]
+a_priori_21 <- args[9]
 
 message ("Analyzing sample ", sample_name)
 
