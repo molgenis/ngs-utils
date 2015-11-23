@@ -103,10 +103,21 @@ posterior_risk_21_3 <- posterior_risk_21[3]
 posterior_risk_21_4 <- posterior_risk_21[4]
 
 #Calculate median Posterior risk (%)
-median_posterior_risk_13 <- sum(posterior_risk_13) / length(posterior_risk_13)
-median_posterior_risk_18 <- sum(posterior_risk_18) / length(posterior_risk_18)
-median_posterior_risk_21 <- sum(posterior_risk_21) / length(posterior_risk_21)
+normal_distributed13 <- c(Normal_13_set1, Normal_13_set2, Normal_13_set3, Normal_13_set4)
+normal_distributed18 <- c(Normal_18_set1, Normal_18_set2, Normal_18_set3, Normal_18_set4)
+normal_distributed21 <- c(Normal_21_set1, Normal_21_set2, Normal_21_set3, Normal_21_set4)
 
+datafr_for_median13 <- data.frame(normal_distributed13, posterior_risk_13)
+datafr_for_median18 <- data.frame(normal_distributed18, posterior_risk_18)
+datafr_for_median21 <- data.frame(normal_distributed21, posterior_risk_21)
+
+datafr_for_median13_selected <- datafr_for_median13[datafr_for_median13$normal_distributed13=="Yes",]$posterior_risk_13
+datafr_for_median18_selected <- datafr_for_median18[datafr_for_median18$normal_distributed18=="Yes",]$posterior_risk_18
+datafr_for_median21_selected <- datafr_for_median21[datafr_for_median21$normal_distributed21=="Yes",]$posterior_risk_21
+
+median_posterior_risk_13 <- median(datafr_for_median13_selected)
+median_posterior_risk_18 <- median(datafr_for_median18_selected)
+median_posterior_risk_21 <- median(datafr_for_median21_selected)
 
 #Extra Quality Control Metrics
 message( "Calculating extra QC Metrics" )
@@ -196,12 +207,3 @@ message( "Creating tables" )
      Normal13 = Normal_13_fromZscore, Normal18 =  Normal_18_fromZscore, Normal21 = Normal_21_fromZscore, 
      All_chromosomes_norm_Zscore = All_chromosomes_normal_Zscore, AvMatchScore = Average_match_score, MatchScorelist = Match_score_list,
      PredictionStatistics13 = Pred_stat_chr13, PredictionStatistics18 = Pred_stat_chr18, PredictionStatistics21 = Pred_stat_chr21))
-     
-
-
-
-
-
-
-
-
