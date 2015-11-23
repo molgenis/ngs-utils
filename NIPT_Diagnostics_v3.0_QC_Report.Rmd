@@ -36,12 +36,12 @@ print(tab, type="html")
 ```
 <br>
 ```{r echo=FALSE, results= 'asis'}
-PS13 <- params$PredictionStatistics18
+PS18 <- params$PredictionStatistics18
 
 datafrPS18 <- data.frame(PS18)
 
 #Transform to table
-tab <- xtable(datafrPS13, align = "ccccc")
+tab <- xtable(datafrPS18, align = "ccccc")
 print(tab, type="html")
 ```
 <br>
