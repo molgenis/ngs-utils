@@ -16,9 +16,12 @@ raw_sample_bam <- args[4]
 Rmarkdownfile_Diagnostic_output_table <- args[5]
 Rmarkdownfile_QC <- args[6]
 
-a_priori_13 <- args[7]
-a_priori_18 <- args[8]
-a_priori_21 <- args[9]
+a_priori_13 <- as.integer(args[7])
+a_priori_18 <- as.integer(args[8])
+a_priori_21 <- as.integer(args[9])
+
+reportHTML <- args[10]
+qcReportHTML <- args[11]
 
 message ("Analyzing sample ", sample_name)
 
@@ -177,33 +180,79 @@ All_chromosomes_normal_Zscore <- ifelse(Zscore1$sample_Zscore<3 & Zscore2$sample
 #Create output tables 
 message( "Creating tables" )
 
-#Standard diagnostics output table
-   rmarkdown::render(Rmarkdownfile_Diagnostic_output_table, params = list(
-  samplename = sample_name, CV13_1 = CV_13_1, CV13_2 = CV_13_2, CV13_3 = CV_13_3, CV13_4 = CV_13_4, 
-  Normal13_1 = Normal_13_set1, Normal13_2 = Normal_13_set2, Normal13_3 = Normal_13_set3, Normal13_4 = Normal_13_set4,
-  Zscore13_1 = RegZscore_13_1, Zscore13_2 = RegZscore_13_2, Zscore13_3 = RegZscore_13_3, Zscore13_4 = RegZscore_13_4,
-  posteriorrisk13_1 = posterior_risk_13_1, posteriorrisk13_2 = posterior_risk_13_2, posteriorrisk13_3 = posterior_risk_13_3, posteriorrisk13_4 = posterior_risk_13_4,
-  medianposteriorrisk13 = median_posterior_risk_13, 
-  apriori13 = a_priori_13,
-  CV18_1 = CV_18_1, CV18_2 = CV_18_2, CV18_3 = CV_18_3, CV18_4 = CV_18_4, 
-  Normal18_1 = Normal_18_set1, Normal18_2 = Normal_18_set2, Normal18_3 = Normal_18_set3, Normal18_4 = Normal_18_set4,
-  Zscore18_1 = RegZscore_18_1, Zscore18_2 = RegZscore_18_2, Zscore18_3 = RegZscore_18_3, Zscore18_4 = RegZscore_18_4,
-  posteriorrisk18_1 = posterior_risk_18_1, posteriorrisk18_2 = posterior_risk_18_2, posteriorrisk18_3 = posterior_risk_18_3, posteriorrisk18_4 = posterior_risk_18_4,
-  medianposteriorrisk18 = median_posterior_risk_18, 
-  apriori18 = a_priori_18,
-  CV21_1 = CV_21_1, CV21_2 = CV_21_2, CV21_3 = CV_21_3, CV21_4 = CV_21_4, 
-  Normal21_1 = Normal_21_set1, Normal21_2 = Normal_21_set2, Normal21_3 = Normal_21_set3, Normal21_4 = Normal_21_set4,
-  Zscore21_1 = RegZscore_21_1, Zscore21_2 = RegZscore_21_2, Zscore21_3 = RegZscore_21_3, Zscore21_4 = RegZscore_21_4,
-  posteriorrisk21_1 = posterior_risk_21_1, posteriorrisk21_2 = posterior_risk_21_2, posteriorrisk21_3 = posterior_risk_21_3, posteriorrisk21_4 = posterior_risk_21_4,
-  medianposteriorrisk21 = median_posterior_risk_21, 
-  apriori21 = a_priori_21
-))
+samplename=sample_name
+CV13_1=CV_13_1
+CV13_2=CV_13_2
+CV13_3=CV_13_3
+CV13_4=CV_13_4
+Normal13_1=Normal_13_set1
+Normal13_2=Normal_13_set2
+Normal13_3=Normal_13_set3
+Normal13_4=Normal_13_set4
+Zscore13_1=RegZscore_13_1
+Zscore13_2=RegZscore_13_2
+Zscore13_3=RegZscore_13_3
+Zscore13_4=RegZscore_13_4
+posteriorrisk13_1=posterior_risk_13_1
+posteriorrisk13_2=posterior_risk_13_2
+posteriorrisk13_3=posterior_risk_13_3
+posteriorrisk13_4=posterior_risk_13_4
+medianposteriorrisk13=median_posterior_risk_13
+apriori13=a_priori_13
+CV18_1=CV_18_1
+CV18_2=CV_18_2
+CV18_3=CV_18_3
+CV18_4=CV_18_4
+Normal18_1=Normal_18_set1
+Normal18_2=Normal_18_set2
+Normal18_3=Normal_18_set3
+Normal18_4=Normal_18_set4
+Zscore18_1=RegZscore_18_1
+Zscore18_2=RegZscore_18_2
+Zscore18_3=RegZscore_18_3
+Zscore18_4=RegZscore_18_4
+posteriorrisk18_1=posterior_risk_18_1
+posteriorrisk18_2=posterior_risk_18_2
+posteriorrisk18_3=posterior_risk_18_3
+posteriorrisk18_4=posterior_risk_18_4
+medianposteriorrisk18=median_posterior_risk_18
+apriori18=a_priori_18
+CV21_1=CV_21_1
+CV21_2=CV_21_2
+CV21_3=CV_21_3
+CV21_4=CV_21_4
+Normal21_1=Normal_21_set1
+Normal21_2=Normal_21_set2
+Normal21_3=Normal_21_set3
+Normal21_4=Normal_21_set4
+Zscore21_1=RegZscore_21_1
+Zscore21_2=RegZscore_21_2
+Zscore21_3=RegZscore_21_3
+Zscore21_4=RegZscore_21_4
+posteriorrisk21_1=posterior_risk_21_1
+posteriorrisk21_2=posterior_risk_21_2
+posteriorrisk21_3=posterior_risk_21_3
+posteriorrisk21_4=posterior_risk_21_4
+apriori21=a_priori_21
+medianposteriorrisk21=median_posterior_risk_21
+
+knit2html(Rmarkdownfile_Diagnostic_output_table, output=reportHTML)
+
+Z_score13=Zscore13$sample_Zscore
+Z_score18=Zscore18$sample_Zscore
+Z_score21=Zscore21$sample_Zscore
+CV13=CV_from_Zscore13
+CV18=CV_from_Zscore18
+CV21=CV_from_Zscore21
+Normal13=Normal_13_fromZscore
+Normal18=Normal_18_fromZscore
+Normal21=Normal_21_fromZscore
+All_chromosomes_norm_Zscore=All_chromosomes_normal_Zscore
+AvMatchScore=Average_match_score
+MatchScorelist=Match_score_list
+PredictionStatistics13=Pred_stat_chr13
+PredictionStatistics18=Pred_stat_chr18
+PredictionStatistics21=Pred_stat_chr21
 
 
-#QC output table
-   rmarkdown::render(Rmarkdownfile_QC, params = list(
-     samplename = sample_name, Z_score13 = Zscore13$sample_Zscore, Z_score18 = Zscore18$sample_Zscore, Z_score21 = Zscore21$sample_Zscore, 
-     CV13 = CV_from_Zscore13, CV18 = CV_from_Zscore18, CV21 = CV_from_Zscore21,
-     Normal13 = Normal_13_fromZscore, Normal18 =  Normal_18_fromZscore, Normal21 = Normal_21_fromZscore, 
-     All_chromosomes_norm_Zscore = All_chromosomes_normal_Zscore, AvMatchScore = Average_match_score, MatchScorelist = Match_score_list,
-     PredictionStatistics13 = Pred_stat_chr13, PredictionStatistics18 = Pred_stat_chr18, PredictionStatistics21 = Pred_stat_chr21))
+knit2html(Rmarkdownfile_QC, output=qcReportHTML)
