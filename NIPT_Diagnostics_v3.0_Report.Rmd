@@ -1,65 +1,5 @@
----
-title: 
-output: html_document
-params:
-  samplename: "No_Name"
-  CV13_1: "NA"
-  CV13_2: "NA"
-  CV13_3: "NA"
-  CV13_4: "NA"
-  Normal13_1: "NA"
-  Normal13_2: "NA"
-  Normal13_3: "NA"
-  Normal13_4: "NA"
-  Zscore13_1: "NA"
-  Zscore13_2: "NA"
-  Zscore13_3: "NA"
-  Zscore13_4: "NA"
-  posteriorrisk13_1: "NA"
-  posteriorrisk13_2: "NA"
-  posteriorrisk13_3: "NA"
-  posteriorrisk13_4: "NA"
-  medianposteriorrisk13: "NA"
-  apriori13: "NA"
-  CV18_1: "NA"
-  CV18_2: "NA"
-  CV18_3: "NA"
-  CV18_4: "NA"
-  Normal18_1: "NA"
-  Normal18_2: "NA"
-  Normal18_3: "NA"
-  Normal18_4: "NA"
-  Zscore18_1: "NA"
-  Zscore18_2: "NA"
-  Zscore18_3: "NA"
-  Zscore18_4: "NA"
-  posteriorrisk18_1: "NA"
-  posteriorrisk18_2: "NA"
-  posteriorrisk18_3: "NA"
-  posteriorrisk18_4: "NA"
-  medianposteriorrisk18: "NA"
-  apriori18: "NA"
-  CV21_1: "NA"
-  CV21_2: "NA"
-  CV21_3: "NA"
-  CV21_4: "NA"
-  Normal21_1: "NA"
-  Normal21_2: "NA"
-  Normal21_3: "NA"
-  Normal21_4: "NA"
-  Zscore21_1: "NA"
-  Zscore21_2: "NA"
-  Zscore21_3: "NA"
-  Zscore21_4: "NA"
-  posteriorrisk21_1: "NA"
-  posteriorrisk21_2: "NA"
-  posteriorrisk21_3: "NA"
-  posteriorrisk21_4: "NA"
-  medianposteriorrisk21: "NA"
-  apriori21: "NA"
----
+Uitslag `r samplename`
 
-Uitslag `r params$samplename`
 =======================================================
 `r format(Sys.Date(), format=("%d %B %Y"))`
 
@@ -68,24 +8,24 @@ Uitslag `r params$samplename`
 library(xtable)
 
 #Build list from variables
-Variation_coefficient <- c(format(params$CV13_1, digits = 2), 
-                                  format(params$CV13_2, digits = 2), 
-                                  format(params$CV13_3, digits = 2), 
-                                  format(params$CV13_4,digits = 2) )
-Normal_Distribution <- c(format(params$Normal13_1), 
-                                  format(params$Normal13_2), 
-                                  format(params$Normal13_3), 
-                                  format(params$Normal13_4) )
-Z_score <- c(format(round(params$Zscore13_1,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore13_2,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore13_3,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore13_4,2), digits = 3, nsmall = 2) )
-Posterior_risk <- c(format(round(params$posteriorrisk13_1,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk13_2,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk13_3,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk13_4,1), digits = 3, nsmall = 1) )
-Median_PR <- c(format(round(params$medianposteriorrisk13,1), digits = 3, nsmall = 1),"","","")
-apriori <- c(format(params$apriori13),"","","")
+Variation_coefficient <- c(format(CV13_1, digits = 2), 
+                                  format(CV13_2, digits = 2), 
+                                  format(CV13_3, digits = 2), 
+                                  format(CV13_4,digits = 2) )
+Normal_Distribution <- c(format(Normal13_1), 
+                                  format(Normal13_2), 
+                                  format(Normal13_3), 
+                                  format(Normal13_4) )
+Z_score <- c(format(round(Zscore13_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_3,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk13_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk13,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori13),"","","")
 
 
 datafr13=data.frame(Variation_coefficient,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
@@ -109,24 +49,24 @@ print(tab, type="html")
 library(xtable)
 
 #Build list from variables
-Variation_coefficient  <- c(format(params$CV18_1, digits = 2), 
-                                  format(params$CV18_2, digits = 2), 
-                                  format(params$CV18_3, digits = 2), 
-                                  format(params$CV18_4,digits = 2) )
-Normal_Distribution <- c(format(params$Normal18_1), 
-                                  format(params$Normal18_2), 
-                                  format(params$Normal18_3), 
-                                  format(params$Normal18_4) )
-Z_score <- c(format(round(params$Zscore18_1,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore18_2,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore18_3,2), digits = 3, nsmall = 2),
-                                  format(round(params$Zscore18_4,2), digits = 3, nsmall = 2) )
-Posterior_risk <- c(format(round(params$posteriorrisk18_1,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk18_2,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk18_3,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk18_4,1), digits = 3, nsmall = 1) )
-Median_PR <- c(format(round(params$medianposteriorrisk18,1), digits = 3, nsmall = 1),"","","")
-apriori <- c(format(params$apriori18),"","","")
+Variation_coefficient  <- c(format(CV18_1, digits = 2), 
+                                  format(CV18_2, digits = 2), 
+                                  format(CV18_3, digits = 2), 
+                                  format(CV18_4,digits = 2) )
+Normal_Distribution <- c(format(Normal18_1), 
+                                  format(Normal18_2), 
+                                  format(Normal18_3), 
+                                  format(Normal18_4) )
+Z_score <- c(format(round(Zscore18_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore18_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore18_3,2), digits = 3, nsmall = 2),
+                                  format(round(Zscore18_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk18_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk18,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori18),"","","")
 
 
 datafr18=data.frame(Variation_coefficient ,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
@@ -145,24 +85,24 @@ print(tab, type="html")
 library(xtable)
 
 #Build list from variables
-Variation_coefficient  <- c(format(params$CV21_1, digits = 2), 
-                                  format(params$CV21_2, digits = 2), 
-                                  format(params$CV21_3, digits = 2), 
-                                  format(params$CV21_4,digits = 2) )
-Normal_Distribution <- c(format(params$Normal21_1), 
-                                  format(params$Normal21_2), 
-                                  format(params$Normal21_3), 
-                                  format(params$Normal21_4) )
-Z_score <- c(format(round(params$Zscore21_1,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore21_2,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore21_3,2), digits = 3, nsmall = 2), 
-                                  format(round(params$Zscore21_4,2), digits = 3, nsmall = 2) )
-Posterior_risk <- c(format(round(params$posteriorrisk21_1,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk21_2,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk21_3,1), digits = 3, nsmall = 1), 
-                                  format(round(params$posteriorrisk21_4,1), digits = 3, nsmall = 1) )
-Median_PR <- c(format(round(params$medianposteriorrisk21,1), digits = 3, nsmall = 1),"","","")
-apriori <- c(format(params$apriori21),"","","")
+Variation_coefficient  <- c(format(CV21_1, digits = 2), 
+                                  format(CV21_2, digits = 2), 
+                                  format(CV21_3, digits = 2), 
+                                  format(CV21_4,digits = 2) )
+Normal_Distribution <- c(format(Normal21_1), 
+                                  format(Normal21_2), 
+                                  format(Normal21_3), 
+                                  format(Normal21_4) )
+Z_score <- c(format(round(Zscore21_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_3,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk21_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk21,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori21),"","","")
 
 
 datafr21=data.frame(Variation_coefficient ,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
