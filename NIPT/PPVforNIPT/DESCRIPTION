@@ -1,0 +1,9 @@
+Package: PPVforNIPT
+Title: Calculates Ppv Based On Population Statistics
+Version: 0.1
+Authors@R: "Dirk", "de Weerd", "l.johansson@umcg.nl",
+                  role = c("aut", "cre"))
+Description: Calculates Ppv Based On Population Statistics
+Depends: R (>= 3.1.0)
+License: unlicencedxy
+LazyData: true
