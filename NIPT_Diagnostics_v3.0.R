@@ -236,6 +236,7 @@ posteriorrisk21_4=posterior_risk_21_4
 apriori21=a_priori_21
 medianposteriorrisk21=median_posterior_risk_21
 
+setwd(outputpath)
 knit2html(Rmarkdownfile_Diagnostic_output_table, output=reportHTML)
 
 Z_score13=Zscore13$sample_Zscore
