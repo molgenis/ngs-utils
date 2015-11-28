@@ -1,0 +1,81 @@
+QC Report `r samplename`
+=======================================================
+`r format(Sys.Date(), format=("%d %B %Y"))`
+
+##Prediction Statistics Regression Models
+```{r echo=FALSE, results= 'asis'}
+PS13 <- PredictionStatistics13
+
+datafrPS13 <- data.frame(PS13)
+
+#Transform to table
+tab <- xtable(datafrPS13, align = "ccccc")
+print(tab, type="html")
+```
+<br>
+```{r echo=FALSE, results= 'asis'}
+PS18 <- PredictionStatistics18
+
+datafrPS18 <- data.frame(PS18)
+
+#Transform to table
+tab <- xtable(datafrPS18, align = "ccccc")
+print(tab, type="html")
+```
+<br>
+```{r echo=FALSE, results= 'asis'}
+PS21 <- PredictionStatistics21
+
+datafrPS21 <- data.frame(PS21)
+
+#Transform to table
+tab <- xtable(datafrPS21, align = "ccccc")
+print(tab, type="html")
+```
+
+<br>
+
+###Standard Z-score calculations using GC corrected data
+```{r echo=FALSE, results='asis'}
+library(xtable)
+
+#Build list from variables
+Variation_coefficient <- c(format(CV13, digits = 2), format(CV18, digits = 2), format(CV21, digits = 2) )
+Normal_Distribution <- c(format(Normal13), format(Normal18), format(Normal21) ) 
+Z_score <- c(format(Z_score13, digits = 3), format(Z_score18, digits = 3), format(Z_score21, digits = 3) )
+
+datafrZscore <- data.frame(Variation_coefficient,Normal_Distribution,Z_score, row.names = c("Chr 13","Chr 18","Chr 21"))
+
+#Transform to table
+tab <- xtable(datafrZscore, align = "cccc")
+print(tab, type="html")
+
+```
+
+
+<br>
+All other chromosomes have a normal Z-score: `r toString(All_chromosomes_norm_Zscore[[1]])`
+<br>
+
+###Average Matchscore sample to control group
+The average Matchscore of the sample compared with the current control group is `r format(AvMatchScore[[1]], digit=4)`
+<br><br>
+
+###Matchscore list
+```{r echo=FALSE, results = 'asis'}
+MatchScore <- format(MatchScorelist, digits = 3)
+datafrMSc <- data.frame(MatchScore)
+
+#Transform to table
+tab <- xtable(datafrMSc, align = "cc")
+print(tab, type="html")
+
+
+```
+
+
+
+
+
+
+

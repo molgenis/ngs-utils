@@ -1,0 +1,117 @@
+Uitslag `r samplename`
+
+=======================================================
+`r format(Sys.Date(), format=("%d %B %Y"))`
+
+### Chromosome 13
+```{r echo=FALSE, results='asis'}
+library(xtable)
+
+#Build list from variables
+Variation_coefficient <- c(format(CV13_1, digits = 2), 
+                                  format(CV13_2, digits = 2), 
+                                  format(CV13_3, digits = 2), 
+                                  format(CV13_4,digits = 2) )
+Normal_Distribution <- c(format(Normal13_1), 
+                                  format(Normal13_2), 
+                                  format(Normal13_3), 
+                                  format(Normal13_4) )
+Z_score <- c(format(round(Zscore13_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_3,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore13_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk13_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk13_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk13,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori13),"","","")
+
+
+datafr13=data.frame(Variation_coefficient,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
+
+
+
+#Transform to table
+tab <- xtable(datafr13, align = "ccccccc")
+print(tab, type="html")
+
+
+#tab <- xtable(list13)
+#print(tab, type="html")
+
+
+```
+
+
+### Chromosome 18
+```{r echo=FALSE, results='asis'}
+library(xtable)
+
+#Build list from variables
+Variation_coefficient  <- c(format(CV18_1, digits = 2), 
+                                  format(CV18_2, digits = 2), 
+                                  format(CV18_3, digits = 2), 
+                                  format(CV18_4,digits = 2) )
+Normal_Distribution <- c(format(Normal18_1), 
+                                  format(Normal18_2), 
+                                  format(Normal18_3), 
+                                  format(Normal18_4) )
+Z_score <- c(format(round(Zscore18_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore18_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore18_3,2), digits = 3, nsmall = 2),
+                                  format(round(Zscore18_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk18_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk18_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk18,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori18),"","","")
+
+
+datafr18=data.frame(Variation_coefficient ,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
+
+
+
+#Transform to table
+tab <- xtable(datafr18, align = "ccccccc")
+print(tab, type="html")
+
+
+```
+
+### Chromosome 21
+```{r echo=FALSE, results='asis'}
+library(xtable)
+
+#Build list from variables
+Variation_coefficient  <- c(format(CV21_1, digits = 2), 
+                                  format(CV21_2, digits = 2), 
+                                  format(CV21_3, digits = 2), 
+                                  format(CV21_4,digits = 2) )
+Normal_Distribution <- c(format(Normal21_1), 
+                                  format(Normal21_2), 
+                                  format(Normal21_3), 
+                                  format(Normal21_4) )
+Z_score <- c(format(round(Zscore21_1,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_2,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_3,2), digits = 3, nsmall = 2), 
+                                  format(round(Zscore21_4,2), digits = 3, nsmall = 2) )
+Posterior_risk <- c(format(round(posteriorrisk21_1,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_2,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_3,1), digits = 3, nsmall = 1), 
+                                  format(round(posteriorrisk21_4,1), digits = 3, nsmall = 1) )
+Median_PR <- c(format(round(medianposteriorrisk21,1), digits = 3, nsmall = 1),"","","")
+apriori <- c(format(apriori21),"","","")
+
+
+datafr21=data.frame(Variation_coefficient ,Normal_Distribution,Z_score,Posterior_risk,Median_PR,apriori, row.names = c("1","2","3","4"))
+
+
+
+#Transform to table
+tab <- xtable(datafr21, align = "ccccccc")
+print(tab, type="html")
+
+
+```
