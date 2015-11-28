@@ -465,7 +465,7 @@ sub _ParseVcf {
 		# Length of hash and array depends on total number of alt alleles seen.
 		# For example: 0/0,0/1,1/1,0/2,1/2,2/2,0/3,1/3,2/3,3/3,etc.
 		# Hash is used to count genotypes, whereas the array is used to control 
-		# the order of the genotypes (== keys of the hash)
+		# the order of the genotypes (== keys of the hash).
 		#
 		my $this_allele_id = 0;
 		my @added_allele_ids = (0);
@@ -495,22 +495,32 @@ sub _ParseVcf {
 			if ($gt =~ m'\.') {
 				$logger->trace("\t" . $sample . ': Skipping GT with one or more uncalled alleles (' . $gt . ').');
 				next SAMPLE;
-			} elsif ($gt =~ m/(\d+)\/(\d+)/) {
+			} elsif ($gt =~ m/^(\d+)\/(\d+)$/) {
 				my $allele1 = $1;
 				my $allele2 = $2;
 				# Re-order alleles to make sure the second allele's ID number >= first allele's ID number. 
 				if ($allele2 < $allele1) {
-					my $buffer = $allele1;
-					$allele1 = $allele2;
-					$allele2 = $buffer;
-					$gt = $allele1 . '/' . $allele2;
+					$gt = $allele2 . '/' . $allele1;
 				}
 				$logger->trace("\t$sample: GT=$gt (unphased and reordered).");
-				$logger->trace("\tGTC for $gt was:        $gt_counts{$gt}.");
+				if (defined($gt_counts{$gt})) {
+					$logger->trace("\tGTC for $gt was:        $gt_counts{$gt}.");
+				} else {
+					$logger->fatal("\t" . 'GTC for ' . $gt . ' was:        undefined.');
+					$logger->fatal("\t" . 'Cannot increment count for unexpected genotype with undefined count.');
+					$logger->fatal("\t" . 'Sample ' . $sample . ': GT in unsupported format (' . $gt . ').');
+					$logger->fatal("\t" . 'Defined GTCs for this variant (' . $seq_id . ':' . $pos . '):');
+					foreach my $hkey (keys(%gt_counts)) {
+						$logger->fatal("\t\t" . 'GTC ' . $hkey . ' = ' . $gt_counts{$hkey} . '.');
+					}
+					$logger->fatal('Processing ABORTED and hence output incomplete!');
+					exit(1);
+				}
 				$gt_counts{$gt}++;
 				$logger->debug("\tGTC for $gt updated to: $gt_counts{$gt}.");	
 			} else {
 				$logger->fatal("\t" . 'Sample ' . $sample . ': GT in unsupported format (' . $gt . ').');
+				$logger->fatal('Processing ABORTED and hence output incomplete!');
 				exit(1);
 			}
 		}
