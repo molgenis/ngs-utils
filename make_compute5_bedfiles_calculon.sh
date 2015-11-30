@@ -109,7 +109,7 @@ if [[ -z "${DATA-}" ]]; then
         DATA="targeted"
 fi
 if [[ -z "${TMP-}" ]]; then
-       	DATA="/groups/umcg-gaf/tmp04/tmp"
+       	TMP="/groups/umcg-gaf/tmp04/tmp"
 fi
 
 BATCHCOUNT=3
