@@ -4,4 +4,3 @@
 scripts/NIPT/test/data/testReads/gold_standard_*.bed
 scripts/NIPT/test/data/controlBins/
 easybuild
-.gitignore
