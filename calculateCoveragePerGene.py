@@ -21,8 +21,11 @@ for line in tekst.split("\n")[1:-1]:
              	my_hash.update({splitted[3]:[int(splitted[4])]})
 totalMax=0
 totalMean=0
+
+fileW.write(GeneName + "\t" Mean coverage + "\n")
+
 for i in my_hash.keys():
-        fileW.write(i +"\t" + "\t"+  str(sum(my_hash[i])/len(my_hash[i]))+"\n")
+        fileW.write(i + "\t" +  str(sum(my_hash[i])/len(my_hash[i]))+ "\n")
 
 file.close()
 fileW.close()
