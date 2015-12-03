@@ -99,6 +99,7 @@ if ($@) {
 my $found_dcache_srmcp = 0;
 my $dcache_srmcp = `which srmcp`;
 if ($dcache_srmcp =~ m/\/srmcp$/) {
+	chomp($dcache_srmcp);
 	$logger->trace('Found srmcp command in: ' . $dcache_srmcp);
 	$found_dcache_srmcp = 1;
 } else {
