@@ -41,9 +41,9 @@ NIPT_chi_corrected_sample <- NIPT_chi_corrected_data$sample
 NIPT_chi_corrected_controls <- NIPT_chi_corrected_data$control_group
 
 #Calculate regression-based Z-score
-regression_chr_13 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, chromo_focus = 13 )
-regression_chr_18 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, chromo_focus = 18 )
-regression_chr_21 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, chromo_focus = 21 )
+regression_chr_13 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, use_test_train_set = F, chromo_focus = 13 )
+regression_chr_18 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, use_test_train_set = F, chromo_focus = 18 )
+regression_chr_21 <- perform_regression( nipt_sample = NIPT_chi_corrected_sample, nipt_control_group = NIPT_chi_corrected_controls, use_test_train_set = F, chromo_focus = 21 )
 
 #Retrieve coefficient of variation from regression
 CV_13_1 <- as.numeric(as.vector(regression_chr_13$prediction_statistics[2,1]))*100
