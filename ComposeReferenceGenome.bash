@@ -26,7 +26,9 @@ declare -A REFGENOME_DETAILS=(
 
 declare -A ALL_INGREDIENTS=(
     ['GRCh38_NoALT_AS,description']='GRCh38 analysis set including chromosomes, EBV viral genome, unplaced contigs and unlocalized contigs. (Excluding ALT and PATCH contigs.)'
-    ['GRCh38_NoALT_AS,url']='ftp://ftp.ncbi.nlm.nih.gov/genbank/genomes/Eukaryotes/vertebrates_mammals/Homo_sapiens/GRCh38/seqs_for_alignment_pipelines/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz'
+    #['GRCh38_NoALT_AS,url']='ftp://ftp.ncbi.nlm.nih.gov/genbank/genomes/Eukaryotes/vertebrates_mammals/Homo_sapiens/GRCh38/seqs_for_alignment_pipelines/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz'
+    #['GRCh38_NoALT_AS,url']='ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/old_genbank/Eukaryotes/vertebrates_mammals/Homo_sapiens/GRCh38/seqs_for_alignment_pipelines/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz'
+    ['GRCh38_NoALT_AS,url']='ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz'
     ['GRCh38_NoALT_AS,md5']='beadb3e9633f6a39bbf50e3ba995468c'
     ['hs38d1,description']='Human decoy sequences for GRCh38.'
     ['hs38d1,url']='ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_000786075.2_hs38d1/GCA_000786075.2_hs38d1_genomic.fna.gz'
@@ -210,7 +212,7 @@ function compileReferenceGenome() {
       echo "INFO:     Applying patch ${PATCHES_DIR}/${_i}.patch to ${_i}.${FASTA_FILE_EXTENSION}"
       patch "${_RESULT_DIR}/${_i}.${FASTA_FILE_EXTENSION}" "${PATCHES_DIR}/${_i}.patch"
     fi
-    printf '%s  %s' "${_MY_MD5}" "${_i}.${FASTA_FILE_EXTENSION}" > "${_RESULT_DIR}/${_i}.md5"
+    printf '%s  %s\n' "${_MY_MD5}" "${_i}.${FASTA_FILE_EXTENSION}" > "${_RESULT_DIR}/${_i}.md5"
     echo -n "INFO:     Verifying MD5 checksum for "
     (cd "${_RESULT_DIR}" && md5sum -c "${_i}.md5")
     echo "INFO:     Appending ${_i}.${FASTA_FILE_EXTENSION} to ${_GENOME}.${FASTA_FILE_EXTENSION}"
@@ -222,7 +224,7 @@ function compileReferenceGenome() {
   #
   # Verify checksum and create README for this reference genome.
   #
-  printf '%s  %s' "${REFGENOME_DETAILS["${_GENOME},md5"]}" "${_GENOME}.${FASTA_FILE_EXTENSION}" > "${_RESULT_DIR}/${_GENOME}.md5"
+  printf '%s  %s\n' "${REFGENOME_DETAILS["${_GENOME},md5"]}" "${_GENOME}.${FASTA_FILE_EXTENSION}" > "${_RESULT_DIR}/${_GENOME}.md5"
   echo -n "INFO: Verifying MD5 checksum for "
   (cd "${_RESULT_DIR}" && md5sum -c "${_GENOME}.md5")
   echo -n "INFO: Creating ${_GENOME}.README... "
@@ -234,6 +236,39 @@ EOR
   # Signal success.
   #
   echo "INFO: Successfully compiled ${GENOME} reference genome in ${_RESULT_DIR}/."
+  #
+  # Provide advise on how to index reference for use by various NGS analysis tools.
+  #
+  echo 'INFO: ======================================================================================'
+  echo 'INFO:  In order to use your new Reference Genome with common NGS analysis pipelines '
+  echo 'INFO:  you may have create indices and other derived meta-data using the code listed below:'
+  echo 'INFO: ======================================================================================'
+  cat <<EOA
+       #
+       # Load latest versions of samtools, Picard and BWA.
+       #
+       module load SAMtools
+       module load picard
+       module load BWA
+       module list
+       #
+       # Use samtools to index FastA file.
+       #
+       samtools faidx "${_RESULT_DIR}/${_GENOME}.${FASTA_FILE_EXTENSION}"
+       #
+       # Use Picard to create dict file.
+       #
+       java -jar \${EBROOTPICARD}/picard.jar CreateSequenceDictionary \\
+            REFERENCE="${_RESULT_DIR}/${_GENOME}.${FASTA_FILE_EXTENSION}" \\
+               OUTPUT="${_RESULT_DIR}/${_GENOME}.dict"
+       #
+       # Index reference genome for alignment with BWA.
+       #
+       bwa index -a bwtsw "${_RESULT_DIR}/${_GENOME}.${FASTA_FILE_EXTENSION}"
+EOA
+  echo 'INFO: ======================================================================================'
+  echo "INFO: I'm signing off; Happy NGS analysing! $(basename $0) out."
+
 }
 
 #
