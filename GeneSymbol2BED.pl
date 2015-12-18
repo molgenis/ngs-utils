@@ -300,7 +300,7 @@ sub _Parse {
 		# If there was a gene object with an official HGNC Gene Symbol as displayname 
 		# it will be in most cases the preferred/first gene returned,
 		# but fetch_by_display_label may fetch somthing else than the gene with the official HGNC Gene Symbol
-		# if another gene object with higher "priority" happed to have a display label value that is not the HGNC Gene symbol we were looking for, 
+		# if another gene object with higher "priority" happened to have a display label value that is not the HGNC Gene symbol we were looking for, 
 		# but happened to be the same.
 		# This is problematic for example for gene "ACE", which links to multiple ENSG0000xxx IDs: ENSG00000264813 and ENSG00000159640.
 		# One of which has an display label "ACE" based on an HGNC Gene Symbol and the other based on a UniProt gn field.
