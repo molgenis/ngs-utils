@@ -73,7 +73,7 @@ inmat = inmat[, insert.col.selection, drop=F]
 ddmat = NULL
 for (fn in dedupmetrics.files)
 {
-	ddmat = rbind(ddmat, retrieve.table(fn, 6))
+	ddmat = rbind(ddmat, retrieve.table(fn, 0))
 }
 # According to Pieter vd Vlies, we should divide these number by two
 ddmat[, 'PERCENT_DUPLICATION'] = as.numeric(ddmat[, 'PERCENT_DUPLICATION']) / 2
