@@ -24,7 +24,7 @@ ${bold}Arguments${normal}
 	Optional:
 
 	-c|--coverageperbase	true or false (default: false)
-	-d|--data               What kind of data. exome (10 batches) or wgs (20 batches). (default: targeted = batchsize of 6 (3 + 2X + 1Y)
+	-d|--data               What kind of data. exome (10 batches) or wgs (20 batches) or chr (per chromosome,splitted X into 2 for par and nonpar region). (default: targeted = batchsize of 6 (3 + 2X + 1Y)
                                 in case of wgs samples there should be no padding (this will automatically skipped when wgs is chosen)
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: this folder)
@@ -121,9 +121,18 @@ batchCount_X=2
 if [ $DATA == "wgs" ]
 then
         BATCHCOUNT=17
+	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
 elif [ $DATA == "exome" ]
 then
         BATCHCOUNT=7
+	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
+elif [ $DATA == "chr" ]
+then
+	awk '{print $1}' ${NAME}.bed | sort | uniq > countChr.tmp
+	BATCHCOUNT=$(cat countChr.tmp | wc -l)
+	echo "BATCHCOUNT: $BATCHCOUNT"
+else
+	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
 fi
 
 echo "NAME: $NAME"
@@ -131,7 +140,6 @@ echo "INTERVALSFOLDER: $INTERVALFOLDER"
 echo "EXTENSION: $EXTENSION"
 echo "REFERENCE: $REFERENCE"
 echo "COVPERBASE: $COVPERBASE"
-echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
 
 MAP="${INTERVALFOLDER}"
 
@@ -233,6 +241,60 @@ then
 
 fi
 
+if [ "${DATA}" == "chr" ]
+then
+
+	if [ -f ${baits}.batch-1.bed ]
+	then
+    		echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
+	else
+    		batchIntervallistDir=${MAP}
+
+        	chrXNONPARBed=${baits}.batch-Xnp.bed
+        	chrXPARBed=${baits}.batch-Xp.bed
+
+#        	cat ${phiXRef} > ${AllWithoutchrXBed}
+#       	cat ${phiXRef} > ${chrXNONPARBed}
+	
+	LASTLINE=$(tail -n1 ${baits}.bed)
+	ONEBEFORELASTLINE=$(tail -n2 ${baits}.bed | head -1)
+	echo "ONEBEFORELASTLINE: $ONEBEFORELASTLINE"
+	OLDIFS=$IFS
+	set $ONEBEFORELASTLINE
+	echo $ONEBEFORELASTLINE
+	chromo=$1
+	position=$2
+
+        awk '{
+              	if ($1 == "X"){
+                        if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
+                                print $0 >> "'${chrXPARBed}'"
+                        } else {
+	                        print $0 >> "'${chrXNONPARBed}'"
+                        }
+                }else if ($1 == "NC_001422.1"){
+			#do nothing, will added later
+		}
+		else{
+                      	print $0 >> "captured.batch-"$1".bed"
+                }
+        }' ${baits}.bed
+
+	### Check where to put the phiXref	
+	if [ "${chromo}" == "X" ]
+	then
+		if [ ${position} -gt 60001 || ${position} -lt 2699520 || $position -gt 154931044 || $position -lt 155260560 ]
+		then
+			echo $LASTLINE >> captured.batch-Xp.bed
+		else
+			echo $LASTLINE >> captured.batch-Xnp.bed
+		fi 
+	else
+		echo $LASTLINE >> captured.batch-${chromo}.bed
+	fi
+fi
+
+else
 if [ -f ${baits}.batch-1.bed ]
 then
         echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
@@ -423,6 +485,7 @@ else
 	echo "batching complete"
 	rm -rf ${batchIntervallistDir}/temp_0*
 fi
+fi #end of if/else loop chr
 if [ ! -f ${MAP}/captured.femaleY.bed ]
 then
 	echo -e 'Y\t1\t2\t+' > ${MAP}/captured.femaleY.bed
