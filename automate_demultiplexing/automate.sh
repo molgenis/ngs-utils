@@ -2,9 +2,10 @@ set -e
 set -u
 
 module load NGS_Demultiplex
+module load ngs-utils
 
-WORKDIR="/groups/umcg-gaf/tmp05/"
-NEXTSEQDIR="${WORKDIR}/rawdata/nextseq/"
+WORKDIR="/groups/umcg-gaf/scr01/"
+NEXTSEQDIR="${WORKDIR}/sequencers/"
 SAMPLESHEETDIR="${WORKDIR}/Samplesheets/"
 
 ### Sequencer is writing to this location: $NEXTSEQDIR
@@ -36,7 +37,7 @@ do
                         	if [ -f ${SAMPLESHEETDIR}/${PROJECTNAME}.csv ]
                         	then
 					echo  "Check samplesheet" >> ${DEBUGGER}
-					python checkSampleSheet.py --input ${SAMPLESHEETDIR}/${PROJECTNAME}.csv
+					python $EBROOTNGSMINUTILS/automated_demultiplexing/checkSampleSheet.py --input ${SAMPLESHEETDIR}/${PROJECTNAME}.csv
 					if [ $? == 1 ]
 					then
 						echo "There is something wrong in the samplesheet! Exiting" >> ${DEBUGGER}
