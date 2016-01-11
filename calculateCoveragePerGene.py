@@ -14,15 +14,15 @@ my_hash={}
 
 for line in tekst.split("\n")[1:-1]:
         splitted=line.split('\t')
-        if splitted[3] in my_hash.keys():
-                my_hash[splitted[3]] += [int(splitted[4])]
+        if splitted[2] in my_hash.keys():
+                my_hash[splitted[2]] += [int(splitted[3])]
 
         else:
-             	my_hash.update({splitted[3]:[int(splitted[4])]})
+             	my_hash.update({splitted[2]:[int(splitted[3])]})
 totalMax=0
 totalMean=0
 
-fileW.write(GeneName + "\t" Mean coverage + "\n")
+fileW.write("GeneName\tMean coverage\n")
 
 for i in my_hash.keys():
         fileW.write(i + "\t" +  str(sum(my_hash[i])/len(my_hash[i]))+ "\n")
