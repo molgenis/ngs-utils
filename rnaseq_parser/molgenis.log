@@ -1,0 +1,147 @@
+DEBUG:PublicRNAseqParser.molgenis_wrapper:Trying to log in with data from /Users/NPK/secret.p to: http://localhost:8080/api/ with username: ***** password: *****
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'PreparedStatementCallback; SQL [DELETE FROM `public_rnaseq_4_File` WHERE `id` = ?]; Cannot delete or update a parent row: a foreign key constraint fails (`omx`.`public_rnaseq_4_hisat`, CONSTRAINT `public_rnaseq_4_hisat_ibfk_1` FOREIGN KEY (`err_file`) REFERENCES `public_rnaseq_4_File` (`id`)); nested exception is java.sql.BatchUpdateException: Cannot delete or update a parent row: a foreign key constraint fails (`omx`.`public_rnaseq_4_hisat`, CONSTRAINT `public_rnaseq_4_hisat_ibfk_1` FOREIGN KEY (`err_file`) REFERENCES `public_rnaseq_4_File` (`id`))'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:{'errors': [{'message': 'Cannot delete entity because there are other entities referencing it. Delete these first.'}]}
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add row to entity public_rnaseq_4_Analysis_info. Total: 1
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add row to entity public_rnaseq_4_Samples. Total: 6
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add row to entity public_rnaseq_4_Tools. Total: 7
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add a file to public_rnaseq_4_File. Total: 0
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add a file to public_rnaseq_4_File. Total: 1
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:16 - Add a file to public_rnaseq_4_File. Total: 2
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:17 - Add row to entity public_rnaseq_4_Hisat. Total: 8
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:17 - Add row to entity public_rnaseq_4_Tools. Total: 8
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:17 - Add row to entity public_rnaseq_4_Hisat. Total: 9
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:17 - Add row to entity public_rnaseq_4_Tools. Total: 9
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:18 - Add row to entity public_rnaseq_4_Hisat. Total: 10
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:18 - Add row to entity public_rnaseq_4_Tools. Total: 10
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:18 - Add row to entity public_rnaseq_4_Hisat. Total: 11
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:18 - Add row to entity public_rnaseq_4_Tools. Total: 11
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:19 - Add row to entity public_rnaseq_4_Hisat. Total: 12
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:19 - Add row to entity public_rnaseq_4_Tools. Total: 13
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:19 - Add a file to public_rnaseq_4_File. Total: 3
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:19 - Add a file to public_rnaseq_4_File. Total: 4
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:19 - Add a file to public_rnaseq_4_File. Total: 5
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:20 - Add row to entity public_rnaseq_4_Skipped_marker. Total: 17
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:20 - Add row to entity public_rnaseq_4_DepthRG. Total: 38
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:21 - Add row to entity public_rnaseq_4_DepthSM. Total: 59
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:21 - Add row to entity public_rnaseq_4_SelfRG. Total: 60
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:21 - Add row to entity public_rnaseq_4_SelfSM. Total: 61
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:21 - Add row to entity public_rnaseq_4_VerifyBamID. Total: 62
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:22 - Add row to entity public_rnaseq_4_Tools. Total: 62
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:22 - Add row to entity public_rnaseq_4_Skipped_marker. Total: 64
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:23 - Add row to entity public_rnaseq_4_DepthRG. Total: 85
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:23 - Add row to entity public_rnaseq_4_DepthSM. Total: 106
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:24 - Add row to entity public_rnaseq_4_SelfRG. Total: 107
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:24 - Add row to entity public_rnaseq_4_SelfSM. Total: 108
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:24 - Add row to entity public_rnaseq_4_VerifyBamID. Total: 109
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:25 - Add row to entity public_rnaseq_4_Tools. Total: 109
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:25 - Add row to entity public_rnaseq_4_Skipped_marker. Total: 113
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:25 - Add row to entity public_rnaseq_4_DepthRG. Total: 134
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:26 - Add row to entity public_rnaseq_4_DepthSM. Total: 155
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:26 - Add row to entity public_rnaseq_4_SelfRG. Total: 156
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:26 - Add row to entity public_rnaseq_4_SelfSM. Total: 157
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:27 - Add row to entity public_rnaseq_4_VerifyBamID. Total: 158
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:28 - Add row to entity public_rnaseq_4_Tools. Total: 158
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:28 - Add row to entity public_rnaseq_4_Skipped_marker. Total: 163
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:29 - Add row to entity public_rnaseq_4_DepthRG. Total: 184
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:30 - Add row to entity public_rnaseq_4_DepthSM. Total: 205
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:30 - Add row to entity public_rnaseq_4_SelfRG. Total: 206
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:30 - Add row to entity public_rnaseq_4_SelfSM. Total: 207
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:30 - Add row to entity public_rnaseq_4_VerifyBamID. Total: 208
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:32 - Add row to entity public_rnaseq_4_Tools. Total: 208
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:33 - Add row to entity public_rnaseq_4_DepthRG. Total: 229
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:33 - Add row to entity public_rnaseq_4_DepthSM. Total: 250
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:34 - Add row to entity public_rnaseq_4_SelfRG. Total: 251
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:34 - Add row to entity public_rnaseq_4_SelfSM. Total: 252
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:35 - Add row to entity public_rnaseq_4_VerifyBamID. Total: 253
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:36 - Add row to entity public_rnaseq_4_Tools. Total: 254
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:36 - Add a file to public_rnaseq_4_File. Total: 6
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:36 - Add a file to public_rnaseq_4_File. Total: 7
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:37 - Add a file to public_rnaseq_4_File. Total: 8
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:37 - Add row to entity public_rnaseq_4_SamToFilteredBam. Total: 255
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:39 - Add row to entity public_rnaseq_4_Tools. Total: 255
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:39 - Add row to entity public_rnaseq_4_SamToFilteredBam. Total: 256
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:40 - Add row to entity public_rnaseq_4_Tools. Total: 256
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:40 - Add row to entity public_rnaseq_4_SamToFilteredBam. Total: 257
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:42 - Add row to entity public_rnaseq_4_Tools. Total: 257
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:42 - Add row to entity public_rnaseq_4_SamToFilteredBam. Total: 258
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:45 - Add row to entity public_rnaseq_4_Tools. Total: 258
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:45 - Add row to entity public_rnaseq_4_SamToFilteredBam. Total: 259
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:46 - Add row to entity public_rnaseq_4_Tools. Total: 260
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:46 - Add a file to public_rnaseq_4_File. Total: 9
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:47 - Add a file to public_rnaseq_4_File. Total: 10
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:47 - Add a file to public_rnaseq_4_File. Total: 11
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:47 - Add row to entity public_rnaseq_4_SortBam. Total: 261
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:49 - Add row to entity public_rnaseq_4_Tools. Total: 261
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:49 - Add row to entity public_rnaseq_4_SortBam. Total: 262
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:51 - Add row to entity public_rnaseq_4_Tools. Total: 262
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:51 - Add row to entity public_rnaseq_4_SortBam. Total: 263
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:53 - Add row to entity public_rnaseq_4_Tools. Total: 263
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:53 - Add row to entity public_rnaseq_4_SortBam. Total: 264
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:54 - Add row to entity public_rnaseq_4_Tools. Total: 264
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:54 - Add row to entity public_rnaseq_4_SortBam. Total: 265
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:56 - Add row to entity public_rnaseq_4_Tools. Total: 266
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:56 - Add a file to public_rnaseq_4_File. Total: 12
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:56 - Add a file to public_rnaseq_4_File. Total: 13
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:57 - Add a file to public_rnaseq_4_File. Total: 14
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:57 - Add row to entity public_rnaseq_4_CRMetrics. Total: 267
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:59 - Add row to entity public_rnaseq_4_Tools. Total: 267
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:00:59 - Add row to entity public_rnaseq_4_CRMetrics. Total: 268
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:00 - Add row to entity public_rnaseq_4_Tools. Total: 268
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:01 - Add row to entity public_rnaseq_4_CRMetrics. Total: 269
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:02 - Add row to entity public_rnaseq_4_Tools. Total: 269
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:02 - Add row to entity public_rnaseq_4_CRMetrics. Total: 270
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:04 - Add row to entity public_rnaseq_4_Tools. Total: 270
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:04 - Add row to entity public_rnaseq_4_CRMetrics. Total: 271
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:06 - Add row to entity public_rnaseq_4_Tools. Total: 271
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:06 - Add a file to public_rnaseq_4_File. Total: 15
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:06 - Add a file to public_rnaseq_4_File. Total: 16
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:06 - Add a file to public_rnaseq_4_File. Total: 17
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:07 - Add row to entity public_rnaseq_4_Alignment_summary_metrics. Total: 274
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:10 - Add row to entity public_rnaseq_4_Quality_by_cycle_metrics. Total: 376
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:13 - Add row to entity public_rnaseq_4_Quality_distribution_metrics. Total: 478
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:13 - Add row to entity public_rnaseq_4_CMMetrics. Total: 479
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:15 - Add row to entity public_rnaseq_4_Tools. Total: 479
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:15 - Add row to entity public_rnaseq_4_Alignment_summary_metrics. Total: 482
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:18 - Add row to entity public_rnaseq_4_Quality_by_cycle_metrics. Total: 584
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:22 - Add row to entity public_rnaseq_4_Quality_distribution_metrics. Total: 686
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:22 - Add row to entity public_rnaseq_4_CMMetrics. Total: 687
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:27 - Add row to entity public_rnaseq_4_Tools. Total: 687
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:27 - Add row to entity public_rnaseq_4_Alignment_summary_metrics. Total: 690
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:30 - Add row to entity public_rnaseq_4_Quality_by_cycle_metrics. Total: 792
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:33 - Add row to entity public_rnaseq_4_Quality_distribution_metrics. Total: 894
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:35 - Add row to entity public_rnaseq_4_CMMetrics. Total: 895
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:42 - Add row to entity public_rnaseq_4_Tools. Total: 895
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:42 - Add row to entity public_rnaseq_4_Alignment_summary_metrics. Total: 898
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:45 - Add row to entity public_rnaseq_4_Quality_by_cycle_metrics. Total: 1000
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:48 - Add row to entity public_rnaseq_4_Quality_distribution_metrics. Total: 1102
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:01:52 - Add row to entity public_rnaseq_4_CMMetrics. Total: 1103
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:01 - Add row to entity public_rnaseq_4_Tools. Total: 1103
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:01 - Add row to entity public_rnaseq_4_Alignment_summary_metrics. Total: 1106
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:04 - Add row to entity public_rnaseq_4_Quality_by_cycle_metrics. Total: 1208
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:07 - Add row to entity public_rnaseq_4_Quality_distribution_metrics. Total: 1310
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:12 - Add row to entity public_rnaseq_4_CMMetrics. Total: 1311
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:23 - Add row to entity public_rnaseq_4_Tools. Total: 1311
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:23 - Add a file to public_rnaseq_4_File. Total: 18
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:23 - Add a file to public_rnaseq_4_File. Total: 19
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:23 - Add a file to public_rnaseq_4_File. Total: 20
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:24 - Add row to entity public_rnaseq_4_AddOrReplaceReadGroups. Total: 1312
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:34 - Add row to entity public_rnaseq_4_Tools. Total: 1312
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:34 - Add row to entity public_rnaseq_4_AddOrReplaceReadGroups. Total: 1313
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:45 - Add row to entity public_rnaseq_4_Tools. Total: 1313
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:45 - Add row to entity public_rnaseq_4_AddOrReplaceReadGroups. Total: 1314
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:55 - Add row to entity public_rnaseq_4_Tools. Total: 1314
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:02:55 - Add row to entity public_rnaseq_4_AddOrReplaceReadGroups. Total: 1315
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:03:05 - Add row to entity public_rnaseq_4_Tools. Total: 1315
+DEBUG:PublicRNAseqParser.molgenis_wrapper:00:03:05 - Add row to entity public_rnaseq_4_AddOrReplaceReadGroups. Total: 1316
