@@ -1,6 +1,8 @@
 set -e
 set -u
 
+. /home/umcg-rkanninga/modules.bashrc
+
 module load NGS_Demultiplex
 module load ngs-utils
 
