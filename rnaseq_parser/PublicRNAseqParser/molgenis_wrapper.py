@@ -78,6 +78,10 @@ class Connect_Molgenis():
                         security.remove_secrets_file()
                     security.require_username('Username')
                     security.require_password('Password')
+                    if not server_url.endswith('api/'):
+                        if not server_url.endswith('/'):
+                            server_url += '/'
+                        server_url += 'api/'
                     self.session = molgenis.Session(server_url)
                     self.logger.debug('Trying to log in with data from '+str(security.PASSPHRASE_FILE) +' to: '+server_url+' with username: '+'*'*len(security.retrieve('Username'))+' password: '+'*'*len(security.retrieve('Password')))
                     self.session.login(security.retrieve('Username'), security.retrieve('Password'))
