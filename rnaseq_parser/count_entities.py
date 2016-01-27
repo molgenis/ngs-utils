@@ -7,7 +7,7 @@ entities_done = ['DepthSM','SelfSM','Variant_summary','Validation_report','Ti_vv
                  'Variant_class_count','BQSR_before_grp','BQSR_after_grp','DepthRG','DepthSM','Ti_tv_variant_evaluator',
                  'CMMetrics','BaseQualityScoreRecalibration','GenotypeGvcf','SelfRG','Indel_length_histogram']
 entities = list(set(entities)-set(entities_done))
-database_filler = open('PublicRNAseqParser/parse_output.py')
+database_filler = open('RNAseqParser/parse_output.py')
 
 packages = []
 for line in database_filler:
