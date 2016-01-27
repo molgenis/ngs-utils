@@ -13,7 +13,7 @@ try:
 except ImportError:
     # Python 2.7
     import ConfigParser
-from PublicRNAseqParser import molgenis_wrapper
+from RNAseqParser import molgenis_wrapper
 import sys
 import requests
 
@@ -223,7 +223,9 @@ with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
     if args.combineBed:
         parse_output.parse_combineBedFiles(rundir_QC, connection, package)
     if args.md5sum:
-        parse_output.parse_md5sums(connection, package)
+        pass
+        # WORK IN PROGRESS
+        # parse_output.parse_md5sums(connection, package)
     if args.variantEval:
         parse_output.parse_variantEval(rundir_QC,connection,package=package)
     if args.bqsr:
