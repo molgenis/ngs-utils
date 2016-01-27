@@ -1,11 +1,17 @@
 [paths]
-ena = /Users/NPK/UMCG/projects/ENA/2015-06-08-ENA.txt
-runinfo_folder_qc = /Users/NPK/UMCG/projects/ATACseq/ATACseq/rundir/QC/
-runinfo_folder_genotypecalling = /Users/NPK/UMCG/projects/ATACseq/ATACseq/rundir/genotypeCalling/
+# ena is a file with all the meta data of all the ENA samples
+ena = ../data/2015-06-08-ENA.txt  2015-06-08-ENA.txt
+# rundir is the folder that contains the .sh job files and the .err and .out log files
+# rundir for QC pipeline
+runinfo_folder_qc = /path/to/folder/qc_rundir
+# rundir for genotypeCalling pipeline
+runinfo_folder_genotypecalling = /path/to/folder/genotype_rundir
+# rundir for quantification pipeline
 runinfo_folder_quantification = /Users/NPK/UMCG/projects/ATACseq/ATACseq/rundir/quantification/
-samplesheet = /Users/NPK/UMCG/projects/ATACseq/samplesheet_ATACseq_QC.csv
-project_folder = /Users/NPK/UMCG/projects/ATACseq/ATACseq/projects/
-entities = PublicRNAseqParser/entities.txt
+# samplesheet that was used which includes all the samples run through the QC pipeline
+samplesheet = ../data/samplesheet.csv
+# A list of all the entities for which to delete all info when using --delete_all option
+entities = PublicRNAseqParser/entities.txt   # example entities file
 
 [settings]
 analysis_id = 1

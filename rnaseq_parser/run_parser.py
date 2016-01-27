@@ -88,7 +88,6 @@ parser.add_argument("--password_location", help="Location to save password to (s
 parser.add_argument("--experiment_type", help="Change the experiment type in the Config file (rna_seq,atac_seq,pro_seq,unkown,hic-seq,dnase-seq,gro_seq)", default=configSectionMap("settings")['experiment_type'])
 parser.add_argument("--ENA_path", help="Change the path to ENA info file in the Config file", default=configSectionMap("paths")['ena'])
 parser.add_argument("--max_rows", help="Set the maximum amount of rows to be added at the same time", default=configSectionMap("settings")['max_rows'])
-parser.add_argument("--project_folder", help="Set the project folder location", default=configSectionMap("paths")['project_folder'])
 args = parser.parse_args()
 
 # overwrite the values in the config file with any values given on the command line. 
@@ -107,7 +106,6 @@ with open(r'PublicRNAseqParser/CONFIG','w') as configfile:
     config.set('settings','password_location',args.password_location)
     config.set('settings','experiment_type',args.experiment_type)
     config.set('settings','max_rows', args.max_rows)
-    config.set('settings','project_folder',args.project_folder)
     config.write(configfile)    
     
 # This is imported here instead of at the top because if --max_rows is used 
@@ -225,7 +223,9 @@ with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
     if args.combineBed:
         parse_output.parse_combineBedFiles(rundir_QC, connection, package)
     if args.md5sum:
-        parse_output.parse_md5sums(connection, package)
+        pass
+        # WORK IN PROGRESS
+        # parse_output.parse_md5sums(connection, package)
     if args.variantEval:
         parse_output.parse_variantEval(rundir_QC,connection,package=package)
     if args.bqsr:
