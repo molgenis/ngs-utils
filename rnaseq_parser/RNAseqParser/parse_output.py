@@ -5,7 +5,7 @@ Created on Jul 4, 2015
 
 TODO: Make sure all non-rnaseqtool tables also get duplicate value prevention
 '''
-from PublicRNAseqParser import molgenis_wrapper
+from RNAseqParser import molgenis_wrapper
 import warnings
 import os
 import re
@@ -15,7 +15,7 @@ import zipfile
 import configparser
 import requests
 config = configparser.RawConfigParser()
-config.read(r'PublicRNAseqParser/CONFIG')
+config.read(r'RNAseqParser/CONFIG')
 if __name__ == "__main__":
     config.read(r'CONFIG')
 def configSectionMap(section):
