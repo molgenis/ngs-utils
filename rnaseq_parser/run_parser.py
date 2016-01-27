@@ -92,7 +92,7 @@ parser.add_argument("--max_rows", help="Set the maximum amount of rows to be add
 args = parser.parse_args()
 
 if len(sys.argv)==1:
-    parser.print_help()
+    parser.print_usage()
     sys.exit(1)
 # overwrite the values in the config file with any values given on the command line. 
 # If none given, the overwritten value is same as current value in the config file
