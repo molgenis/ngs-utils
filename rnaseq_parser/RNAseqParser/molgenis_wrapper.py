@@ -7,12 +7,12 @@
 import json
 import requests
 import os.path
-from PublicRNAseqParser import security
+from RNAseqParser import security
 import time
 import logging
 from datetime import datetime
 import timeit
-from PublicRNAseqParser import molgenis
+from RNAseqParser import molgenis
 class Connect_Molgenis():
     """This class only has __enter__ and __exit__ function to force use of with statement. This way the passwords saved to file can be cleaned up"""
     def __init__(self, server_url, remove_pass_file = True, new_pass_file = True, password_location = '~',log_file = 'molgenis.log', logging_level='DEBUG', logfile_mode = 'w', profile=True):
