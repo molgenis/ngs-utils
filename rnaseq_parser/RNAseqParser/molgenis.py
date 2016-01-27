@@ -146,14 +146,16 @@ class Session():
     def get_entity_meta_data(self, entity):
         '''Retrieves the metadata for an entity repository.'''
         response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta?expand=attributes", headers = self._get_token_header()).json()
-        if not isinstance(response,dict):
-            response.raise_for_status();
+        response.raise_for_status();
         return response;
 
     def get_attribute_meta_data(self, entity, attribute):
         '''Retrieves the metadata for a single attribute of an entity repository.'''
         response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta/"+ quote_plus(attribute), headers = self._get_token_header()).json()
-        response.raise_for_status();
+        try:
+            response.raise_for_status();
+        except AttributeError:
+            raise AttributeError(response)
         return response;
 
     def _get_token_header(self):
