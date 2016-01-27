@@ -1,3 +1,4 @@
+
 [paths]
 # ena is a file with all the meta data of all the ENA samples
 ena = ../data/example_ENA_table.txt
@@ -23,4 +24,3 @@ experiment_type = rna_seq
 new_pass_file = True
 password_location = ~
 max_rows = 1000
-

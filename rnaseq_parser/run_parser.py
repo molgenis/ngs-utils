@@ -24,7 +24,7 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 config = configparser.RawConfigParser()
-config.read(r'PublicRNAseqParser/CONFIG')
+config.read(r'RNAseqParser/CONFIG')
 def configSectionMap(section):
     configs = {}
     options = config.options(section)
@@ -92,7 +92,7 @@ args = parser.parse_args()
 
 # overwrite the values in the config file with any values given on the command line. 
 # If none given, the overwritten value is same as current value in the config file
-with open(r'PublicRNAseqParser/CONFIG','w') as configfile:
+with open(r'RNAseqParser/CONFIG','w') as configfile:
     config.set('paths','ena',args.ENA_path)
     config.set('settings','analysis_id',args.analysis_id)
     config.set('paths','runinfo_folder_qc',args.runinfo_folder_qc)
@@ -110,10 +110,10 @@ with open(r'PublicRNAseqParser/CONFIG','w') as configfile:
     
 # This is imported here instead of at the top because if --max_rows is used 
 # it won't be set until the second time you run it, as the input file will already be read
-from PublicRNAseqParser import parse_output
+from RNAseqParser import parse_output
 
 print('Running parse_RNAseq_parser with configuration options:')
-print((open('PublicRNAseqParser/CONFIG').read()))
+print((open('RNAseqParser/CONFIG').read()))
   
 # make a connection to the molgenis database. This connection will be passed to the other functions
 with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
