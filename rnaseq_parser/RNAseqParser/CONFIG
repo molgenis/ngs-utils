@@ -1,6 +1,6 @@
 [paths]
 # ena is a file with all the meta data of all the ENA samples
-ena = ../data/2015-06-08-ENA.txt  2015-06-08-ENA.txt
+ena = ../data/example_ENA_table.txt
 # rundir is the folder that contains the .sh job files and the .err and .out log files
 # rundir for QC pipeline
 runinfo_folder_qc = /path/to/folder/qc_rundir
@@ -11,7 +11,7 @@ runinfo_folder_quantification = /Users/NPK/UMCG/projects/ATACseq/ATACseq/rundir/
 # samplesheet that was used which includes all the samples run through the QC pipeline
 samplesheet = ../data/samplesheet.csv
 # A list of all the entities for which to delete all info when using --delete_all option
-entities = PublicRNAseqParser/entities.txt   # example entities file
+entities = RNAseqParser/entities.txt   # example entities file
 
 [settings]
 analysis_id = 1
