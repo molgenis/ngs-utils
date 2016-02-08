@@ -16,7 +16,7 @@ class Session():
     >>> session.login('user', 'password')
     >>> session.get('Person')
     '''
-    def __init__(self, url="http://localhost:8080/api/"):
+    def __init__(self, url):
         '''Constructs a new Session.
         Args:
         url -- URL of the REST API. Should be of form 'http[s]://<molgenis server>[:port]/api/'
@@ -25,7 +25,6 @@ class Session():
         >>> connection = molgenis.Session('http://localhost:8080/api/')
         '''
         self.url = url
-        
         self.session = requests.Session()
 
     def login(self, username, password):
@@ -69,7 +68,7 @@ class Session():
         session.get('Person')
         '''
         if q:
-            response = self.session.post(self.url + "v1/" + quote_plus(entity),
+            response = self.session.post(self.url + "v1/" + quote_plus(entity).replace('%2F','/'),
                 headers = self._get_token_header_with_content_type(),
                 params={"_method":"GET", "attributes":attributes, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder},
                 data=json.dumps({"q":q}))
@@ -78,7 +77,10 @@ class Session():
                 headers = self._get_token_header(),
                 params={"attributes":attributes, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder})
         if response.status_code == 200:
-            return response.json()["items"]
+            if 'items' in response.json():
+                return response.json()["items"]
+            else:
+                return response.json()
         response.raise_for_status();
         return response;
 
@@ -121,42 +123,23 @@ class Session():
         response.raise_for_status();
         return response;
 
-    def update(self, entity_name, row_id, data = {}, **kwargs):
-        '''Updates 1 or more attributes of a single entity row
-
-        Args:
-        entity -- fully qualified name of the entity
-        row_id -- id of the row of the entity to update
-        data -- dictionary mapping attribute name to non-file attribute value for the entity row, gets merged with the kwargs argument
-        **kwargs -- keyword arguments get merged with the data argument
-        '''
-        server_response_list = []
-        for key in data:
-            response = self.session.put(self.url+'v1/'+quote_plus(entity_name)+'/'+str(row_id)+'/'+key, data='"'+data[key]+'"', headers = self._get_token_header_with_content_type())
-            response.raise_for_status();
-            server_response_list.append(response)
-        return server_response_list
-
     def delete(self, entity, id):
         '''Deletes a single entity row from an entity repository.'''
-        response = self.session.delete(self.url + "v1/" + quote_plus(entity)+ "/" + quote_plus(str(id))+'/', headers = self._get_token_header())
+        response = self.session.delete(self.url + "v1/" + quote_plus(entity)+ "/" + quote_plus(id), headers = self._get_token_header())
         response.raise_for_status();
         return response;
 
     def get_entity_meta_data(self, entity):
         '''Retrieves the metadata for an entity repository.'''
-        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta?expand=attributes", headers = self._get_token_header()).json()
+        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta?expand=attributes", headers = self._get_token_header())
         response.raise_for_status();
-        return response;
+        return response.json();
 
     def get_attribute_meta_data(self, entity, attribute):
         '''Retrieves the metadata for a single attribute of an entity repository.'''
-        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta/"+ quote_plus(attribute), headers = self._get_token_header()).json()
-        try:
-            response.raise_for_status();
-        except AttributeError:
-            raise AttributeError(response)
-        return response;
+        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta/"+ quote_plus(attribute), headers = self._get_token_header())
+        response.raise_for_status();
+        return response.json();
 
     def _get_token_header(self):
         '''Creates an 'x-molgenis-token' header for the current session.'''
@@ -177,5 +160,16 @@ class Session():
         z = x.copy()
         z.update(y)
         return z
+    
+    def update(self, entity_name, row_id, data = {}, **kwargs):
+        '''Updates 1 or more attributes of a single entity row
 
-                
+        Args:
+        entity -- fully qualified name of the entity
+        row_id -- id of the row of the entity to update
+        data -- dictionary mapping attribute name to non-file attribute value for the entity row, gets merged with the kwargs argument
+        **kwargs -- keyword arguments get merged with the data argument
+        '''
+        for key in data:
+            response = self.session.put(self.url+'v1/'+quote_plus(entity_name)+'/'+str(row_id)+'/'+key, data='"'+data[key]+'"', headers = self._get_token_header_with_content_type())
+            response.raise_for_status()

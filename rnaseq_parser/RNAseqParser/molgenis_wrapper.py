@@ -78,13 +78,39 @@ class Connect_Molgenis():
                         security.remove_secrets_file()
                     security.require_username('Username')
                     security.require_password('Password')
+                    self.server_url = server_url
                     if not server_url.endswith('api/'):
                         if not server_url.endswith('/'):
                             server_url += '/'
                         server_url += 'api/'
                     self.session = molgenis.Session(server_url)
                     self.logger.debug('Trying to log in with data from '+str(security.PASSPHRASE_FILE) +' to: '+server_url+' with username: '+'*'*len(security.retrieve('Username'))+' password: '+'*'*len(security.retrieve('Password')))
-                    self.session.login(security.retrieve('Username'), security.retrieve('Password'))
+                    try:
+                        self.session.login(security.retrieve('Username'), security.retrieve('Password'))
+                    except requests.exceptions.HTTPError as e:
+                        if 'Not Found for url' in str(e):
+                            self.logger.debug('login failed, trying again')
+                            if server_url.startswith('http:'):
+                                server_url = server_url.replace('http:','https:')
+                                self.session = molgenis.Session(server_url)
+                            elif server_url.startswith('https:'):
+                                server_url = server_url.replace('https:','http:')
+                                self.session = molgenis.Session(server_url)
+                            self.logger.debug('Trying to log in with data from '+str(security.PASSPHRASE_FILE) +' to: '+server_url+' with username: '+'*'*len(security.retrieve('Username'))+' password: '+'*'*len(security.retrieve('Password')))
+                            try:
+                                self.session.login(security.retrieve('Username'), security.retrieve('Password'))
+                            except requests.exceptions.HTTPError as e:
+                                if 'Unauthorized for url' in str(e):
+                                    raise requests.exceptions.HTTPError(str(e)+'\nInvalid username or password')
+                                else:
+                                    raise
+                        elif 'Unauthorized for url' in str(e):
+                            raise requests.exceptions.HTTPError(str(e)+'\nInvalid username or password')
+                        else:
+                            if len(security.retrieve('Username')) == 0 or len(security.retrieve('Password')) == 0:
+                                raise requests.exceptions.HTTPError(str(e)+'\nError possibly because username or password is empty')
+                            else:
+                                raise
                     self.entity_meta_data = {}
                     self.column_meta_data = {}
                     self.added_rows = 0
@@ -119,7 +145,7 @@ class Connect_Molgenis():
                     raise ValueError('add_type can only be entity_row or file')
                 self.logger.debug(message)
                 
-            def _check_duplicate(self, entity, data):    
+            def _check_duplicate(self, entity, data):
                 meta_data = self.get_entity_meta_data(entity)
                 unique_attributes = []
                 for attribute in meta_data['attributes']:
@@ -177,7 +203,7 @@ class Connect_Molgenis():
                     data = [data]
                 if len(data) == 0:
                     raise ValueError('data_list is an empty list, needs to contain a dictionary')
-                data,duplicate_ids = self._check_duplicate(entity, data)
+                #data,duplicate_ids = self._check_duplicate(entity, data)
                 sanitized_data_list = [self._sanitize_data(data,'datetime_added','added_by') for data in data]
                 # post to the entity with the json data
                 if len(sanitized_data_list) == 1 and len(sanitized_data_list[0]) == 0:
@@ -185,10 +211,14 @@ class Connect_Molgenis():
                 try:
                     added_ids = self.session.add_all(entity, sanitized_data_list)
                 except requests.exceptions.HTTPError as e:
-                    print(e.response.json())
+                    try:
+                        # if there is json() information, add it to the error message, as this gives the user information on actual problem
+                        self.logger.debug(str(e.response.json()))
+                    except AttributeError:
+                        pass
                     raise
                 self.added_rows += len(sanitized_data_list)
-                added_ids += duplicate_ids
+                #added_ids += duplicate_ids
                 self._logging(entity,'entity_row')
                 return added_ids
 
@@ -244,7 +274,10 @@ class Connect_Molgenis():
                     try:
                         items = self.session.get(entity, q = query, attributes=attributes, num=num, start=start, sortColumn=sortColumn, sortOrder=sortOrder)
                     except requests.exceptions.HTTPError as e:
-                        self.logger.debug(e.response.json())
+                        try:
+                            self.logger.debug(e.response.json())
+                        except json.decoder.JSONDecodeError:
+                            pass
                         raise
                 else:
                     items = self.session.get(entity,attributes=attributes, num=num, start=start, sortColumn=sortColumn, sortOrder=sortOrder)         
@@ -271,6 +304,7 @@ class Connect_Molgenis():
                     except requests.exceptions.HTTPError as e:
                         self.logger.debug(e.response.json())
                         raise
+                    self.logger.debug(time.strftime('%H:%M:%S', time.gmtime(timeit.default_timer()-self.time_start))+' - Updated value of entity '+entity)
                     return server_response
                 elif query_list:
                     queries = []
@@ -283,6 +317,7 @@ class Connect_Molgenis():
                     for entity_item in entity_data:
                         server_response = self.session.update(entity, str(entity_item[str(id_attribute)]), data)
                         server_response = server_response
+                        self.logger.debug(time.strftime('%H:%M:%S', time.gmtime(timeit.default_timer()-self.time_start))+' - Updated value of entity '+entity)
                     return server_response
                 else:
                     raise ValueError('update_entity_rows function called without setting either row_id or query_list (one of the two needed to know which row to update)')
@@ -298,7 +333,11 @@ class Connect_Molgenis():
                 '''
                 if entity in self.entity_meta_data:
                     return self.entity_meta_data[entity]
-                entity_meta_data = self.session.get_entity_meta_data(entity)
+                try:
+                    entity_meta_data = self.session.get_entity_meta_data(entity)
+                except requests.exceptions.HTTPError as e:
+                    raise requests.exceptions.HTTPError(str(e)+\
+                            '\nCheck if the package name in Config is correct and that an EMX is uploaded to Molgenis server '+str(self.server_url ))
                 self.entity_meta_data[entity] = entity_meta_data
                 return entity_meta_data
         
@@ -375,7 +414,6 @@ class Connect_Molgenis():
                 if len(items) == 0:
                     self.logger.error('Query returned 0 results, no row to delete.')
                     raise Exception('Query returned 0 results, no row to delete.')
-                self.delete_entity_data(entity, items)
         
             def delete_entity_data(self, entity, items):
                 '''delete entity data
