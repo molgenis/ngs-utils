@@ -5,7 +5,6 @@ Created on Jul 4, 2015
 
 TODO: Make sure all non-rnaseqtool tables also get duplicate value prevention
 '''
-from RNAseqParser import molgenis_wrapper
 import warnings
 import os
 import re
@@ -39,6 +38,7 @@ def add_multiple_rows(entity, data,connection):
     Returns:
         list of added IDs
     '''
+    # Need to chunk because more than 1000 rows at the same time not allowed 
     def chunker(seq, size):
         return (seq[pos:pos + size] for pos in range(0, len(seq), size))
     added_ids = []
@@ -94,31 +94,54 @@ def parse_samples(sample_sheet_path,connection,package,experiment_type):
     print ('Start Samples')
     sample_sheet_file = open(sample_sheet_path)
     column_names = sample_sheet_file.readline().strip('\n').split(',')
-    to_add = []
+    added_ids = []
+    sample_input_files = {}
     for line in sample_sheet_file:
         line = line.strip()
         project = line.split(',')[1]
         sample_name = line.split(',')[2]
         input_file_1_path = line.split(',')[3]
         input_file_2_path = line.split(',')[4]
+        
         samples_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id)
-        data = {'id':samples_id,'project':project,'sample_name':sample_name,'input_file_1_path':input_file_1_path,'input_file_2_path':input_file_2_path,
+        data = {'input_file_1_path':input_file_1_path,'input_file_2_path':input_file_2_path,'id':input_file_1_path+input_file_2_path}
+        try:
+            connection.add(entity=package+'Sample_input_files', data=data)
+        except requests.exceptions.HTTPError as e:
+                try:
+                    if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                        print('Dupliate sample files, ignoring...')
+                    else:
+                        raise
+                except AttributeError:
+                    raise
+        input_file_path_id = input_file_1_path+input_file_2_path
+        if samples_id in sample_input_files:
+            sample_input_files[samples_id] += ','+input_file_path_id
+        sample_input_files[samples_id] = input_file_path_id
+        data = {'sample_id':samples_id,'project':project,'sample_name':sample_name,
                 'analysis_id':analysis_id,'experiment_type':experiment_type}
         if len(input_file_2_path)==0:
             del(data['input_file_2_path'])
             data['sequence_type'] = 'single'
         else:
             data['sequence_type'] = 'paired'
-        to_add.append(data)
-    #try:
-    added_ids = add_multiple_rows(entity=package+'Samples',data=to_add,connection=connection)
-    #except requests.exceptions.HTTPError as e:
-    #    try:
-    #        if 'Duplicate value' in e.response.json()['errors'][0]['message']:
-    #            print(e.response.json()['errors'][0]['message'])
-    #    except ValueError:
-    #        raise
-       
+        # have to add samples one by one because sampleNames can be non-unique. If more are added at the same time all of them fail
+        try:
+            added_ids.append(connection.add(entity=package+'Samples', data=data))
+        except requests.exceptions.HTTPError as e:
+            try:
+                # Ignore duplicate values, because two samples can happen
+                # Only takes a lot of time, so could be improved by checking before is sample is already in.. dont know yet how to do efficiently
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    print('Dupliate samples, ignoring...')
+                else:
+                    raise
+            except AttributeError:
+                raise
+    for sample_id in sample_input_files:
+        connection.update_entity_rows(package+'Samples', data={'input_file_paths':sample_input_files[sample_id]}, row_id = sample_id)  
+         
 def parse_rnaseq_tools(sh_file_path,connection,package):
     '''filepath to .sh file used to run tool'''
     def time_from_log(logfile_text):
@@ -152,11 +175,27 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
             name = tool[0]
             version = tool[1]
             to_add.append({'id':name+'-'+version,'tool_name':name,'version':version})
-        tool_ids = ','.join(add_multiple_rows(entity=package+'Tools',data=to_add, 
-                                connection=connection))          
+        try:
+            tool_ids = ','.join(add_multiple_rows(entity=package+'Tools',data=to_add, 
+                                connection=connection))
+        except requests.exceptions.HTTPError as e:
+            try:
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    print('Dupliate tools, ignoring...')
+                else:
+                    raise
+            except AttributeError:
+                raise 
+                     
         basefile = os.path.splitext(sh_file)[0]
-        err_text = open(basefile+'.err','rb').read().decode("utf-8") 
-        out_text = open(basefile+'.out','rb').read().decode("utf-8") 
+        try:
+            err_text = open(basefile+'.err','rb').read().decode("utf-8")
+        except FileNotFoundError:
+            err_text = basefile+'.err'+"  not found" 
+        try:
+            out_text = open(basefile+'.out','rb').read().decode("utf-8")
+        except FileNotFoundError:
+            out_text = basefile+'.err'+"  not found"  
         try:
             runtime = str(int(time_from_log(out_text)))
         except AttributeError:
@@ -1032,14 +1071,18 @@ def parse_mergeGvcf(runinfo_folder_genotypeCalling,connection,package):
 def parse_genotypeHarmonizer(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start genotypeHarmonizer')
-    for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'GenotypeHarmonizer*.sh'),connection, package):
-        data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
-                'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'GenotypeHarmonizer', data)[0]
-        genotypeHarmonizer_data = connection.get(package+'GenotypeHarmonizer', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
-        if len(genotypeHarmonizer_data) >0 and len(genotypeHarmonizer_data[0]['id']) > 0:
-            added_id = genotypeHarmonizer_data[0]['id']+','+added_id
-        connection.update_entity_rows(package+'Samples', data={'genotypeHarmonizer':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+    try:
+        for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'GenotypeHarmonizer*.sh'),connection, package):
+            data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
+                    'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+            added_id = connection.add(package+'GenotypeHarmonizer', data)[0]
+            genotypeHarmonizer_data = connection.get(package+'GenotypeHarmonizer', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+            if len(genotypeHarmonizer_data) >0 and len(genotypeHarmonizer_data[0]['id']) > 0:
+                added_id = genotypeHarmonizer_data[0]['id']+','+added_id
+            connection.update_entity_rows(package+'Samples', data={'genotypeHarmonizer':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+    except ValueError as e:
+        print(str(e))
+        print('Ignoring, moving on...')
 def parse_indelRealignmentKnown(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start indelRealignmentKnown')
@@ -1049,15 +1092,15 @@ def parse_indelRealignmentKnown(runinfo_folder_genotypeCalling,connection,packag
         added_id = connection.add(package+'IndelRealignmentKnown', data)[0] 
         connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'indelRealignmentKnown':added_id})
 
-if __name__ == "__main__":
-    connection = molgenis.Connect_Molgenis('http://localhost:8080',new_pass_file=False)
-    runinfo_QC = configSectionMap("paths")['runinfo_folder_qc']
-    runinfo_genotypeCalling = configSectionMap("paths")['runinfo_folder_genotypecalling']
-    runinfo_folder_quantification = configSectionMap("paths")['runinfo_folder_quantification']
-    package = configSectionMap("settings")['package']
-    parse_mergeGvcf(runinfo_genotypeCalling,connection,package)
-    parse_genotypeHarmonizer(runinfo_genotypeCalling,connection,package)
-    parse_indelRealignmentKnown(runinfo_genotypeCalling,connection,package)
+#if __name__ == "__main__":
+#    connection = molgenis.Connect_Molgenis('http://localhost:8080',new_pass_file=False)
+#    runinfo_QC = configSectionMap("paths")['runinfo_folder_qc']
+#    runinfo_genotypeCalling = configSectionMap("paths")['runinfo_folder_genotypecalling']
+#    runinfo_folder_quantification = configSectionMap("paths")['runinfo_folder_quantification']
+#    package = configSectionMap("settings")['package']
+#    parse_mergeGvcf(runinfo_genotypeCalling,connection,package)
+#    parse_genotypeHarmonizer(runinfo_genotypeCalling,connection,package)
+#    parse_indelRealignmentKnown(runinfo_genotypeCalling,connection,package)
     
     #connection.delete_all_entity_rows(package+'_Samples')
     
