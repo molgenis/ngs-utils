@@ -8,7 +8,7 @@ import time
 ### FUNCTIONS
 def Homocygote(gt):
     # Is Homocygote?
-    #Input Example: "A|A"
+    #Input Example: "A|A" O: True
     if gt.split("|")[0] != gt.split("|")[1]:
         return False
     else:
@@ -16,7 +16,7 @@ def Homocygote(gt):
 
 def Double_mismatch(gt1,gt2):
     # Is it double mismatcht: "A|T" "T|A"
-    #Input Example: "A|T" "T|A"
+    #Input Example: "A|T" "T|A" O: True
     if ( gt1.split("|")[0] == gt2.split("|")[0] or
          gt1.split("|")[1] == gt2.split("|")[1]
         ):
@@ -26,7 +26,7 @@ def Double_mismatch(gt1,gt2):
 
 def Switch_authority(ref_gt, eva_gt, reverse=False):
     # Function says if the mismatch deserves to switch the phasing
-    # Input Example: "A|A" "A|T" True
+    # Input Example: "A|A" "A|T" False
     # Output Example: False
     # current limitations: Trialellic SNPs, cannot detect all swaps
 
