@@ -89,8 +89,7 @@ do
 						echo "jobs submitted, pipeline is running" >> ${LOGGERPIPELINE}
                                        		touch ${LOGSDIR}/${PROJECTNAME}_Demultiplexing.started
 						echo "De demultiplexing pipeline is gestart, over een aantal uren zal dit klaar zijn \
-						en word de data automatisch naar zinc-finger gestuurd, hierna  word de pipeline gestart" \ 
-						| mail -s "Het demultiplexen van ug is gestart op (`date +%d/%m/%Y` `date +%H:%M`)" ${ONTVANGER}
+						en word de data automatisch naar zinc-finger gestuurd, hierna  word de pipeline gestart" | mail -s "Het demultiplexen van ug is gestart op (`date +%d/%m/%Y` `date +%H:%M`)" ${ONTVANGER}
 					fi
 				fi
                         else
@@ -113,10 +112,7 @@ then
 	COUNT=$(cat /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}_Check.txt | wc -l)
 	if [ $COUNT == 10 ]
 	then
-		mail -s "Er is geen samplesheet gevonden voor /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}.csv" ${ONTVANGER}
-		### MAIL SOMEONE
-		echo "MAIL SOMEONE"
-		
-		
+		echo "Er is geen samplesheet gevonden op deze locatie: /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}.csv" | mail -s "Er is geen samplesheet gevonden voor ${PROJECTNAME}" ${ONTVANGER}
+		echo "mail has been sent to ${ONTVANGER}"
 	fi
 fi
