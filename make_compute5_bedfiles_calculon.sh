@@ -225,7 +225,10 @@ then
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
-
+	if [ ! -f ${baits}.genesOnly ]
+	then	
+		awk '{print $5}' ${baits} > ${baits}.genesOnly
+	fi	
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
