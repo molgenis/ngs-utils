@@ -3,10 +3,14 @@ set -u
 
 module load NGS_Demultiplex
 module load ngs-utils
+module load Python
+module list
 
 WORKDIR="/groups/umcg-gaf/scr01/"
+LOGSDIR="${WORKDIR}/logs/"
 NEXTSEQDIR="${WORKDIR}/sequencers/"
 SAMPLESHEETDIR="${WORKDIR}/Samplesheets/"
+ONTVANGER="helpdesk.gcc.groningen@gmail.com"
 
 ### Sequencer is writing to this location: $NEXTSEQDIR
 ### Looping through to see if all files
@@ -14,7 +18,7 @@ for i in $(ls -1 -d ${NEXTSEQDIR}/*/)
 do
 	## PROJECTNAME is sequencingStartDate_sequencer_run_flowcell
 	PROJECTNAME=$(basename ${i})
-	DEBUGGER=${NEXTSEQDIR}/${PROJECTNAME}_logger.txt
+	DEBUGGER=${LOGSDIR}/${PROJECTNAME}_logger.txt
 	OLDIFS=$IFS
 	IFS=_
 	set $PROJECTNAME
@@ -30,14 +34,14 @@ do
                 then
 			echo "Check if the demultiplexing is already started" >> ${DEBUGGER}
 			### Check if the demultiplexing is already started
-			if [ ! -f ${NEXTSEQDIR}/${PROJECTNAME}_Demultiplexing.started ]
+			if [ ! -f ${LOGSDIR}/${PROJECTNAME}_Demultiplexing.started ]
 			then
 			### Check if Samplesheet is there
                         echo  "(${PROJECTNAME}) Check if Samplesheet is there" >> ${DEBUGGER}
                         	if [ -f ${SAMPLESHEETDIR}/${PROJECTNAME}.csv ]
                         	then
 					echo  "Check samplesheet" >> ${DEBUGGER}
-					python $EBROOTNGSMINUTILS/automated_demultiplexing/checkSampleSheet.py --input ${SAMPLESHEETDIR}/${PROJECTNAME}.csv
+					python $EBROOTNGSMINUTILS/automate_demultiplexing/checkSampleSheet.py --input ${SAMPLESHEETDIR}/${PROJECTNAME}.csv
 					if [ $? == 1 ]
 					then
 						echo "There is something wrong in the samplesheet! Exiting" >> ${DEBUGGER}
@@ -83,8 +87,9 @@ do
 
 						sh submit.sh
 						echo "jobs submitted, pipeline is running" >> ${LOGGERPIPELINE}
-                                       		touch ${NEXTSEQDIR}/${PROJECTNAME}_Demultiplexing.started
-
+                                       		touch ${LOGSDIR}/${PROJECTNAME}_Demultiplexing.started
+						echo "De demultiplexing pipeline is gestart, over een aantal uren zal dit klaar zijn \
+						en word de data automatisch naar zinc-finger gestuurd, hierna  word de pipeline gestart" | mail -s "Het demultiplexen van ug is gestart op (`date +%d/%m/%Y` `date +%H:%M`)" ${ONTVANGER}
 					fi
 				fi
                         else
@@ -105,9 +110,9 @@ done
 if [ -f /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}_Check.txt ]
 then
 	COUNT=$(cat /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}_Check.txt | wc -l)
-	if [ $COUNT % 10 ]
+	if [ $COUNT == 10 ]
 	then
-		### MAIL SOMEONE
-		echo "MAIL SOMEONE"
+		echo "Er is geen samplesheet gevonden op deze locatie: /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}.csv" | mail -s "Er is geen samplesheet gevonden voor ${PROJECTNAME}" ${ONTVANGER}
+		echo "mail has been sent to ${ONTVANGER}"
 	fi
 fi
