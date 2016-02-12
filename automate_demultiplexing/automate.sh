@@ -10,9 +10,8 @@ WORKDIR="/groups/umcg-gaf/scr01/"
 LOGSDIR="${WORKDIR}/logs/"
 NEXTSEQDIR="${WORKDIR}/sequencers/"
 SAMPLESHEETDIR="${WORKDIR}/Samplesheets/"
-##!!!!
 ONTVANGER="helpdesk.gcc.groningen@gmail.com"
-##!!
+
 ### Sequencer is writing to this location: $NEXTSEQDIR
 ### Looping through to see if all files
 for i in $(ls -1 -d ${NEXTSEQDIR}/*/)
