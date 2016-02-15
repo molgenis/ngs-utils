@@ -26,7 +26,7 @@ do
 	run=$3
 	IFS=$OLDIFS
 	## Check if there the run is already completed
-	if [ -f ${NEXTSEQDIR}/${PROJECTNAME}/RunCompletionStatus.xml  ]
+	if [ -f ${NEXTSEQDIR}/${PROJECTNAME}/RunCompletionStatus.xml ]
 	then
 		### Check if the demultiplexing is already started
 		if [ ! -f ${LOGSDIR}/${PROJECTNAME}_Demultiplexing.started ]
@@ -89,9 +89,6 @@ do
 				echo "Samplesheet is missing, after 10 times a mail will be send to the user" >> ${DEBUGGER}
                                 echo  "Samplesheet is not available" >> ${SAMPLESHEETDIR}/${PROJECTNAME}_Check.txt 
                         fi
-                else
-			##Already Demultiplexed
-
                 fi
 	fi
 done
