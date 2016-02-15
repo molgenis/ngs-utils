@@ -91,7 +91,6 @@ do
                         fi
                 fi
 	fi
-done
 if [ -f /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}_Check.txt ]
 then
 	COUNT=$(cat /groups/umcg-gaf/tmp05/Samplesheets/${PROJECTNAME}_Check.txt | wc -l)
@@ -101,3 +100,4 @@ then
 		echo "mail has been sent to ${ONTVANGER}"
 	fi
 fi
+done
