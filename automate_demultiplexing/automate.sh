@@ -6,11 +6,16 @@ module load ngs-utils
 module load Python
 module list
 
-WORKDIR="/groups/umcg-gaf/scr01/"
-LOGSDIR="${WORKDIR}/logs/"
-NEXTSEQDIR="${WORKDIR}/sequencers/"
-SAMPLESHEETDIR="${WORKDIR}/Samplesheets/"
-ONTVANGER="helpdesk.gcc.groningen@gmail.com"
+##source config file (zinc-finger.gcc.rug.nl.cfg OR gattaca.cfg)
+myhost=$(hostname)
+if [[ $myhost == *"gattaca"* ]]
+then
+	. gattaca.cfg
+else
+	. ${myhost}
+fi
+
+ 
 
 ### Sequencer is writing to this location: $NEXTSEQDIR
 ### Looping through to see if all files
