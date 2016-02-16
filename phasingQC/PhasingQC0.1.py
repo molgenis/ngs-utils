@@ -1,15 +1,20 @@
+import vcf
+import pysam
 
 ### FUNCTIONS
 def homozygote(gt):
     # Is homozygote?
     #Input Example: "A|A" O: True
-    if gt.split("|")[0] != gt.split("|")[1]:
+    if gt[0] != gt[1]:
         return False
     return True
 
 def double_mismatch(gt1,gt2):
     # Is it double mismatcht: "A|T" "T|A"
     #Input Example: "A|T" "T|A" O: True
+    if "/" in gt1 or "/" in gt2:
+        print("Only phased data can be matched")
+        return
     if ( gt1.split("|")[0] == gt2.split("|")[0] or
          gt1.split("|")[1] == gt2.split("|")[1]
         ):
@@ -46,22 +51,37 @@ def mismatch_type(ref_gt, eva_gt, reverse=False):
         return 5
     return 3
 
-def switch_authority(ref_gt, eva_gt, reverse=False):
-    # Function says if the mismatch deserves to switch the phasing
-    # Input Example: "A|A" "A|T" False
-    # Output Example: False
-    # current limitations: Trialellic SNPs, cannot detect all swaps
-    # Diagnostic:
-    if len(ref_gt) != 3 or len(eva_gt) != 3:
-        print("switch authority: Error: Unexpectedly long reference genotype")
-        return
-    if reverse:
-        eva_gt = eva_gt[::-1]
-    if ref_gt == eva_gt:
-        return False 
-    if ref_gt == eva_gt[::-1]:
-        return True
-
-
+tests = ["A|A","A|T","T|T","A|X","X|X","X|T"]
+for reference in tests[:2]:
+    for evaluation in tests:
+        print("R: " + reference)
+        print("E: " + evaluation + " "
+              + str(mismatch_type(reference, evaluation, False))
+              )
+        print("E: " + evaluation[::-1] + " "
+              + str(mismatch_type(reference, evaluation[::-1], False))
+              )
+        print("")
 
 ###############################################################################
+
+ref_reader = vcf.Reader(open('Example1.vcf.gz', 'r'))
+chk_reader = vcf.Reader(open('Example2.vcf.gz', 'r'))
+
+metric = [0] * 7
+rev = False
+for record in chk_reader:
+    refsnp = vcf_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt?
+    refgt = refsnp.genotype('SampleName2').gt_bases
+    chkgt = record.genotype('SampleName1').gt_bases
+    if "/" in refgt or "/" in chkgt:
+        print("Only phased data can be matched")
+        return
+    if refgt != chkgt: # if mismatch
+        mismatch_number = mismatch_type(refgt,chkgt, rev) # get mismatch type
+        if mismatch_number == 2:
+            rev = not rev # only reverse when A|T T|A
+        n[ mismatch_number ] += 1
+    if homozygote(refgt):
+        n[1] += 1
+print (metric)
