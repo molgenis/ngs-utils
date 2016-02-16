@@ -51,18 +51,6 @@ def mismatch_type(ref_gt, eva_gt, reverse=False):
         return 5
     return 3
 
-tests = ["A|A","A|T","T|T","A|X","X|X","X|T"]
-for reference in tests[:2]:
-    for evaluation in tests:
-        print("R: " + reference)
-        print("E: " + evaluation + " "
-              + str(mismatch_type(reference, evaluation, False))
-              )
-        print("E: " + evaluation[::-1] + " "
-              + str(mismatch_type(reference, evaluation[::-1], False))
-              )
-        print("")
-
 ###############################################################################
 
 ref_reader = vcf.Reader(open('Example1.vcf.gz', 'r'))
