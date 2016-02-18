@@ -109,7 +109,7 @@ if [[ -z "${DATA-}" ]]; then
         DATA="targeted"
 fi
 if [[ -z "${TMP-}" ]]; then
-       	TMP="/groups/umcg-gaf/tmp04/tmp"
+       	TMP="/groups/umcg-gaf/tmp05/tmp"
 fi
 
 BATCHCOUNT=3
@@ -152,6 +152,9 @@ fi
 cp /apps/data/1000G/phase1/Mills_and_1000G_gold_standard/1000G_phase1.indels_Mills_and_1000G_gold_standard.indels.b37.human_g1k_v37.* ${MAP}
 
 baits=${MAP}/${NAME}
+
+sort -V ${baits}.bed > ${baits}.bed.sorted
+mv ${baits}.bed.sorted ${baits}.bed
 
 ## If there are 4 columns, it adds an extra column (this is necessary for the GATK batch tool
 colcount=`awk '{print NF}' ${baits}.bed | sort | tail -n 1`
@@ -226,20 +229,22 @@ then
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
 	if [ ! -f ${baits}.genesOnly ]
-	then	
-		awk '{print $5}' ${baits} > ${baits}.genesOnly
-	fi	
+	then
+		awk '{print $5}' ${baits}.bed > ${baits}.genesOnly
+	fi
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
-	awk '{
-	if ($0 !~ /^@/){
+	echo "${baits}.uniq.per_base.interval_list created"
+
+	awk '{ if ($0 !~ /^@/){
 		minus=($2 + 1);
 		print $1"\t"minus"\t"$3"\t"$4"\t"$5
 	}
-	else
+	else{
 		print $0
-	}' ${baits}.uniq.per_base.interval_list > ${baits}.uniq.per_base.interval_list.tmp
+	}}' ${baits}.uniq.per_base.interval_list > ${baits}.uniq.per_base.interval_list.tmp
+
 	mv ${baits}.uniq.per_base.interval_list.tmp ${baits}.uniq.per_base.interval_list
 
 fi
@@ -261,10 +266,8 @@ then
 	
 	LASTLINE=$(tail -n1 ${baits}.bed)
 	ONEBEFORELASTLINE=$(tail -n2 ${baits}.bed | head -1)
-	echo "ONEBEFORELASTLINE: $ONEBEFORELASTLINE"
 	OLDIFS=$IFS
 	set $ONEBEFORELASTLINE
-	echo $ONEBEFORELASTLINE
 	chromo=$1
 	position=$2
 
