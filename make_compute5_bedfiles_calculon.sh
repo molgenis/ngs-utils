@@ -109,7 +109,18 @@ if [[ -z "${DATA-}" ]]; then
         DATA="targeted"
 fi
 if [[ -z "${TMP-}" ]]; then
-       	TMP="/groups/umcg-gaf/tmp05/tmp"
+	whichHost=$(hostname)
+	if [ "$whichHost" == "zinc-finger.gcc.rug.nl" ]
+	then
+		 TMP="/groups/umcg-gaf/tmp05/tmp"
+	elif [ "$whichHost" == "calculon" ]
+		TMP="/groups/umcg-gaf/tmp04/tmp"
+	fi
+	else
+		echo "unknown host!"
+		exit 1
+	fi
+	
 fi
 
 BATCHCOUNT=3
