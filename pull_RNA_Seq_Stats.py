@@ -271,7 +271,8 @@ def main(argv):
     
   if os.path.isfile(insertSizeFile) and os.access(insertSizeFile, os.R_OK):
     data['insertSizeHist'] = getHist(insertSizeFile, 'insert_size', 'EOF')
-  data['R1_raw_GC'] = getHist(fqcFileR1Raw, '#GC', "END_MODULE")
+  if os.path.isfile(fqcFileR1Raw) and os.access(fqcFileR1Raw, os.R_OK):
+	data['R1_raw_GC'] = getHist(fqcFileR1Raw, '#GC', "END_MODULE")
   if os.path.isfile(fqcFileR2Raw) and os.access(fqcFileR2Raw, os.R_OK):
     data['R2_raw_GC'] = getHist(fqcFileR2Raw, '#GC', "END_MODULE")
   data['map2Full'] = getFlagstat(fsFileFull)
@@ -280,38 +281,39 @@ def main(argv):
   data['starLog'] = parse_Star_Log_File(starLog)  
   
   #print FastQC_1 output in tablular format
-  print "FastQC_READ1:"
-  R1_raw_GC = meanStd(data['R1_raw_GC'])
-  for key in R1_raw_GC.keys():
-     print("{0:<40s}\t{1:<3.3f}".format(key, R1_raw_GC[key]))
+  if os.path.isfile(fqcFileR1Raw) and os.access(fqcFileR1Raw, os.R_OK):	
+    print "\n## FASTQC:READ1 ##\n"
+    R1_raw_GC = meanStd(data['R1_raw_GC'])
+    for key in R1_raw_GC.keys():
+      print("{0:<40s}\t{1:<3.3f}".format(key, R1_raw_GC[key]))
   
   #if seqtype is paired end, print FastQC_2 output in tablular format 
   if os.path.isfile(fqcFileR2Raw) and os.access(fqcFileR2Raw, os.R_OK):  
-    print "FastQC_READ2:"
+    print "\n## FASTQC:READ2 ##\n"
     R2_raw_GC = meanStd(data['R2_raw_GC'])
     for key in R2_raw_GC.keys():
       print("{0:<40s}\t{1:<3.3f}".format(key, R2_raw_GC[key]))
   
   #print flagstat stats in tablular format 
-  print "flagstat:"
+  print "\n## SAMTOOLS:FLAGSTAT ##\t\n"
   map2Full = data['map2Full']
   for key in map2Full.keys():
     print("{0:<40s}\t{1:<11}".format(key, map2Full[key]))
   
   #print CollectRnaSeqMetrics stats in tablular format
-  print "CollectRnaSeqMetrics:"
+  print "\n## PICARD:COLLECTRNASEQMETRICS ##\t\n"
   RnaSeqMetrics = data['RnaSeqMetrics']
   for key in RnaSeqMetrics.keys():
     print("{0:<40s}\t{1:<30}".format(key, RnaSeqMetrics[key]))
   
   #print dupMatrics stats in tablular format
-  print "dupMatrics:"
+  print "\n ## PICARD:MARKDEDUPMATRICS ##\t\n"
   dupMatrics = data['dupMatrics']
   for key in dupMatrics.keys():
     print("{0:<40s}\t{1:<30}".format(key, dupMatrics[key]))
        
   if os.path.isfile(insertSizeFile) and os.access(insertSizeFile, os.R_OK):
-    print "InsertSizeMetrics:"
+    print "\n## PICARD:INSERTSIZEMERTICS ##\t\n"
     insertSizeHist = meanStd(data['insertSizeHist'])  
     for key in insertSizeHist.keys():
       print("{0:<40s}\t{1:<11.3f}".format(key, insertSizeHist[key]))
