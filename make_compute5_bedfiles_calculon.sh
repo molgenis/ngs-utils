@@ -114,13 +114,12 @@ if [[ -z "${TMP-}" ]]; then
 	then
 		 TMP="/groups/umcg-gaf/tmp05/tmp"
 	elif [ "$whichHost" == "calculon" ]
+	then
 		TMP="/groups/umcg-gaf/tmp04/tmp"
-	fi
 	else
 		echo "unknown host!"
 		exit 1
 	fi
-	
 fi
 
 BATCHCOUNT=3
