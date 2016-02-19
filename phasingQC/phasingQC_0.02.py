@@ -4,6 +4,7 @@ import pysam
 import numpy as np
 import re
 import time
+import cProfile, pstats,StringIO
 
 ### FUNCTIONS
 def swap(gt):
@@ -69,14 +70,16 @@ def mismatch_type(ref_gt, eva_gt):
 
 ###############################################################################
 ###MAIN
-
-
+# profiling Python code: https://docs.python.org/2/library/profile.html
+pr = cProfile.Profile()
+pr.enable()
 ref_reader = vcf.Reader(open('testRef.vcf.gz', 'r' ))
 chk_reader = vcf.Reader(open('testCheck.vcf.gz', 'r'))
 ## where do the closes go?
 
 checkSamples = np.asarray(chk_reader.samples)
 
+# seven cases of match/mismatch
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
 rev = [False for i in range(len(checkSamples))]
 
@@ -92,7 +95,7 @@ for record in chk_reader:
             print(record.ID,sample)
             print("Only phased data can be matched... skipped")
             print("")
-            next
+            continue
         if rev[sampleCounter]: #should I swap?
             chkgt = swap(chkgt)
         if refgt != chkgt: # if mismatch
@@ -124,7 +127,13 @@ for each in checkSamples:
     i += 1
 output.close()
 print("written%f seconds" % (time.time() - start_time))
-
+# put off profiling
+pr.disable()
+s = StringIO.StringIO()
+sortby = 'cumulative'
+ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+ps.print_stats()
+print s.getvalue()
 ##TIMER
 ###END
 ###############################################################################
