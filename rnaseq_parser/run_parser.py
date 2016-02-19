@@ -160,12 +160,13 @@ with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
                     entity = entities_list[index]
                     connection.delete_all_entity_rows(configSectionMap('settings')['package']+entity)
                     entities_list.remove(entity)
-                except Exception as e:
-                    message = e.response.json()['errors'][0]['message']
-                    if 'foreign key constraint fails' in message or 'Cannot delete entity because there are other entities referencing it. Delete these first' in message:
-                        pass
-                    else:
-                        raise
+                except requests.exceptions.HTTPError as e:
+                    if hasattr(e, 'response'):
+                        message = e.response.json()['errors'][0]['message']
+                        if 'foreign key constraint fails' in message or 'Cannot delete entity because there are other entities referencing it. Delete these first' in message:
+                            pass
+                        else:
+                            raise
                 index += 1
     elif args.delete_entity:
         connection.delete_all_entity_rows(configSectionMap('settings')['package']+args.delete_entity)
