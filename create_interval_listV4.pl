@@ -77,13 +77,13 @@ while ($exonlines=<EXONS>){
 
 	if ($Strand =~ /TRUE|True|true/){
         	$strandexon = $exonarray[4];
-        	}
-        	elsif ($Strand =~ /FALSE|False|false/){
+        }
+        elsif ($Strand =~ /FALSE|False|false/){
         	$strandexon = "+";
-        	}
-		else{
+        }
+	else{
 		usage() and exit(1)
-		}
+	}
 
         $chrom =~ s/chr//mg;#Remove chr, Un_, _random from chromosome name
         print EXONS_OUT "$chrom\t$start\t$end\t$strandexon"."\t$target\n";#Print chromosome and other information to output file
