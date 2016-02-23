@@ -103,13 +103,13 @@ while ($baitlines=<BAITS>){
 
         if ($Strand =~ /TRUE|True|true/){
         	$strandbait = $baitarray[5];
-        	}
-		elsif ($Strand =~ /FALSE|False|false/){
-                $strandbait = "+";
-                }
-        	else{
+        }
+	elsif ($Strand =~ /FALSE|False|false/){
+        	$strandbait = "+";
+        }
+      	else{
 		usage() and exit(1)
-        	}
+     	}
 
         $chrbait =~ s/chr//mg;#Remove chr from chromosome name
         print BAITS_OUT "$chrbait\t$startbait\t$endbait\t$strandbait"."\t$targetbait\n";#Print output to file
