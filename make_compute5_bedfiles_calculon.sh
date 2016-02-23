@@ -246,8 +246,8 @@ then
 	echo "${baits}.uniq.per_base.interval_list created"
 
 	awk '{ if ($0 !~ /^@/){
-		minus=($2 + 1);
-		print $1"\t"minus"\t"$3"\t"$4"\t"$5
+		minus=($3 -1)
+		print $1"\t"$2"\t"minus"\t"$4"\t"$5
 	}
 	else{
 		print $0

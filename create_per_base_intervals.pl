@@ -50,7 +50,7 @@ while (my $lines=<INPUT>){
                 my $region = ($stop-$start);
                 #Iterate over region and create bins
 		open (OUTPUT, ">>", "$outputfolder/$output.per_base.bed" ) or die $!;
-                for (my $i=($start); $i<$stop; $i=($i+$binSize)){
+                for (my $i=($start+1); $i<=$stop; $i=($i+$binSize)){
                     print OUTPUT "$chr\t" . $i . "\t" . ($i+1) . "\t$strand\t$gene\n";
                 }
                 close(OUTPUT);
