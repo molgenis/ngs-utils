@@ -76,7 +76,7 @@ while ($exonlines=<EXONS>){
         my $strandexon = "";
 
 	if ($Strand =~ /TRUE|True|true/){
-        	$strandexon = $exonarray[5];
+        	$strandexon = $exonarray[4];
         	}
         	elsif ($Strand =~ /FALSE|False|false/){
         	$strandexon = "+";
