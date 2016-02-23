@@ -227,7 +227,7 @@ then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_intervals.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
 		rm ${TMP}/${NAME}.per_base.bed
