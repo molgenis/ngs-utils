@@ -89,6 +89,12 @@ if args.coupling:
 if args.fast is not None:
     fast_mode = arg.fast
 
+if args.coupling is not None:
+    same_names = False
+if args.fast is not None:
+    fast_mode = True
+fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
+>>>>>>> now accepts paramenters and a coupling file
 # If the sample names are not the same provide a two column tab delimited coupling file CheckID RefID
 ref_reader = vcf.Reader(open(args.input1, 'r' ))
 chk_reader = vcf.Reader(open(args.input2, 'r'))
@@ -106,7 +112,6 @@ get_ref_id = dict(links)
 ## where do the closes go?
 
 
-# seven cases of match/mismatch
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
 rev = [False for i in range(len(checkSamples))]
 
@@ -160,13 +165,7 @@ for each in checkSamples:
     i += 1
 output.close()
 print("written%f seconds" % (time.time() - start_time))
-# put off profiling
-pr.disable()
-s = StringIO.StringIO()
-sortby = 'cumulative'
-ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-ps.print_stats()
-print s.getvalue()
+
 ##TIMER
 ###END
 ###############################################################################
