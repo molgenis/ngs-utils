@@ -2,9 +2,9 @@
 import vcf
 import pysam
 import numpy as np
-import re
 import time
-import cProfile, pstats,StringIO
+import sys
+import argparse
 
 ### FUNCTIONS
 def swap(gt):
@@ -70,16 +70,42 @@ def mismatch_type(ref_gt, eva_gt):
 
 ###############################################################################
 ###MAIN
-# profiling Python code: https://docs.python.org/2/library/profile.html
-pr = cProfile.Profile()
-pr.enable()
-ref_reader = vcf.Reader(open('testRef.vcf.gz', 'r' ))
-chk_reader = vcf.Reader(open('testCheck.vcf.gz', 'r'))
-## where do the closes go?
+##I/O
+
+__author__ = 'Raul,Carlos:UMCG'
+same_names = True
+fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
+
+parser = argparse.ArgumentParser(description='This is phasing QC.')
+parser.add_argument('-i','--input1', help='Reference file VCF',required=True)
+parser.add_argument('-I','--input2', help='Check file VCF',required=True)
+parser.add_argument('-o','--output',help='Output file table', required=True)
+parser.add_argument('-c','--coupling',help='Coupling file', required=False)
+parser.add_argument('-f','--fast',help='Fast Mode', required=False)
+args = parser.parse_args()
+
+if args.coupling is not None:
+    same_names = False
+if args.fast is not None:
+    fast_mode = True
+fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
+# If the sample names are not the same provide a two column tab delimited coupling file CheckID RefID
+ref_reader = vcf.Reader(open(args.input1, 'r' ))
+chk_reader = vcf.Reader(open(args.input2, 'r'))
 
 checkSamples = np.asarray(chk_reader.samples)
+list = []
+if same_names:
+    for sample in checkSamples:
+        list.append([sample,sample])
+else:
+    for line in open(args.coupling):
+        list.append(line.split("\t"))
+get_ref_id = dict(list)
+print(list)
+## where do the closes go?
 
-# seven cases of match/mismatch
+
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
 rev = [False for i in range(len(checkSamples))]
 
@@ -89,8 +115,12 @@ for record in chk_reader:
     refsnp = ref_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt? try!
     sampleCounter = 0
     for sample in checkSamples:
-        refgt = refsnp.genotype(sample).gt_bases
-        chkgt = record.genotype(sample).gt_bases
+        if fast_mode:
+            refgt = refsnp.genotype(sample)['GT']
+            chkgt = record.genotype(get_ref_id[sample])['GT']
+        else:
+            refgt = refsnp.genotype(sample).gt_bases
+            chkgt = record.genotype(get_ref_id[sample]).gt_bases
         if "/" in (refgt + chkgt):
             print(record.ID,sample)
             print("Only phased data can be matched... skipped")
@@ -115,25 +145,21 @@ for record in chk_reader:
 else:
     print("Nothing was skipped :)")
 print("Program%f seconds" % (time.time() - start_time))
+
+output = open(args.output, "w" )
 i = 0
-output = open( "PhasingQC_Output.txt", "w" )
 for each in checkSamples:
     output.write(checkSamples[i])
     output.write("\t")
-    for unc in metric[i]:
-        output.write(str(unc))
+    for j in metric[i][:-1]:
+        output.write(str(j))
         output.write("\t")
+    output.write(str(metric[i][-1]))
     output.write("\n")
     i += 1
 output.close()
 print("written%f seconds" % (time.time() - start_time))
-# put off profiling
-pr.disable()
-s = StringIO.StringIO()
-sortby = 'cumulative'
-ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-ps.print_stats()
-print s.getvalue()
+
 ##TIMER
 ###END
 ###############################################################################
