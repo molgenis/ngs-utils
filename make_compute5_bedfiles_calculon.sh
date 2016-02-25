@@ -163,8 +163,8 @@ cp /apps/data/1000G/phase1/Mills_and_1000G_gold_standard/1000G_phase1.indels_Mil
 
 baits=${MAP}/${NAME}
 
-#sort -V ${baits}.bed > ${baits}.bed.sorted
-#mv ${baits}.bed.sorted ${baits}.bed
+sort -V ${baits}.bed > ${baits}.bed.sorted
+mv ${baits}.bed.sorted ${baits}.bed
 
 ## If there are 4 columns, it adds an extra column (this is necessary for the GATK batch tool
 colcount=`awk '{print NF}' ${baits}.bed | sort | tail -n 1`
