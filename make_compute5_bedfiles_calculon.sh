@@ -221,13 +221,21 @@ then
 fi
 
 module load ngs-utils
+module load BEDTools
+bedtools merge -i ${baits}.bed -c 4,5 -o distinct > ${baits}.merged.bed
+
+if [ ! -f ${baits}.genesOnly ]
+then
+	awk '{print $5}' ${baits}.merged.bed > ${baits}.genesOnly
+fi
+
 
 if [ $COVPERBASE == "true" ]
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_intervals.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
 		rm ${TMP}/${NAME}.per_base.bed
@@ -236,18 +244,15 @@ then
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
-	if [ ! -f ${baits}.genesOnly ]
-	then
-		awk '{print $5}' ${baits}.bed > ${baits}.genesOnly
-	fi
+
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
 	echo "${baits}.uniq.per_base.interval_list created"
 
 	awk '{ if ($0 !~ /^@/){
-		minus=($2 + 1);
-		print $1"\t"minus"\t"$3"\t"$4"\t"$5
+		minus=($3 -1)
+		print $1"\t"$2"\t"minus"\t"$4"\t"$5
 	}
 	else{
 		print $0
