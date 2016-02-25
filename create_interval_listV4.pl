@@ -76,14 +76,14 @@ while ($exonlines=<EXONS>){
         my $strandexon = "";
 
 	if ($Strand =~ /TRUE|True|true/){
-        	$strandexon = $exonarray[5];
-        	}
-        	elsif ($Strand =~ /FALSE|False|false/){
+        	$strandexon = $exonarray[4];
+        }
+        elsif ($Strand =~ /FALSE|False|false/){
         	$strandexon = "+";
-        	}
-		else{
+        }
+	else{
 		usage() and exit(1)
-		}
+	}
 
         $chrom =~ s/chr//mg;#Remove chr, Un_, _random from chromosome name
         print EXONS_OUT "$chrom\t$start\t$end\t$strandexon"."\t$target\n";#Print chromosome and other information to output file
@@ -103,13 +103,13 @@ while ($baitlines=<BAITS>){
 
         if ($Strand =~ /TRUE|True|true/){
         	$strandbait = $baitarray[5];
-        	}
-		elsif ($Strand =~ /FALSE|False|false/){
-                $strandbait = "+";
-                }
-        	else{
+        }
+	elsif ($Strand =~ /FALSE|False|false/){
+        	$strandbait = "+";
+        }
+      	else{
 		usage() and exit(1)
-        	}
+     	}
 
         $chrbait =~ s/chr//mg;#Remove chr from chromosome name
         print BAITS_OUT "$chrbait\t$startbait\t$endbait\t$strandbait"."\t$targetbait\n";#Print output to file
