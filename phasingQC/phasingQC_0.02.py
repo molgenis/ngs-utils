@@ -81,28 +81,28 @@ parser.add_argument('-i','--input1', help='Reference file VCF',required=True)
 parser.add_argument('-I','--input2', help='Check file VCF',required=True)
 parser.add_argument('-o','--output',help='Output file table', required=True)
 parser.add_argument('-c','--coupling',help='Coupling file', required=False)
-parser.add_argument('-f','--fast',help='Fast Mode', required=False)
+parser.add_argument('-f','--fast',help='Fast Mode', action='store_true')
 args = parser.parse_args()
 
-if args.coupling is not None:
+if args.coupling:
     same_names = False
 if args.fast is not None:
-    fast_mode = True
-fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
+    fast_mode = arg.fast
+
 # If the sample names are not the same provide a two column tab delimited coupling file CheckID RefID
 ref_reader = vcf.Reader(open(args.input1, 'r' ))
 chk_reader = vcf.Reader(open(args.input2, 'r'))
 
 checkSamples = np.asarray(chk_reader.samples)
-list = []
+links = []
 if same_names:
     for sample in checkSamples:
-        list.append([sample,sample])
+        links.append([sample,sample])
 else:
     for line in open(args.coupling):
-        list.append(line.split("\t"))
-get_ref_id = dict(list)
-print(list)
+        links.append(line.split("\t"))
+get_ref_id = dict(links)
+#print(links)
 ## where do the closes go?
 
 
