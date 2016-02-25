@@ -221,6 +221,14 @@ then
 fi
 
 module load ngs-utils
+module load BEDTools
+bedtools merge -i ${baits}.bed -c 4,5 -o distinct > ${baits}.merged.bed
+
+if [ ! -f ${baits}.genesOnly ]
+then
+	awk '{print $5}' ${baits}.merged.bed > ${baits}.genesOnly
+fi
+
 
 if [ $COVPERBASE == "true" ]
 then
@@ -236,10 +244,7 @@ then
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
-	if [ ! -f ${baits}.genesOnly ]
-	then
-		awk '{print $5}' ${baits}.bed > ${baits}.genesOnly
-	fi
+
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
