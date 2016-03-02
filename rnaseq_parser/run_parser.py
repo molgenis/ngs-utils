@@ -4,10 +4,9 @@ Created on Jul 31, 2015
 @author: Niek
 '''
 
-import sys
 import time
 import argparse
-import random
+import warnings
 try:
     # Python 3
     import configparser
@@ -184,59 +183,159 @@ with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
     print('\n'+'~'*10+'STARTING'+'~'*10+'\n')
     parse_output.parse_samples( configSectionMap('paths')['samplesheet'],connection,package=package,experiment_type=configSectionMap('settings')['experiment_type'])
     if args.hisat:
-        parse_output.parse_hisat(rundir_QC,connection,package=package)
+        try:
+            parse_output.parse_hisat(rundir_QC,connection,package=package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.ena:
-        parse_output.parse_ena( configSectionMap('paths')['ena'],connection, package=package,project=configSectionMap('settings')['project'])
+        try:
+            parse_output.parse_ena( configSectionMap('paths')['ena'],connection, package=package,project=configSectionMap('settings')['project'])
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.verifyBamID:
-        parse_output.parse_verifyBamID(rundir_QC,connection, package)
+        try:
+            parse_output.parse_verifyBamID(rundir_QC,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.samToFilteredBam:
-        parse_output.parse_samToFilteredBam(rundir_QC,connection, package)
+        try:
+            parse_output.parse_samToFilteredBam(rundir_QC,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.sortBam:
-        parse_output.parse_sortBam(rundir_QC,connection, package)
+        try:
+            parse_output.parse_sortBam(rundir_QC,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.rMetrics_QC:
-        parse_output.parse_rMetrics(rundir_QC,connection, package,'QC')
+        try:
+            parse_output.parse_rMetrics(rundir_QC,connection, package,'QC')
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.cMetrics_QC:
-        parse_output.parse_cmMetrics(rundir_QC,connection, package,'QC')
+        try:
+            parse_output.parse_cmMetrics(rundir_QC,connection, package,'QC')
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.addOrReplaceReadGroups:
-        parse_output.parse_addOrReplaceReadGroups(rundir_genotypeCalling,connection, package)
+        try:
+            parse_output.parse_addOrReplaceReadGroups(rundir_genotypeCalling,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.gatkSplitNtrim:
-        parse_output.parse_gatkSplitNTrim(rundir_genotypeCalling,connection, package)
+        try:
+            parse_output.parse_gatkSplitNTrim(rundir_genotypeCalling,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.indelRealignmentKnown:
-        parse_output.parse_indelRealignmentKnown(rundir_genotypeCalling,connection, package)
+        try:
+            parse_output.parse_indelRealignmentKnown(rundir_genotypeCalling,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.rMetrics_genotypeCalling:
-        parse_output.parse_rMetrics(rundir_genotypeCalling,connection, package,'GenotypeCalling')
+        try:
+            parse_output.parse_rMetrics(rundir_genotypeCalling,connection, package,'GenotypeCalling')
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.cMetrics_genotypeCalling:
-        parse_output.parse_cmMetrics(rundir_genotypeCalling,connection, package,'GenotypeCalling')
+        try:
+            parse_output.parse_cmMetrics(rundir_genotypeCalling,connection, package,'GenotypeCalling')
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.analyse_covariates:
-        parse_output.analyseCovariates(rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.analyseCovariates(rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.haplotypeCaller:
-        parse_output.parse_variantCaller('HaplotypeCaller', rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_variantCaller('HaplotypeCaller', rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.unifiedGenotyper:
-        parse_output.parse_variantCaller('UnifiedGenotyper', rundir_QC, connection, package)
+        try:
+            parse_output.parse_variantCaller('UnifiedGenotyper', rundir_QC, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.gvcf:
-        parse_output.parse_variantCaller('GenotypeGvcf', rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_variantCaller('GenotypeGvcf', rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.mergeGvcf:
-        parse_output.parse_mergeGvcf(rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_mergeGvcf(rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.genotypeHarmonizer:
-        parse_output.parse_genotypeHarmonizer(rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_genotypeHarmonizer(rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.fastqc:
-        parse_output.parse_fastqc(rundir_QC, connection, package)
+        try:
+            parse_output.parse_fastqc(rundir_QC, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.markDuplicates:
-        parse_output.parse_markDuplicates(rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_markDuplicates(rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.flagstat:
-        parse_output.parse_flagstat(rundir_genotypeCalling, connection, package)
+        try:
+            parse_output.parse_flagstat(rundir_genotypeCalling, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.combineBed:
-        parse_output.parse_combineBedFiles(rundir_QC, connection, package)
+        try:
+            parse_output.parse_combineBedFiles(rundir_QC, connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.md5sum:
         pass
         # WORK IN PROGRESS
         # parse_output.parse_md5sums(connection, package)
     if args.variantEval:
-        parse_output.parse_variantEval(rundir_QC,connection,package=package)
+        try:
+            parse_output.parse_variantEval(rundir_QC,connection,package=package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.bqsr:
-        parse_output.parse_bqsr(rundir_genotypeCalling,connection, package)
+        try:
+            parse_output.parse_bqsr(rundir_genotypeCalling,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
     if args.kallisto:
-        parse_output.parse_kallisto(rundir_quantification,connection, package)
+        try:
+            parse_output.parse_kallisto(rundir_quantification,connection, package)
+        except ValueError as e:
+            message = str(e)+"\nSkipping.."
+            warnings.warn(message)
         
 seconds = int(time.time() - start_time)
 m, s = divmod(seconds, 60)

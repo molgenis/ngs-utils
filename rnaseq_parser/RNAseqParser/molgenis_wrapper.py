@@ -222,7 +222,7 @@ class Connect_Molgenis():
                 self._logging(entity,'entity_row')
                 return added_ids
 
-            def add_file(self, file_path, description, entity, data={}, file_name=None):
+            def add_file(self, file_path, description, entity, io_stream=None, data={}, file_name=None):
                 '''Add a file to entity File. (io stream is possible but not implemented, see molgenis_api.py in archive for example)
                 
                 Args:
@@ -243,11 +243,24 @@ class Connect_Molgenis():
                 data = self._sanitize_data(data,'datetime_added','added_by')
                 if not file_name:
                     file_name = os.path.basename(file_path)
-                if not os.path.isfile(file_path):
+                # if io_stream is given the path doesn't have to exist, this is for .png files that are in the fastqc archive
+                if not io_stream and not os.path.isfile(file_path):
                     self.logger.error('File not found: '+str(file_path))
                     raise IOError('File not found: '+str(file_path))
-                added_id = self.session.add(entity, data=data,
+                try:
+                    if io_stream:
+                        added_id = self.session.add(entity, data=data,
+                                            files={'attachment':(os.path.basename(file_path), io_stream)})
+                    else:
+                        added_id = self.session.add(entity, data=data,
                                             files={'attachment':(os.path.basename(file_path), open(file_path,'rb'))})
+                except requests.exceptions.HTTPError as e:
+                    try:
+                        # if there is json() information, add it to the error message, as this gives the user information on actual problem
+                        self.logger.debug(str(e.response.json()))
+                    except AttributeError:
+                        pass
+                    raise
                 self.added_files += 1
                 return added_id
 
@@ -275,6 +288,8 @@ class Connect_Molgenis():
                         items = self.session.get(entity, q = query, attributes=attributes, num=num, start=start, sortColumn=sortColumn, sortOrder=sortOrder)
                     except requests.exceptions.HTTPError as e:
                         try:
+                            self.logger.debug('entity: ',entity)
+                            self.logger.debug('query: ',query)
                             self.logger.debug(e.response.json())
                         except json.decoder.JSONDecodeError:
                             pass
@@ -302,15 +317,16 @@ class Connect_Molgenis():
                     try:
                         server_response = self.session.update(entity, row_id, data)
                     except requests.exceptions.HTTPError as e:
-                        self.logger.debug(e.response.json())
+                        try:
+                            self.logger.debug('entity: ',entity)
+                            self.logger.debug(e.response.json())
+                        except json.decoder.JSONDecodeError:
+                            pass
                         raise
                     self.logger.debug(time.strftime('%H:%M:%S', time.gmtime(timeit.default_timer()-self.time_start))+' - Updated value of entity '+entity)
                     return server_response
                 elif query_list:
-                    queries = []
-                    for query in query_list:
-                        queries.append(self._sanitize_data(query,'datetime_last_updated','updated_by'))
-                    entity_data = self.get(entity, queries)
+                    entity_data = self.get(entity, query_list)
                     if len(entity_data) == 0:
                         self.logger.error('Query returned 0 results, no row to update.')
                         raise Exception('Query returned 0 results, no row to update.')
@@ -427,10 +443,18 @@ class Connect_Molgenis():
                 for rows in items:
                     row_id = rows[id_attribute]
                     try:
-                        self.logger.debug('Deleted row from: '+str(entity))
-                        self.session.delete(entity.strip(),row_id)
+                        if '/' in str(row_id):
+                            self.logger.debug('Can not delete row because row id contains /: '+str(row_id))
+                            raise ValueError('Can not delete row because row id contains /: '+str(row_id)+'. Delete from website and run again')
+                        else:
+                            self.logger.debug('Deleted row from: '+str(entity))
+                            self.session.delete(entity.strip(), str(row_id))
                     except requests.exceptions.HTTPError as e:
-                        self.logger.debug(e.response.json())
+                        if hasattr(e, "response") and hasattr(e.response, "json"):
+                            try:
+                                self.logger.debug(e.response.json())
+                            except:
+                                print(str(e))
                         raise
             
             def remove_password_files(self):

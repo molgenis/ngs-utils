@@ -104,7 +104,7 @@ def parse_samples(sample_sheet_path,connection,package,experiment_type):
         input_file_2_path = line.split(',')[4]
         
         samples_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id)
-        data = {'input_file_1_path':input_file_1_path,'input_file_2_path':input_file_2_path,'id':input_file_1_path+input_file_2_path}
+        data = {'input_file_1_path':input_file_1_path,'input_file_2_path':input_file_2_path,'id':input_file_1_path.replace('/','_')+'-'+input_file_2_path.replace('/','_')}
         try:
             connection.add(entity=package+'Sample_input_files', data=data)
         except requests.exceptions.HTTPError as e:
@@ -115,7 +115,7 @@ def parse_samples(sample_sheet_path,connection,package,experiment_type):
                         raise
                 except AttributeError:
                     raise
-        input_file_path_id = input_file_1_path+input_file_2_path
+        input_file_path_id = input_file_1_path.replace('/','_')+'-'+input_file_2_path.replace('/','_')
         if samples_id in sample_input_files:
             sample_input_files[samples_id] += ','+input_file_path_id
         sample_input_files[samples_id] = input_file_path_id
@@ -170,23 +170,27 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
             sh_text = split_sh[-1] 
 
         tools = re.findall('module load (\S+)/(\S+)',sh_text)
-        to_add = []
+        tool_ids = ''
         for tool in tools:
             name = tool[0]
             version = tool[1]
-            to_add.append({'id':name+'-'+version,'tool_name':name,'version':version})
-        try:
-            tool_ids = ','.join(add_multiple_rows(entity=package+'Tools',data=to_add, 
-                                connection=connection))
-        except requests.exceptions.HTTPError as e:
             try:
-                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
-                    print('Dupliate tools, ignoring...')
-                else:
-                    raise
-            except AttributeError:
-                raise 
-                     
+                # do one by one instead of multiple at the same time because it's not many rows either way, 
+                # and doing multiple gives a problem if one of them is duplicated and the other is not yet added        
+                to_add =  {'id':name+'-'+version,'tool_name':name,'version':version}
+                tool_ids += connection.add(entity=package+'Tools',data=to_add)[0] + ','
+            except requests.exceptions.HTTPError as e:
+                try:
+                    if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                        print('Dupliate tools, getting IDs...')
+                        tool_ids += name+'-'+version+','
+                    else:
+                        raise
+                except AttributeError:
+                    raise 
+        #remove trailing comma
+        tool_ids = tool_ids[:-1]
+
         basefile = os.path.splitext(sh_file)[0]
         try:
             err_text = open(basefile+'.err','rb').read().decode("utf-8")
@@ -199,8 +203,8 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
         try:
             runtime = str(int(time_from_log(out_text)))
         except AttributeError:
-            warnings.warn(sh_file+' did not finish running (no done time found)')
-            continue
+            warnings.warn(sh_file+' no done time found, might not have finished running. Setting runtime to 0')
+            runtime = 0
         try:
             sample_name = re.search('sampleName="(.*?)"',sh_text).group(1)
         except AttributeError:
@@ -212,17 +216,49 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
             internalId = None
         project = re.search('project="(.*?)"',sh_text).group(1)
         if not sh_id:
-            sh_id = connection.add_file(file_path=basefile+'.sh', description='.sh script that was used to get the data', entity=package+'File',
+            try:
+                sh_id = connection.add_file(file_path=basefile+'.sh', description='.sh script that was used to get the data', entity=package+'File',
                             data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+sh_file.replace(' ','_')})
-
+                if isinstance(sh_id, list):
+                    sh_id = sh_id[0]
+            except requests.exceptions.HTTPError as e:
+                if "Duplicate value" in e.response.json()['errors'][0]['message']:
+                    print('Getting the id...')
+                    sh_id = connection.get(package+'File', 
+                                query=[{'field':'sample_file_id', 'operator':'EQUALS', 
+                                        'value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+sh_file.replace(' ','_')}])[0]['id']
+                else:
+                    raise
         if not err_id:
-            err_id = connection.add_file(file_path=basefile+'.err', description='file with messages printed to stderr by program', entity=package+'File',
+            try:
+                err_id = connection.add_file(file_path=basefile+'.err', description='file with messages printed to stderr by program', entity=package+'File',
                             data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.err').replace(' ','_')})
+                if isinstance(err_id, list):
+                    err_id = err_id[0]
+            except requests.exceptions.HTTPError as e:
+                if "Duplicate value" in e.response.json()['errors'][0]['message']:
+                    print('Getting the id...')
+                    err_id = connection.get(package+'File', 
+                                query=[{'field':'sample_file_id', 'operator':'EQUALS', 
+                                    'value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.err').replace(' ','_')}])[0]['id']
+                else:
+                    raise
         if not out_id:
-            out_id = connection.add_file(file_path=basefile+'.out', description='file with messages printed to stdout by program',entity=package+'File',
+            try:
+                out_id = connection.add_file(file_path=basefile+'.out', description='file with messages printed to stdout by program',entity=package+'File',
                             data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.out').replace(' ','_')})
-
+                if isinstance(out_id, list):
+                    out_id = out_id[0]
+            except requests.exceptions.HTTPError as e:
+                if "Duplicate value" in e.response.json()['errors'][0]['message']:
+                    print('Getting the id...')
+                    out_id = connection.get(package+'File', 
+                                query=[{'field':'sample_file_id', 'operator':'EQUALS', 
+                                    'value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.out').replace(' ','_')}])[0]['id']
+                else:
+                    raise
         yield sh_text, err_text, out_text, runtime, sample_name, internalId, project, sh_id, err_id, out_id, tool_ids
+        
 def parse_depth_or_self(entity,depth_or_self_file,file_type,connection,package):
     '''parse depthRG or depthSM file'''
     depthIDs = []
@@ -244,7 +280,7 @@ def parse_depth_or_self(entity,depth_or_self_file,file_type,connection,package):
                 if value != 'NA' and value != 'NaN':
                     data_sanitized[key] = value
             to_add.append(data_sanitized)
-        depthIDs = add_multiple_rows(package+entity, to_add, connection, False)
+        depthIDs = add_multiple_rows(entity = package+entity, data =  to_add, connection = connection)
     return depthIDs
 def parse_verifyBamID(runinfo_folder_QC,connection,package):
     '''finished'''
@@ -293,7 +329,8 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
                 data = {'optimal_fIBD':groups.group(1),'llk0':groups.group(2),'llk1':groups.group(3),'readgroup':groups.group(4),'best_matching_individual':groups.group(5),
                         'best_match_individual_IBD':groups.group(6),'self_individual':groups.group(7),'self_individual_IBD':groups.group(8)}
                 to_add.append(data)
-            verifyBamID_individual = ','.join(add_multiple_rows(package+'VerifyBamID_individual', to_add,connection,False))
+            verifyBamID_individual = ','.join(add_multiple_rows(entity = package+'VerifyBamID_individual', data = to_add,
+                                                                connection = connection))
         depthRG = ','.join(parse_depth_or_self('DepthRG',verifyBamID_output_path+'.depthRG','depth', connection,package))
         depthSM = ','.join(parse_depth_or_self('DepthSM',verifyBamID_output_path+'.depthSM','depth', connection,package))
         selfRG = ','.join(parse_depth_or_self('SelfRG',verifyBamID_output_path+'.selfRG','self', connection,package))
@@ -305,9 +342,16 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
                 'number_of_markers':number_of_markers,'number_of_informative_markers':number_of_informative_markers,'verifyBamID_individual':verifyBamID_individual,
                 'selfRG':selfRG,'selfSM':selfSM,'extracted_bases':extracted_bases,'avg_depth':avg_depth,'skipped_marker':skipped_marker,
                 'self_only':self_only,'self_only_sample_ID':self_only_sample_ID, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}        
-        added_id = connection.add(package+'VerifyBamID', data)[0]
+        try:
+            added_id = connection.add(package+'VerifyBamID', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'VerifyBamID', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']
+            else:
+                raise
         # if this sample already had a verifyBamId, find it, append the new one, and update sample row
-        verifybamid_data = connection.get(package+'VerifyBamID', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+        verifybamid_data = connection.get(package+'VerifyBamID', [{'field':'internalId_sampleid','operator':'EQUALS','value':internalId+'_'+str(project)+'-'+str(sample_name)}])
         if len(verifybamid_data) >0 and len(verifybamid_data[0]['id']) > 0:
             added_id = verifybamid_data[0]['id']+','+added_id
         connection.update_entity_rows(package+'Samples', data={'verifyBamID':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
@@ -332,7 +376,12 @@ def parse_hisat(runinfo_folder_QC,connection,package):
                 'number_mates':groups.group(13),'mates_aligned_0_times':groups.group(14),'mates_aligned_0_times_p':groups.group(15),'mates_aligned_1_time':groups.group(16),'mates_aligned_1_time_p':groups.group(17),
                 'mates_aligned_multiple':groups.group(18),'mates_aligned_multiple_p':groups.group(19),'overall_alignment_rate':groups.group(20),'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                 'sh_script':sh_id,'out_file':out_id,'err_file':err_id,'runtime':runtime, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'Hisat', data)[0]
+        try:
+            added_id = connection.add(package+'Hisat', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'Hisat', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']
         hisat_data = connection.get(package+'Hisat', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
         if len(hisat_data) >0 and len(hisat_data[0]['id']) > 0:
             added_id = hisat_data[0]['id']+','+added_id
@@ -414,7 +463,12 @@ def parse_variantEval(runinfo_folder_QC,connection,package):
                 'runtime':runtime,'variant_class_count':variant_eval_ids['variant_class_count'],'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         for key, value in data.items():
             data[key] = value.rstrip(',')
-        added_id = connection.add(package+'VariantEval',data)[0]
+        try:
+            added_id = connection.add(package+'VariantEval',data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'VariantEval', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
         variantEval_data = connection.get(package+'hisat', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
         if len(variantEval_data) >0 and len(variantEval_data[0]['id']) > 0:
             added_id = variantEval_data[0]['id']+','+added_id
@@ -438,118 +492,125 @@ def parse_variantCaller(variant_caller, runinfo_folder_QC,connection,package):
     pretext = ''
     if variant_caller != 'UnifiedGenotyper' and variant_caller != 'HaplotypeCaller' and variant_caller != 'GenotypeGvcf':
         raise AttributeError('variant_caller not UnifiedGenotyper, HaplotypeCaller or GenotypeGvcf')
-    if variant_caller == 'UnifiedGenotyper' or variant_caller == 'HaplotypeCaller':
+    if variant_caller == 'UnifiedGenotyper':
         pretext = 'Gatk'
-    for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,pretext+variant_caller+'*.sh'),connection,package):
-        if variant_caller != 'GenotypeGvcf':
-            total_reads = re.search('out of approximately (\d+) total reads',err_text).group(1)
-            reads_filtered_out = re.search('(\d+) reads were filtered out',err_text).group(1)
-            reads_filtered_out_perc = re.search('out of approximately \d+ total reads \((\d+.\d+)%\)',err_text).group(1)
-            filtered = {}
-            filters = ['BadCigarFilter','BadMateFilter','DuplicateReadFilter','FailsVendorQualityCheckFilter','MalformedReadFilter',
-                       'MappingQualityUnavailableFilter','NotPrimaryAlignmentFilter','ReassignMappingQualityFilter','UnmappedReadFilter']
+        for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,pretext+variant_caller+'*.sh'),connection,package):
+            if variant_caller != 'GenotypeGvcf':
+                total_reads = re.search('out of approximately (\d+) total reads',err_text).group(1)
+                reads_filtered_out = re.search('(\d+) reads were filtered out',err_text).group(1)
+                reads_filtered_out_perc = re.search('out of approximately \d+ total reads \((\d+.\d+)%\)',err_text).group(1)
+                filtered = {}
+                filters = ['BadCigarFilter','BadMateFilter','DuplicateReadFilter','FailsVendorQualityCheckFilter','MalformedReadFilter',
+                           'MappingQualityUnavailableFilter','NotPrimaryAlignmentFilter','ReassignMappingQualityFilter','UnmappedReadFilter']
+                if variant_caller == 'HaplotypeCaller':
+                    filters.append('HCMappingQualityFilter')
+                    
+                for reads_filter in filters:
+                    search_result = re.search('(\d+) reads \((\d+.\d+)% of total\) failing '+reads_filter,err_text)
+                    filtered[reads_filter] = {'p':search_result.group(2),'r':search_result.group(1)}
+            vcf_file = re.search('-o (\S+.vcf)',sh_text).group(1)
+            sample_names = None
+            with open(vcf_file) as vcf:
+                vcf_meta_ids = {'filters':[],'info':[],'formats':[],'contigs':[],'snps':[],'alts':[],'gvcf_block':[]}
+                reference = None
+                for line in vcf:
+                    line = line.strip()
+                    if line.startswith('#'):
+                        if '##contig' in line:
+                            search_filter = re.search('ID=(\S+),length=(\d+),assembly=(\S+)>',line)
+                            vcf_meta_ids['contigs'] += [{'meta_id':search_filter.group(1),'length':search_filter.group(2),'assembly':search_filter.group(3)}]
+                        elif '##INFO' in line:
+                            search_filter = re.search('ID=(\S+),Number=(\S),Type=(\w+),Description="(.*?)">',line)
+                            vcf_meta_ids['info'] += [{'meta_id':search_filter.group(1),'number':search_filter.group(2),'type':search_filter.group(3).lower(),'description':search_filter.group(4)}]
+                        elif '##FORMAT' in line:
+                            search_filter = re.search('ID=(\S+),Number=(\S),Type=(\w+),Description="(.*?)">',line)
+                            vcf_meta_ids['formats'] += [{'meta_id':search_filter.group(1),'number':search_filter.group(2),'type':search_filter.group(3).lower(),'description':search_filter.group(4)}]
+                        elif '##FILTER' in line:
+                            search_filter = re.search('ID=(\S+),Description="(.*?)">',line)
+                            vcf_meta_ids['filters'] += [{'meta_id':search_filter.group(1),'description':search_filter.group(2)}]
+                        elif '##ALT' in line:
+                            search_filter = re.search('ID=(\S+),Description="(.*?)">',line)
+                            vcf_meta_ids['alts'] += [{'meta_id':search_filter.group(1),'description':search_filter.group(2)}]
+                        elif '##GVCFBlock' in line:
+                            search_filter = re.search('GVCFBlock(\d+-\d+)=(\d+)\S+maxGQ=(\d+)',line)
+                            vcf_meta_ids['gvcf_block'] += [{'gvcf_block_min':search_filter.group(1),'gvcf_block_max':search_filter.group(2), 'min_gq':search_filter.group(3),'max_gq':search_filter.group(4)}]
+                        elif 'fileformat=' in line:
+                            fileformat = line.split('fileformat=')[1]
+                        elif 'reference=' in line:
+                            reference = line.split('reference=')[1]
+                        elif '#CHROM' in line:
+                            sample_names = line.split('\t')[9:]
+                        else:
+                            break
+                #### Too much data in vcf file, cant use commented data
+                #        s_l = line.split('\t')
+                #        snp_per_sample = s_l[9:]
+                #        snp_per_sample_id = ''
+                #        for sample_name, snp_info in zip(sample_names, snp_per_sample):
+                #            snp_per_sample_id += connection.add(package+'public_rnaseq_Snp_per_sample',data = {'sample_name':sample_name,'snp_info':snp_info})+','
+                #        snp_per_sample_id = snp_per_sample_id.rstrip(',')
+                #        vcf_meta_ids['snps'] += connection.add(package+'Snp_info',{'chrom':s_l[0].replace('X','23').replace('Y','24'),'pos':s_l[1],'id':s_l[2],'ref':s_l[3],'alt':s_l[4],'qual':s_l[5],'filter':s_l[6],'info':s_l[7],'format':s_l[8],'snp_per_sample':snp_per_sample_id})+','
+                if vcf_meta_ids['contigs']:
+                    contig_ids = ','.join(add_multiple_rows(entity=package+'Contigs',data=vcf_meta_ids['contigs'], connection=connection))
+                else:
+                    contig_ids = None
+                if vcf_meta_ids['info']:
+                    info_id = add_multiple_rows(entity=package+'Info',data=vcf_meta_ids['info'], connection=connection)
+                else:
+                    info_id = None
+                if vcf_meta_ids['formats']:
+                    format_ids = ','.join(add_multiple_rows(entity=package+'Formats',data=vcf_meta_ids['formats'], connection=connection))
+                else:
+                    format_ids = None
+                if vcf_meta_ids['filters']:
+                    filter_ids = ','.join(add_multiple_rows(entity=package+'Filters',data=vcf_meta_ids['filters'], connection=connection))
+                else:
+                    filter_ids = None
+                if vcf_meta_ids['alts']:
+                    alt_ids = ','.join(add_multiple_rows(entity=package+'Alts',data=vcf_meta_ids['alts'], connection=connection))
+                else:
+                    alt_ids = None
+                if vcf_meta_ids['gvcf_block']:
+                    gvcf_blck_ids = ','.join(add_multiple_rows(entity=package+'Gvcf_block',data=vcf_meta_ids['gvcf_block'], connection=connection))
+                else:
+                    gvcf_blck_ids = None
+                data = {'fileformat':fileformat,'contigs':contig_ids,'filters':filter_ids,'formats':format_ids,'reference':reference,
+                        'alts':alt_ids,'gvcf_block':gvcf_blck_ids,'info':info_id}
+                added_id = connection.add(package+'Vcf',data)
+            data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id),'type':variant_caller} # 'vcf':added_id,
+            if variant_caller != 'GenotypeGvcf':
+                extra_data = {'unmapped_read_filter_perc':filtered['UnmappedReadFilter']['p'],'unmapped_read_filter':filtered['UnmappedReadFilter']['r'],'total_reads':total_reads,'reads_filtered_out_perc':reads_filtered_out_perc,'reads_filtered_out':reads_filtered_out,
+                              'not_primary_alignment_filter':filtered['NotPrimaryAlignmentFilter']['r'],'not_primary_align_filter_perc':filtered['NotPrimaryAlignmentFilter']['p'],'map_qual_unavailable_filter':filtered['MappingQualityUnavailableFilter']['r'],'map_qual_unavail_filter_perc':filtered['MappingQualityUnavailableFilter']['p'],'malformed_read_filter_perc':filtered['MalformedReadFilter']['p'],
+                              'malformed_read_filter':filtered['MalformedReadFilter']['r'],'fails_vendor_qual_filter_perc':filtered['FailsVendorQualityCheckFilter']['p'],'fails_vendor_qual_filter':filtered['FailsVendorQualityCheckFilter']['r'],'duplicate_read_filter_perc':filtered['DuplicateReadFilter']['p'],'duplicate_read_filter':filtered['DuplicateReadFilter']['r'],
+                              'bad_mate_filter_perc':filtered['BadMateFilter']['p'],'bad_mate_filter':filtered['BadMateFilter']['r'],'bad_cigar_filtered_perc':filtered['BadCigarFilter']['p'],'bad_cigar_filtered':filtered['BadCigarFilter']['r']}
+                data.update(extra_data)
             if variant_caller == 'HaplotypeCaller':
-                filters.append('HCMappingQualityFilter')
-                
-            for reads_filter in filters:
-                search_result = re.search('(\d+) reads \((\d+.\d+)% of total\) failing '+reads_filter,err_text)
-                filtered[reads_filter] = {'p':search_result.group(2),'r':search_result.group(1)}
-        vcf_file = re.search('-o (\S+.vcf)',sh_text).group(1)
-        sample_names = None
-        with open(vcf_file) as vcf:
-            vcf_meta_ids = {'filters':[],'info':[],'formats':[],'contigs':[],'snps':[],'alts':[],'gvcf_block':[]}
-            reference = None
-            for line in vcf:
-                line = line.strip()
-                if line.startswith('#'):
-                    if '##contig' in line:
-                        search_filter = re.search('ID=(\S+),length=(\d+),assembly=(\S+)>',line)
-                        vcf_meta_ids['contigs'] += [{'meta_id':search_filter.group(1),'length':search_filter.group(2),'assembly':search_filter.group(3)}]
-                    elif '##INFO' in line:
-                        search_filter = re.search('ID=(\S+),Number=(\S),Type=(\w+),Description="(.*?)">',line)
-                        vcf_meta_ids['info'] += [{'meta_id':search_filter.group(1),'number':search_filter.group(2),'type':search_filter.group(3).lower(),'description':search_filter.group(4)}]
-                    elif '##FORMAT' in line:
-                        search_filter = re.search('ID=(\S+),Number=(\S),Type=(\w+),Description="(.*?)">',line)
-                        vcf_meta_ids['formats'] += [{'meta_id':search_filter.group(1),'number':search_filter.group(2),'type':search_filter.group(3).lower(),'description':search_filter.group(4)}]
-                    elif '##FILTER' in line:
-                        search_filter = re.search('ID=(\S+),Description="(.*?)">',line)
-                        vcf_meta_ids['filters'] += [{'meta_id':search_filter.group(1),'description':search_filter.group(2)}]
-                    elif '##ALT' in line:
-                        search_filter = re.search('ID=(\S+),Description="(.*?)">',line)
-                        vcf_meta_ids['alts'] += [{'meta_id':search_filter.group(1),'description':search_filter.group(2)}]
-                    elif '##GVCFBlock' in line:
-                        search_filter = re.search('GVCFBlock(\d+-\d+)=(\d+)\S+maxGQ=(\d+)',line)
-                        vcf_meta_ids['gvcf_block'] += [{'gvcf_block_min':search_filter.group(1),'gvcf_block_max':search_filter.group(2), 'min_gq':search_filter.group(3),'max_gq':search_filter.group(4)}]
-                    elif 'fileformat=' in line:
-                        fileformat = line.split('fileformat=')[1]
-                    elif 'reference=' in line:
-                        reference = line.split('reference=')[1]
-                    elif '#CHROM' in line:
-                        sample_names = line.split('\t')[9:]
-                    else:
-                        break
-            #### Too much data in vcf file, cant use commented data
-            #        s_l = line.split('\t')
-            #        snp_per_sample = s_l[9:]
-            #        snp_per_sample_id = ''
-            #        for sample_name, snp_info in zip(sample_names, snp_per_sample):
-            #            snp_per_sample_id += connection.add(package+'public_rnaseq_Snp_per_sample',data = {'sample_name':sample_name,'snp_info':snp_info})+','
-            #        snp_per_sample_id = snp_per_sample_id.rstrip(',')
-            #        vcf_meta_ids['snps'] += connection.add(package+'Snp_info',{'chrom':s_l[0].replace('X','23').replace('Y','24'),'pos':s_l[1],'id':s_l[2],'ref':s_l[3],'alt':s_l[4],'qual':s_l[5],'filter':s_l[6],'info':s_l[7],'format':s_l[8],'snp_per_sample':snp_per_sample_id})+','
-            if vcf_meta_ids['contigs']:
-                contig_ids = ','.join(add_multiple_rows(entity=package+'Contigs',data=vcf_meta_ids['contigs'], connection=connection))
+                data.update({'hc_mapping_quality_filter':filtered['HCMappingQualityFilter']['r'],'hc_mapping_quality_perc':filtered['HCMappingQualityFilter']['p']})
+            if variant_caller == 'UnifiedGenotyper':
+                data.update({'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId})
+            try:
+                added_id = connection.add(package+'VariantCaller', data)[0]
+            except requests.exceptions.HTTPError as e:
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    added_id = connection.get(package+'VariantCaller', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
+            if variant_caller == 'UnifiedGenotyper':
+                unifiedGenotyper_data = connection.get(package+'VariantCaller', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+                if len(unifiedGenotyper_data) >0 and len(unifiedGenotyper_data[0]['id']) > 0:
+                    added_id = unifiedGenotyper_data[0]['id']+','+added_id
+            if sample_names:
+                for sample_name in sample_names:
+                    connection.update_entity_rows(package+'Samples', data={'variantCaller':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
             else:
-                contig_ids = None
-            if vcf_meta_ids['info']:
-                info_id = add_multiple_rows(entity=package+'Info',data=vcf_meta_ids['info'], connection=connection)
-            else:
-                info_id = None
-            if vcf_meta_ids['formats']:
-                format_ids = ','.join(add_multiple_rows(entity=package+'Formats',data=vcf_meta_ids['formats'], connection=connection))
-            else:
-                format_ids = None
-            if vcf_meta_ids['filters']:
-                filter_ids = ','.join(add_multiple_rows(entity=package+'Filters',data=vcf_meta_ids['filters'], connection=connection))
-            else:
-                filter_ids = None
-            if vcf_meta_ids['alts']:
-                alt_ids = ','.join(add_multiple_rows(entity=package+'Alts',data=vcf_meta_ids['alts'], connection=connection))
-            else:
-                alt_ids = None
-            if vcf_meta_ids['gvcf_block']:
-                gvcf_blck_ids = ','.join(add_multiple_rows(entity=package+'Gvcf_block',data=vcf_meta_ids['gvcf_block'], connection=connection))
-            else:
-                gvcf_blck_ids = None
-            data = {'fileformat':fileformat,'contigs':contig_ids,'filters':filter_ids,'formats':format_ids,'reference':reference,
-                    'alts':alt_ids,'gvcf_block':gvcf_blck_ids,'info':info_id}
-            added_id = connection.add(package+'Vcf',data)
-        data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id),'type':variant_caller} # 'vcf':added_id,
-        if variant_caller != 'GenotypeGvcf':
-            extra_data = {'unmapped_read_filter_perc':filtered['UnmappedReadFilter']['p'],'unmapped_read_filter':filtered['UnmappedReadFilter']['r'],'total_reads':total_reads,'reads_filtered_out_perc':reads_filtered_out_perc,'reads_filtered_out':reads_filtered_out,
-                          'not_primary_alignment_filter':filtered['NotPrimaryAlignmentFilter']['r'],'not_primary_align_filter_perc':filtered['NotPrimaryAlignmentFilter']['p'],'map_qual_unavailable_filter':filtered['MappingQualityUnavailableFilter']['r'],'map_qual_unavail_filter_perc':filtered['MappingQualityUnavailableFilter']['p'],'malformed_read_filter_perc':filtered['MalformedReadFilter']['p'],
-                          'malformed_read_filter':filtered['MalformedReadFilter']['r'],'fails_vendor_qual_filter_perc':filtered['FailsVendorQualityCheckFilter']['p'],'fails_vendor_qual_filter':filtered['FailsVendorQualityCheckFilter']['r'],'duplicate_read_filter_perc':filtered['DuplicateReadFilter']['p'],'duplicate_read_filter':filtered['DuplicateReadFilter']['r'],
-                          'bad_mate_filter_perc':filtered['BadMateFilter']['p'],'bad_mate_filter':filtered['BadMateFilter']['r'],'bad_cigar_filtered_perc':filtered['BadCigarFilter']['p'],'bad_cigar_filtered':filtered['BadCigarFilter']['r']}
-            data.update(extra_data)
-        if variant_caller == 'HaplotypeCaller':
-            data.update({'hc_mapping_quality_filter':filtered['HCMappingQualityFilter']['r'],'hc_mapping_quality_perc':filtered['HCMappingQualityFilter']['p']})
-        if variant_caller == 'UnifiedGenotyper':
-            data.update({'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId})
-        added_id = connection.add(package+'VariantCaller', data)[0]
-        if variant_caller == 'UnifiedGenotyper':
-            unifiedGenotyper_data = connection.get(package+'VariantCaller', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
-            if len(unifiedGenotyper_data) >0 and len(unifiedGenotyper_data[0]['id']) > 0:
-                added_id = unifiedGenotyper_data[0]['id']+','+added_id
-        if sample_names:
-            for sample_name in sample_names:
                 connection.update_entity_rows(package+'Samples', data={'variantCaller':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
-        else:
-            connection.update_entity_rows(package+'Samples', data={'variantCaller':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_fastqc(runinfo_folder_QC,connection,package):
     '''todo: readlength can be 50 instead of 30-50, .rstrip to ','.join()'''
     print('Start fastqc')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,'FastQC*.sh'),connection, package):
         fastqc_outdir = re.search('--outdir (\S+)',sh_text).group(1)
         fastqc_output_base = re.search('--noextract (\S+)',sh_text).group(1).rstrip('.fastq.gz').split(os.sep)[-1]+'_fastqc'
+        if not os.path.isfile(fastqc_output_base+'.html'):
+            fastqc_output_base = fastqc_output_base.replace('_fastqc','.fq_fastqc')
         with open(fastqc_outdir+os.sep+fastqc_output_base+'.html') as fastqc_html_file:
             fastqc_html = fastqc_html_file.read()
             images = re.findall('img src="data:image/png;base64,(\S+)" alt="(\S+)"/>\<a href="\S+"\>(.*?)\<',fastqc_html)
@@ -564,16 +625,20 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
                     description = os.path.basename(os.path.splitext(name)[0])
                     img_data = archive.open(name)
                     names.append(description)
-                    graphs[description] = connection.add(name, description,package+'File', io_stream = img_data,
-                                                              extra_data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+name.replace(' ','_')})
+                    try:
+                        graphs[description] = connection.add_file(name, description = description, entity=package+"File", io_stream = img_data,
+                                                              data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+name.replace(' ','_')})
+                    except requests.exceptions.HTTPError:
+                        graphs[description] = connection.get(package+"File",query = [{'field':'sample_file_id', 'operator':'EQUALS', 'value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+name.replace(' ','_')}])
                 if 'fastqc_data.txt' in name:
                     fastqc_data = archive.read(name)
+
         fastqc_groups = re.search('Filename\s+(\S+)\n'\
                                  +'File type\s+(.+)\n'\
                                  +'Encoding\s+(.+)\n'\
                                  +'Total Sequences\s+(\S+)\n'\
                                  +'Sequences flagged as poor quality\s+(\d+)\n'\
-                                 +'Sequence length\s+(\d+-\d+)\n'\
+                                 +'Sequence length\s+(\d+|\d+-\d+)\n'\
                                  +'%GC\s+(\d+)\n.*?'\
                                  +'Per base sequence quality.*?\n(.*?)\n\>\>END_MODULE.*?'\
                                  +'Per tile sequence quality.*?\n(.*?)\n\>\>END_MODULE.*?'\
@@ -592,65 +657,63 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
         for line in fastqc_groups.group(8).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'base_letter':s_l[0], 'mean':s_l[1], 'median':s_l[2], 'lower_quartile':s_l[3], 'upper_quartile':s_l[4],'percentile_10th':s_l[5], 'percentile_90th':s_l[6]})
-        fastqc_ids['pbsq'] = ','.join(add_multiple_rows(package+'Per_base_sequence_quality',to_add,connection,True))
+        fastqc_ids['pbsq'] = ','.join(add_multiple_rows(package+'Per_base_sequence_quality',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(9).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'tile':s_l[0], 'base_letter':s_l[1], 'mean':s_l[2]})
-        fastqc_ids['ptsq'] = ','.join(add_multiple_rows(package+'Per_tile_sequence_quality',to_add,connection,True))
+        fastqc_ids['ptsq'] = ','.join(add_multiple_rows(package+'Per_tile_sequence_quality',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(10).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'quality':s_l[0], 'count':s_l[1]})
-        fastqc_ids['psqs'] = ','.join(add_multiple_rows(package+'Per_sequence_quality_scores',to_add,connection,True))
+        fastqc_ids['psqs'] = ','.join(add_multiple_rows(package+'Per_sequence_quality_scores',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(11).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'base_letter':s_l[0], 'a':s_l[1], 'g':s_l[2], 'c':s_l[3], 't':s_l[4]})
-        fastqc_ids['pbsc'] = ','.join(add_multiple_rows(package+'Per_base_sequence_content',to_add,connection,True))
+        fastqc_ids['pbsc'] = ','.join(add_multiple_rows(package+'Per_base_sequence_content',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(12).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'gc_content':s_l[0], 'count':s_l[1]})
-        fastqc_ids['psgc'] = ','.join(add_multiple_rows(package+'Per_sequence_GC_content',to_add,connection,True))
+        fastqc_ids['psgc'] = ','.join(add_multiple_rows(package+'Per_sequence_GC_content',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(13).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'base_letter':s_l[0], 'n_count':s_l[1]})
-        fastqc_ids['pbnc'] = ','.join(add_multiple_rows(package+'Per_base_N_content',to_add,connection,True))
+        fastqc_ids['pbnc'] = ','.join(add_multiple_rows(package+'Per_base_N_content',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(14).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'length':s_l[0], 'count':s_l[1]})
-        fastqc_ids['sld'] = ','.join(add_multiple_rows(package+'Sequence_length_distribution',to_add,connection,True))
+        fastqc_ids['sld'] = ','.join(add_multiple_rows(package+'Sequence_length_distribution',to_add,connection))
         total_deduplicated_perc = fastqc_groups.group(15).split('\n')[0].split('\t')[1]            
         to_add = []
         for line in fastqc_groups.group(15).split('\n')[2:]:
             s_l = line.split('\t')
             to_add.append({'duplication_level':s_l[0],'perc_of_deduplicated':s_l[1],'perc_of_total':s_l[2]})
-        fastqc_ids['sdl'] = ','.join(add_multiple_rows(package+'Sequence_duplication_levels',to_add,connection,True))
+        fastqc_ids['sdl'] = ','.join(add_multiple_rows(package+'Sequence_duplication_levels',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(16).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'sequence':s_l[0],'count':s_l[1],'percentage':s_l[2],'possible_source':s_l[3]})
-        fastqc_ids['os'] = ','.join(add_multiple_rows(package+'Overrepresented_sequences',to_add,connection,True))
+        fastqc_ids['os'] = ','.join(add_multiple_rows(package+'Overrepresented_sequences',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(17).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'position':s_l[0], 'illumina_universal_adapter':s_l[1], 'illumina_small_rna_adapter':s_l[2], 'nextera_transposase_seq':s_l[3], 'solid_small_rna_adapter':s_l[4]})
-        fastqc_ids['ac'] = ','.join(add_multiple_rows(package+'Adapter_content',to_add,connection,True))
+        fastqc_ids['ac'] = ','.join(add_multiple_rows(package+'Adapter_content',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(18).split('\n')[1:]:
             s_l = line.split('\t')
             to_add.append({'seq':s_l[0], 'count':s_l[1], 'p_value':s_l[2], 'obs_exp_max':s_l[3], 'max_obs_exp_position':s_l[4]})
-        fastqc_ids['kc'] = ','.join(add_multiple_rows(package+'Kmer_content',to_add,connection,True))
+        fastqc_ids['kc'] = ','.join(add_multiple_rows(package+'Kmer_content',to_add,connection))
         if '-' in fastqc_groups.group(6):
             seq_length_min = fastqc_groups.group(6).split('-')[0]
-        else:
-            seq_length_min = fastqc_groups.group(6)
-        if '-' in fastqc_groups.group(6):
             seq_length_max = fastqc_groups.group(6).split('-')[1]
         else:
+            seq_length_min = fastqc_groups.group(6)
             seq_length_max = fastqc_groups.group(6)
         data = {'adapter_content_graph':graphs['adapter_content'],'kmer_content_graph':graphs['kmer_profiles'],'per_base_n_content_graph':graphs['per_base_n_content'],
                 'per_base_seq_content_graph':graphs['per_base_sequence_content'],'per_base_seq_qual_graph':graphs['per_base_quality'],'per_seq_GC_content_graph':graphs['per_sequence_gc_content'],
@@ -666,7 +729,12 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
                 'seq_duplication_levels_check':image_data['Sequence Duplication Levels'][1],'seq_length_min':seq_length_min,'seq_length_distribution':fastqc_ids['sld'],
                 'seq_length_distribution_check':image_data['Sequence Length Distribution'][1],'seqs_flagged_as_poor':fastqc_groups.group(5),'total_seqs':fastqc_groups.group(4),'seq_length_max':seq_length_max,'file_name':fastqc_groups.group(2),'file_type':fastqc_groups.group(2),'encoding':fastqc_groups.group(3),
                 'err_file':err_id,'out_file':out_id,'runtime':runtime,'sh_script':sh_id,'internalId':internalId,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name)}
-        added_id = connection.add(package+'FastQC', data)[0]
+        try:
+            added_id = connection.add(package+'FastQC', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'FastQC', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
         fastqc_data = connection.get(package+'fastqc', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
         if len(fastqc_data) >0 and len(fastqc_data[0]['id']) > 0:
             added_id = fastqc_data[0]['id']+','+added_id
@@ -683,25 +751,31 @@ def parse_markDuplicates(runinfo_folder_genotypeCalling,connection,package):
         markduplicates_histogram = ''
         with open(mark_duplicates_log) as log_file:
             log = log_file.read()
+            print(log)
             groups = re.search('METRICS CLASS(.*?)## HISTOGRAM(.*?)',log,re.DOTALL)
+            if groups:
+                to_add = []
+                for line in groups.group(2).split('\n'):
+                    if not line.startswith('##') and not line.startswith('BIN') and len(line.strip()) > 0:
+                        to_add.append({'bin':line.split('\t')[0],'value':line.split('\t')[1]})
+                markduplicates_histogram = ','.join(add_multiple_rows(package+'MarkDuplicates_histogram',to_add,connection))
+            else:
+                # if previous regex did not work it menas that there is no histogram in the output data, only search for the metrics
+                groups = re.search('METRICS CLASS(.*?)',log,re.DOTALL)
             to_add = []
             for line in groups.group(1).split('\n'):
                 if not line.startswith('LIBRARY') and not line.startswith('##') and len(line.split('\t')[0].strip()) > 0:
                     s_l = line.split('\t')
                     to_add.append({'library':s_l[0],'unpaired_reads_examined':s_l[1],'reads_pairs_examined':s_l[2],'unmapped_reads':s_l[3],'unpaired_read_duplicates':s_l[4],
                                    'read_pair_duplicates':s_l[5],'read_pair_optical_duplicates':s_l[6],'percent_duplication':s_l[7],'estimated_library_size':s_l[8]})
-            duplication_metrics = ','.join(add_multiple_rows(package+'Duplication_metrics', to_add,connection,True))
-            to_add = []
-            for line in groups.group(2).split('\n'):
-                if not line.startswith('##') and not line.startswith('BIN') and len(line.strip()) > 0:
-                    to_add.append({'bin':line.split('\t')[0],'value':line.split('\t')[1]})
-            markduplicates_histogram = ','.join(add_multiple_rows(package+'MarkDuplicates_histogram',to_add,connection,True))
+            duplication_metrics = ','.join(add_multiple_rows(package+'Duplication_metrics', to_add,connection))
+
 
         data = {'duplicates':duplicates,'optical_duplicate_clusters':optical_duplicate_clusters,
                 'duplication_metrics':duplication_metrics.rstrip(','), 'markduplicates_histogram':markduplicates_histogram.rstrip(','),
                 'err_file':err_id,'out_file':out_id,'runtime':runtime,'sh_script':sh_id}
         added_id = connection.add(package+'MarkDuplicates', data)[0]
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'markDuplicates':added_id})
+        connection.update_entity_rows(package+'Samples', data={'markDuplicates':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_bqsr(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print ('start BQSR')
@@ -770,29 +844,41 @@ def parse_bqsr(runinfo_folder_genotypeCalling,connection,package):
                         skip_line = True
             mref_ids = {}
             for key in to_add_dict:
-                mref_ids[key] = ','.join(add_multiple_rows(package+key, to_add_dict[key],connection,True))
+                mref_ids[key] = ','.join(add_multiple_rows(package+key, to_add_dict[key],connection))
             data = {'argument':mref_ids['Arguments'],'quantized':mref_ids['Quantized'],'recal_table_1':mref_ids['Recal_table_1'],'recal_table_2':mref_ids['Recal_table_2'],'recal_table_0':mref_ids['Recal_table_0']}
             before_after_ids[before_after] = connection.add(package+'BQSR_'+before_after+'_grp', data)[0]
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id),
                 'sh_script':sh_id,'bQSR_before_grp':before_after_ids['before'],'bQSR_after_grp':before_after_ids['after']}
         added_id = connection.add(package+'BQSR', data)[0]
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'bQSR':added_id})
+        connection.update_entity_rows(package+'Samples', data={'bQSR':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_addOrReplaceReadGroups(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
-    print('start addOrReplaceGroups')
+    print('start addOrReplaceReadGroups')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'AddOrReplaceReadGroups*.sh'), connection,package):
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'AddOrReplaceReadGroups', data)[0]
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'addOrReplaceReadGroups':added_id})
+        try:
+            added_id = connection.add(package+'AddOrReplaceReadGroups', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'AddOrReplaceReadGroups', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
+            else:
+                raise
+        connection.update_entity_rows(package+'Samples', data={'addOrReplaceReadGroups':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_samToFilteredBam(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start samToFilteredBam')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'SamToFilteredBam*.sh'), connection,package):
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'SamToFilteredBam', data)[0]
-        samToFilteredBam_data = connection.get(package+'SamToFilteredBam', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+        try:
+            added_id = connection.add(package+'SamToFilteredBam', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'SamToFilteredBam', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
+        samToFilteredBam_data = connection.get(package+'SamToFilteredBam', [{'field':'internalId_sampleid','operator':'EQUALS','value':internalId+'_'+str(project)+'-'+str(sample_name)}])
         if len(samToFilteredBam_data) >0 and len(samToFilteredBam_data[0]['id']) > 0:
             added_id = samToFilteredBam_data[0]['id']+','+added_id
         connection.update_entity_rows(package+'Samples', data={'samToFilteredBam':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
@@ -802,8 +888,13 @@ def parse_sortBam(runinfo_folder_genotypeCalling,connection,package):
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'SortBam*.sh'), connection,package):
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'SortBam', data)[0]
-        samToFilterdBam_data = connection.get(package+'SortBam', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+        try:
+            added_id = connection.add(package+'SortBam', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'SortBam', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']
+        samToFilterdBam_data = connection.get(package+'SortBam', [{'field':'internalId_sampleid','operator':'EQUALS','value':internalId+'_'+str(project)+'-'+str(sample_name)}])
         if len(samToFilterdBam_data) >0 and len(samToFilterdBam_data[0]['id']) > 0:
             added_id = samToFilterdBam_data[0]['id']+','+added_id
         connection.update_entity_rows(package+'Samples', data={'sortBam':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
@@ -814,15 +905,15 @@ def parse_indelReallignmentKnown(runinfo_folder_genotypeCalling,connection,packa
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         added_id = connection.add(package+'IndelReallignmentKnow', data)   
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'indelReallignmentKnown':added_id})
+        connection.update_entity_rows(package+'Samples', data={'indelReallignmentKnown':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_gatkSplitNTrim(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start gatkSplitAndtrim')
-    for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'GATKSplitNTrim*.sh'), connection,package):
+    for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'GatkSplitAndTrim*.sh'), connection,package):
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         added_id = connection.add(package+'GATKSplitNTrim', data)[0]
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'gATKSplitNTrim':added_id})
+        connection.update_entity_rows(package+'Samples', data={'gATKSplitNTrim':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
     print ('start cmmMetrics')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder,'CollectMultipleMetrics*.sh'),connection, package):
@@ -841,7 +932,7 @@ def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
                         'pct_reads_aligned_in_pairs':s_l[17],'bad_cycles':s_l[18],'strand_balance':s_l[19],'pct_chimeras':s_l[20],
                         'pct_adapter':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
                 to_add.append(data)
-            alignment_summary_metrics = ','.join(add_multiple_rows(package+'Alignment_summary_metrics',to_add,connection,True))
+            alignment_summary_metrics = ','.join(add_multiple_rows(package+'Alignment_summary_metrics',to_add,connection))
         with open(cmMetrics_base_file+'.insert_size_metrics') as insert_size_metrics:
             split_file = insert_size_metrics.read().split('## METRICS CLASS')[1].split('## HISTOGRAM')[0]
             metrics_class = split_file[0].split('\n')
@@ -857,7 +948,7 @@ def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
                         'width_of_70_percent':s_l[16],'width_of_80_perc':s_l[17],'ent':s_l[18],'width_of_90_percent':s_l[19],
                         'width_of_99_percent':s_l[20],'sample':s_l[21],'library':s_l[22],'read_group':s_l[23]}
                 to_add.append(data)
-            insert_size_metrics_ids = ','.join(add_multiple_rows(package+'Insert_size_metrics_class',to_add,connection,True))
+            insert_size_metrics_ids = ','.join(add_multiple_rows(package+'Insert_size_metrics_class',to_add,connection))
             histogram = split_file[1].split('\n')
             insert_size_histogram_ids = ''
             for line in histogram[2:]:
@@ -874,7 +965,7 @@ def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
                 s_l = line.split('\t')
                 data = {'cycle':s_l[0],'mean_quality':s_l[1]}
                 to_add.append(data)
-            quality_per_cycle_histogram_ids = ','.join(add_multiple_rows(package+'Quality_by_cycle_metrics',to_add,connection,True))                         
+            quality_per_cycle_histogram_ids = ','.join(add_multiple_rows(package+'Quality_by_cycle_metrics',to_add,connection))                         
         with open(cmMetrics_base_file+'.quality_by_cycle_metrics') as alignment_summary_metrics:
             metrics_class = alignment_summary_metrics.read().split('## HISTOGRAM')[1].split('\n')
             quality_distribution_histogram_ids = ''
@@ -884,12 +975,24 @@ def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
                 s_l = line.split('\t')
                 data = {'cycle':s_l[0],'mean_quality':s_l[1]}
                 to_add.append(data)
-            quality_distribution_histogram_ids = ','.join(add_multiple_rows(package+'Quality_distribution_metrics',to_add,connection,True))  
+            quality_distribution_histogram_ids = ','.join(add_multiple_rows(package+'Quality_distribution_metrics',to_add,connection))  
+        if 'QC' in runinfo_folder:
+            internalId_sampleid = str(internalId)+'_'+str(project)+'-'+str(sample_name)
+        elif 'genotypeCalling' in runinfo_folder:
+            # after genotypecalling there is not more internal id, keys with value None get removed before adding
+            internalId_sampleid = None
+        else:
+            raise ValueError('runinfo folder does not contain QC or genotypeCalling, need that information to proceed. runinfo_folder = '+str(runinfo_folder))
         data = {'alignment_summary_metrics':alignment_summary_metrics_ids.rstrip(','),'insert_size_metrics_class':insert_size_metrics_ids.rstrip(','),'insert_size_metrics_histogram':insert_size_histogram_ids.rstrip(','),
                 'pipeline':pipeline,'qual_by_cycle_metrics':quality_per_cycle_histogram_ids.rstrip(','),'qual_distribution_metrics':quality_distribution_histogram_ids.rstrip(','),
-                'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
+                'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId_sampleid,'internalId':internalId,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'CMMetrics', data)[0]  
+        try:
+            added_id = connection.add(package+'CMMetrics', data)[0]
+        except requests.exceptions.HTTPError as e:
+            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                added_id = connection.get(package+'CMMetrics', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']  
         if 'QC' in runinfo_folder:
             cMMetric_data = connection.get(package+'CMMetrics', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
             if len(cMMetric_data) >0 and len(cMMetric_data[0]['id']) > 0:
@@ -917,7 +1020,7 @@ def parse_rMetrics(runinfo_folder,connection,package,pipeline):
                         'median_cv_coverage':s_l[18],'median_5prime_bias':s_l[19],'median_3prime_bias':s_l[20],
                         'median_5prime_to_3prime_bias':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
                 to_add.append(data)
-            metrics_ids = ','.join(add_multiple_rows(package+'Rnaseq_metrics_class',to_add,connection,True))
+            metrics_ids = ','.join(add_multiple_rows(package+'Rnaseq_metrics_class',to_add,connection))
             histogram = split_file[1].split('\n')
             metrics_histogram_ids = ''
             for line in histogram[2:]:
@@ -972,8 +1075,13 @@ def parse_flagstat(runinfo_folder_genotypeCalling,connection,package):
                 'singletons':groups.group(12),'singletons_perc':groups.group(13),'supplementary':groups.group(3),'total_mapped_reads':groups.group(5),'with_itself_and_mate_mapped':groups.group(11),
                 'total_mapped_reads_perc':groups.group(5),'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'Flagstat', data)   
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'flagstat':added_id})
+        try:
+            added_id = connection.add(package+'Flagstat', data)
+        except requests.exceptions.HTTPError:
+            print('flagst send data:')
+            print(data)
+            raise
+        connection.update_entity_rows(package+'Samples', data={'flagstat':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_kallisto(runinfo_folder_quantification,connection,package):
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project, sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_quantification,'Kallisto*.sh'), connection, package):
         output_folder = re.search('kallistoDir="(\S+)"', sh_text).group(1)
@@ -991,7 +1099,7 @@ def parse_kallisto(runinfo_folder_quantification,connection,package):
                 data = {'target_id':spl_line[0], 'length':spl_line[1],'eff_length':spl_line[2],
                         'est_counts':spl_line[3],'tpm':spl_line[4]}
                 to_add.append(data)
-            abundance = ','.join(add_multiple_rows(package+'Abundance', to_add,connection,True))
+            abundance = ','.join(add_multiple_rows(package+'Abundance', to_add,connection))
         abundance = abundance.rstrip(',')
         k_mer_length = re.search('k-mer length:\s+(\d+)', err_text).group(1)
         number_of_targets = re.search('number of targets:\s+(\S+)', err_text).group(1).replace(',','')
@@ -1052,14 +1160,14 @@ def analyseCovariates(runinfo_folder_genotypeCalling,connection,package):
                         'empirical_quality':s_l[5],'average_reported_quality':s_l[6],'accuracy':s_l[7],'recalibration':s_l[8], 
                         'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
                 to_add.append(data)
-            ac_intermediate_ids = ','.join(add_multiple_rows(package+'CovariateAnalysisTable',to_add,connection,True))
+            ac_intermediate_ids = ','.join(add_multiple_rows(package+'CovariateAnalysisTable',to_add,connection))
                 
             ac_intermediate_ids = ac_intermediate_ids.rstrip(',')
             
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id,'covariateAnalysisTable':ac_intermediate_ids, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'AnalyseCovariates', data)[0]   
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'analyseCovariates':added_id})
+        added_id = connection.add(package+'AnalyseCovariates', data)[0]
+        connection.update_entity_rows(package+'Samples', data={'analyseCovariates':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_mergeGvcf(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print ('start mergeGvcf')
@@ -1067,7 +1175,7 @@ def parse_mergeGvcf(runinfo_folder_genotypeCalling,connection,package):
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         added_id = connection.add(package+'MergeGvcf', data)[0]
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'mergeGvcf':added_id})
+        connection.update_entity_rows(package+'Samples', data={'mergeGvcf':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_genotypeHarmonizer(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start genotypeHarmonizer')
@@ -1075,7 +1183,12 @@ def parse_genotypeHarmonizer(runinfo_folder_genotypeCalling,connection,package):
         for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'GenotypeHarmonizer*.sh'),connection, package):
             data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                     'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-            added_id = connection.add(package+'GenotypeHarmonizer', data)[0]
+            try:
+                added_id = connection.add(package+'GenotypeHarmonizer', data)[0]
+            except requests.exceptions.HTTPError as e:
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    added_id = connection.get(package+'GenotypeHarmonizer', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id'] 
             genotypeHarmonizer_data = connection.get(package+'GenotypeHarmonizer', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
             if len(genotypeHarmonizer_data) >0 and len(genotypeHarmonizer_data[0]['id']) > 0:
                 added_id = genotypeHarmonizer_data[0]['id']+','+added_id
@@ -1090,7 +1203,7 @@ def parse_indelRealignmentKnown(runinfo_folder_genotypeCalling,connection,packag
         data = {'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         added_id = connection.add(package+'IndelRealignmentKnown', data)[0] 
-        connection.update_entity_rows(package+'Samples', query_list = [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}], data = {'indelRealignmentKnown':added_id})
+        connection.update_entity_rows(package+'Samples', data={'indelRealignmentKnown':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 
 #if __name__ == "__main__":
 #    connection = molgenis.Connect_Molgenis('http://localhost:8080',new_pass_file=False)
