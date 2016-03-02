@@ -108,7 +108,7 @@ get_ref_id = dict(links)
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
 rev = [False for i in range(len(checkSamples))]
 
-output2 = open('metric_per_snp', "w" )
+output = open('metric_per_snp', "w" )
 start_time = time.time()##TIMER
 recordCounter = 0
 previousPosition = None
@@ -157,37 +157,27 @@ for record in chk_reader:
         sampleCounter += 1
     ### Prints a metric per SNPS to detect mismatches that ocurr globally... techical probbly
     previousPosition = record.POS
-    output2.write(str(record.CHROM))
-    output2.write("\t")
-    output2.write(str(record.POS))
-    output2.write("\t")
-    output2.write(str(record.ID))
-    output2.write("\t")
+    output.write(str(record.CHROM)+"\t"+str(record.POS)+"\t"+str(record.ID)+"\t")
     for j in metric_per_snp[:-1]:
-        output2.write(str(j))
-        output2.write("\t")
-    output2.write(str(metric_per_snp[-1]))
-    output2.write("\n")
+        output.write(str(j)+"\t")
+    output.write(str(metric_per_snp[-1])+"\n")
     ###
     recordCounter += 1
     
 print("Program%f seconds" % (time.time() - start_time))
-output2.close()
-
-output = open(args.output, "w" )
-i = 0
-for each in checkSamples:
-    output.write(checkSamples[i])
-    output.write("\t")
-    for j in metric[i][:-1]:
-        output.write(str(j))
-        output.write("\t")
-    output.write(str(metric[i][-1]))
-    output.write("\n")
-    i += 1
 output.close()
-print("written%f seconds" % (time.time() - start_time))
 
+i = 0
+with open(args.output, "w" ) as output:
+    for each in checkSamples:
+        output.write(checkSamples[i]+"\t")
+        for j in metric[i][:-1]:
+            output.write(str(j)+"\t")
+        output.write(str(metric[i][-1])+"\n")
+        i += 1
+print("written%f seconds" % (time.time() - start_time))
+with open('mp','w') as output:
+    output.write('fasdfdasdfas')
 ##TIMER
 ###END
 ###############################################################################
