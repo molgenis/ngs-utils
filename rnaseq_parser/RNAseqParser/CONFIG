@@ -1,0 +1,20 @@
+[paths]
+ena = /Users/NPK/UMCG/projects/ENA/2015-06-08-ENA.txt
+runinfo_folder_qc = /Users/NPK/UMCG/data/BIOS_example_data/jobs/QC/
+runinfo_folder_genotypecalling = /Users/NPK/UMCG/data/BIOS_example_data/jobs/genotypeCalling
+runinfo_folder_quantification = /Users/NPK/UMCG/data/BIOS_example_data/jobs/quantification
+samplesheet = /Users/NPK/UMCG/data/BIOS_example_data/jobs/samplesheet_BIOS_example_QC.csv
+project_folder = /Users/NPK/UMCG/data/BIOS_example_data/
+entities = RNAseqParser/entities.txt
+
+[settings]
+analysis_id = 1
+analysis_description = Testing database
+package = public_rnaseq_5_
+server = http://molgenis39.target.rug.nl/
+remove_pass_file = True
+experiment_type = rna_seq
+new_pass_file = True
+password_location = ~
+max_rows = 1000
+
