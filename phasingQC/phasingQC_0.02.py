@@ -176,8 +176,6 @@ with open(args.output, "w" ) as output:
         output.write(str(metric[i][-1])+"\n")
         i += 1
 print("written%f seconds" % (time.time() - start_time))
-with open('mp','w') as output:
-    output.write('fasdfdasdfas')
 ##TIMER
 ###END
 ###############################################################################
