@@ -41,9 +41,9 @@ def mismatch_type(ref_gt, eva_gt):
     # Function says the type of mismatch: currently we swich only #2
     # Input Example: "A|A" "A|T" False
     # Output Example:  5
-    # 0 = A|T A|T, 1 = A|A A|A, 2 = A|T T|A,
-    # 3 = A|T A|X, 4 = A|T X|A, 5 = A|T T|T && A|A A|X
-    # 6 = (A|T or A|A) X|X
+    # 0 = A|T A|T, 1 = A|A A|A, 2 = A|T T|N,
+    # 3 = A|T A|N, 4 = A|T N|A, 5 = A|T T|T && A|A A|N
+    # 6 = (A|T or A|A) N|N
     # current limitations: Trialellic SNPs
 
     # Diagnostic:
@@ -77,8 +77,8 @@ same_names = True
 fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
 
 parser = argparse.ArgumentParser(description='This is phasing QC.')
-parser.add_argument('-i','--input1', help='Reference file VCF',required=True)
-parser.add_argument('-I','--input2', help='Check file VCF',required=True)
+parser.add_argument('-i','--reference', help='Reference file VCF',required=True)
+parser.add_argument('-I','--toevaluate', help='Check file VCF',required=True)
 parser.add_argument('-o','--output',help='Output file table', required=True)
 parser.add_argument('-c','--coupling',help='Coupling file', required=False)
 parser.add_argument('-f','--fast',help='Fast Mode', action='store_true')
@@ -87,11 +87,11 @@ args = parser.parse_args()
 if args.coupling:
     same_names = False
 if args.fast is not None:
-    fast_mode = arg.fast
+    fast_mode = args.fast
 
 # If the sample names are not the same provide a two column tab delimited coupling file CheckID RefID
-ref_reader = vcf.Reader(open(args.input1, 'r' ))
-chk_reader = vcf.Reader(open(args.input2, 'r'))
+ref_reader = vcf.Reader(filename=args.reference)
+chk_reader = vcf.Reader(filename=args.toevaluate)
 
 checkSamples = np.asarray(chk_reader.samples)
 links = []
@@ -105,15 +105,25 @@ get_ref_id = dict(links)
 #print(links)
 ## where do the closes go?
 
-
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
 rev = [False for i in range(len(checkSamples))]
 
+output = open('metric_per_snp', "w" )
 start_time = time.time()##TIMER
-
+recordCounter = 0
+previousPosition = None
 for record in chk_reader:
     refsnp = ref_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt? try!
+    if refsnp.POS != record.POS:
+        print('Incorrect fetching ocurred')
+        print(refsnp.POS,record.POS)
+        continue
+    if previousPosition == record.POS:
+        print('Duplicate position encoutnered: skipping')
+        print(refsnp.POS,record.POS)
+        continue
     sampleCounter = 0
+    metric_per_snp = [0 for i in range(7)]
     for sample in checkSamples:
         if fast_mode:
             refgt = refsnp.genotype(sample)['GT']
@@ -122,7 +132,7 @@ for record in chk_reader:
             refgt = refsnp.genotype(sample).gt_bases
             chkgt = record.genotype(get_ref_id[sample]).gt_bases
         if "/" in (refgt + chkgt):
-            print(record.ID,sample)
+            print(record.POS,sample)
             print("Only phased data can be matched... skipped")
             print("")
             continue
@@ -131,35 +141,41 @@ for record in chk_reader:
         if refgt != chkgt: # if mismatch
             mismatch_number = mismatch_type(refgt,chkgt) # get mismatch type
             if mismatch_number == None:
-                print(record.ID,sample)
+                print(record.POS,sample)
                 print("")
                 continue
             if mismatch_number == 2:
                 rev[sampleCounter] = not rev[sampleCounter] # only reverse when A|T T|A
             metric[sampleCounter][mismatch_number] += 1
+            metric_per_snp[mismatch_number] += 1
         elif homozygote(refgt):
             metric[sampleCounter][1] += 1
+            metric_per_snp[1] += 1
         else:
             metric[sampleCounter][0] += 1
+            metric_per_snp[0] += 1
         sampleCounter += 1
-else:
-    print("Nothing was skipped :)")
+    ### Prints a metric per SNPS to detect mismatches that ocurr globally... techical probbly
+    previousPosition = record.POS
+    output.write(str(record.CHROM)+"\t"+str(record.POS)+"\t"+str(record.ID)+"\t")
+    for j in metric_per_snp[:-1]:
+        output.write(str(j)+"\t")
+    output.write(str(metric_per_snp[-1])+"\n")
+    ###
+    recordCounter += 1
+    
 print("Program%f seconds" % (time.time() - start_time))
-
-output = open(args.output, "w" )
-i = 0
-for each in checkSamples:
-    output.write(checkSamples[i])
-    output.write("\t")
-    for j in metric[i][:-1]:
-        output.write(str(j))
-        output.write("\t")
-    output.write(str(metric[i][-1]))
-    output.write("\n")
-    i += 1
 output.close()
-print("written%f seconds" % (time.time() - start_time))
 
+i = 0
+with open(args.output, "w" ) as output:
+    for each in checkSamples:
+        output.write(checkSamples[i]+"\t")
+        for j in metric[i][:-1]:
+            output.write(str(j)+"\t")
+        output.write(str(metric[i][-1])+"\n")
+        i += 1
+print("written%f seconds" % (time.time() - start_time))
 ##TIMER
 ###END
 ###############################################################################
