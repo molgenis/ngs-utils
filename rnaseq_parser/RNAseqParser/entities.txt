@@ -80,3 +80,4 @@ CovariateAnalysisTable
 File
 Analysis_info
 Tools
+Sample_input_files
