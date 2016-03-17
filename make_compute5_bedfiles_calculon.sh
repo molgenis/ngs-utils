@@ -94,7 +94,7 @@ if [[ -z "${NAME-}" ]]; then
 	exit 1
 fi
 if [[ -z "${INTERVALFOLDER-}" ]]; then
-	INTERVALFOLDER="./"	
+	INTERVALFOLDER="."	
 fi
 if [[ -z "${EXTENSION-}" ]]; then
         EXTENSION="human_g1k_v37"
@@ -163,8 +163,6 @@ cp /apps/data/1000G/phase1/Mills_and_1000G_gold_standard/1000G_phase1.indels_Mil
 
 baits=${MAP}/${NAME}
 
-sort -V ${baits}.bed > ${baits}.bed.sorted
-mv ${baits}.bed.sorted ${baits}.bed
 
 ## If there are 4 columns, it adds an extra column (this is necessary for the GATK batch tool
 colcount=`awk '{print NF}' ${baits}.bed | sort | tail -n 1`
@@ -177,14 +175,13 @@ else
 	a=0
 fi
 cat ${baits}.bed > ${baits}.bed.tmp
-
 if [ $a == 0 ]
 then
 	if [ "$colcount" == "4" ]
 	then
-		echo -e 'NC_001422.1\t151\t5236\tphiX174' >> ${baits}.bed.tmp
+		echo -e 'NC_001422.1\t1\t5386\tphiX174' >> ${baits}.bed.tmp
 	else
-	        echo -e 'NC_001422.1\t151\t5236\t+\tphiX174' >> ${baits}.bed.tmp
+	        echo -e 'NC_001422.1\t1\t5386\t+\tphiX174' >> ${baits}.bed.tmp
 	fi
 fi
 
@@ -202,6 +199,10 @@ if [ -f ${baits}.withoutChrX.bed ]
 then
 	rm ${baits}.withoutChrX.bed
 fi
+
+sort -V ${baits}.bed > ${baits}.bed.sorted
+mv ${baits}.bed.sorted ${baits}.bed
+
 
 awk '{
 	if ($1 != "X"){
@@ -224,23 +225,26 @@ module load ngs-utils
 module load BEDTools
 bedtools merge -i ${baits}.bed -c 4,5 -o distinct > ${baits}.merged.bed
 
+wc -l  ${baits}.bed
+
 if [ ! -f ${baits}.genesOnly ]
 then
 	awk '{print $5}' ${baits}.merged.bed > ${baits}.genesOnly
 fi
-
-
 if [ $COVPERBASE == "true" ]
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
 		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		wc -l ${TMP}/${NAME}.per_base.bed
 
-		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
-		rm ${TMP}/${NAME}.per_base.bed
+		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
+		sort -V ${baits}.uniq.per_base.bed.tmp > ${baits}.uniq.per_base.bed
+		#rm ${baits}.uniq.per_base.bed.tmp
+		#rm ${TMP}/${NAME}.per_base.bed
 
-		echo "intervals per base done: ${baits}.uniq.per_base.bed"
+		echo "per base done: ${baits}.uniq.per_base.bed"
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
