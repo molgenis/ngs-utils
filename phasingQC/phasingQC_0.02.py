@@ -100,9 +100,8 @@ if same_names:
         links.append([sample,sample])
 else:
     for line in open(args.coupling):
-        links.append(line.split("\t"))
+        links.append(line[:-1].split("\t")[::-1])
 get_ref_id = dict(links)
-#print(links)
 ## where do the closes go?
 
 metric = [[0 for i in range(7)] for j in  range(len(checkSamples))]
@@ -113,24 +112,30 @@ start_time = time.time()##TIMER
 recordCounter = 0
 previousPosition = None
 for record in chk_reader:
-    refsnp = ref_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt? try!
+    #refsnp = ref_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt? try!
+    try:
+        refsnp = ref_reader.fetch(record.CHROM, record.POS) # if fails to get it then wt? try!
+    except:
+        print('Position not found in REF: Skipping')
+        print(record.POS)
+        continue
     if refsnp.POS != record.POS:
-        print('Incorrect fetching ocurred')
+        print('Incorrect fetching ocurred: Skipping')
         print(refsnp.POS,record.POS)
         continue
     if previousPosition == record.POS:
-        print('Duplicate position encoutnered: skipping')
+        print('Duplicate position encoutnered: Skipping')
         print(refsnp.POS,record.POS)
         continue
     sampleCounter = 0
     metric_per_snp = [0 for i in range(7)]
     for sample in checkSamples:
         if fast_mode:
-            refgt = refsnp.genotype(sample)['GT']
-            chkgt = record.genotype(get_ref_id[sample])['GT']
+            refgt = refsnp.genotype(get_ref_id[sample])['GT']
+            chkgt = record.genotype(sample)['GT']
         else:
-            refgt = refsnp.genotype(sample).gt_bases
-            chkgt = record.genotype(get_ref_id[sample]).gt_bases
+            refgt = refsnp.genotype(get_ref_id[sample]).gt_bases
+            chkgt = record.genotype(sample).gt_bases
         if "/" in (refgt + chkgt):
             print(record.POS,sample)
             print("Only phased data can be matched... skipped")
@@ -141,7 +146,6 @@ for record in chk_reader:
         if refgt != chkgt: # if mismatch
             mismatch_number = mismatch_type(refgt,chkgt) # get mismatch type
             if mismatch_number == None:
-                print(record.POS,sample)
                 print("")
                 continue
             if mismatch_number == 2:
