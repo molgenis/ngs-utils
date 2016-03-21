@@ -128,15 +128,15 @@ phiXExt=${EXTENSION}_phiX
 batchCount_X=2
 
 #check which data
-if [ $DATA == "wgs" ]
+if [ "${DATA}" == "wgs" ]
 then
         BATCHCOUNT=17
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ $DATA == "exome" ]
+elif [ "${DATA}" == "exome" ]
 then
         BATCHCOUNT=7
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ $DATA == "chr" ]
+elif [ "${DATA}" == "chr" ]
 then
 	awk '{print $1}' ${NAME}.bed | sort | uniq > countChr.tmp
 	BATCHCOUNT=$(cat countChr.tmp | wc -l)
@@ -153,7 +153,7 @@ echo "COVPERBASE: $COVPERBASE"
 
 MAP="${INTERVALFOLDER}"
 
-if [[ ${NAME} == *"baits"*  ]] || [[ ${NAME} == *"v37"* ]] || [[ ${NAME} == *"exons"* ]] || [[ ${NAME} == *".bed"* ]]
+if [[ "${NAME}" == *"baits"*  || "${NAME}" == *"v37"* || "${NAME}" == *"exons"* || "${NAME}" == *".bed"* ]]
 then
         echo "No need to put extension (baits, exons, v37 or .bed) in the name, only the name of the bed"
         exit 0
@@ -231,7 +231,7 @@ if [ ! -f ${baits}.genesOnly ]
 then
 	awk '{print $5}' ${baits}.merged.bed > ${baits}.genesOnly
 fi
-if [ $COVPERBASE == "true" ]
+if [ "${COVPERBASE}" == "true" ]
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
@@ -443,7 +443,7 @@ else
 
 	while read line
 	do
-		awk '{if ($2!=$3){ print $0}}' $line > ${line}.tmp
+		awk '{if ($2 != $3){ print $0}}' $line > ${line}.tmp
 		mv ${line}.tmp $line 
 	done<${MAP}/chompLines.txt
 
