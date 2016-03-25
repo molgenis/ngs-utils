@@ -342,27 +342,27 @@ def main(argv):
   #print alignmentMetrics stats in tablular format
   alignmentMetrics = data['alignmentMetrics']
   for key in alignmentMetrics.keys():
-    print("{0:<40s}\t{1:<30}".format(key, alignmentMetrics[key]))
+    print("{0:<30s}\t{1:<40}".format(key, alignmentMetrics[key]))
 
   #print concordance stats in tablular format
   concordance = data['concordance']
   for key in concordance.keys():
-    print("{0:<40s}\t{1:<30}".format(key, concordance[key]))
+    print("{0:<30s}\t{1:<40}".format(key, concordance[key]))
 
   #print hsMetrics stats in tablular format
   hsMetrics = data['hsMetrics']
   for key in natural_sort(hsMetrics.keys()):
-    print("{0:<40s}\t{1:<30}".format(key, hsMetrics[key]))
+    print("{0:<30s}\t{1:<40}".format(key, hsMetrics[key]))
 
   #print insertSizeMetrics stats in tablular format
   insertSizeMetrics = data['insertSizeMetrics']
   for key in insertSizeMetrics.keys():
-    print("{0:<40s}\t{1:<30}".format(key, insertSizeMetrics[key]))
+    print("{0:<30s}\t{1:<40}".format(key, insertSizeMetrics[key]))
 
   #print flagstat stats in tablular format
   map2Full = data['map2Full']
   for key in map2Full.keys():
-    print("{0:<40s}\t{1:<11}".format(key, map2Full[key]))
+    print("{0:<30s}\t{1:<40}".format(key, map2Full[key]))
 
 if __name__ == "__main__":
   main(sys.argv[1:])
