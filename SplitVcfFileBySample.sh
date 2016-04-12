@@ -10,8 +10,8 @@ ${bold}This tool is to split a vcf by sample${normal}
 	-i|--input		vcf file (complete path) 
 
         Optional:
-	-o|--outputfolder	specify the outputfolder (default:/gcc/groups/gaf/tmp03/${WHO}/SplitVcf --> folder will be created if not exists )
-	-r|--reference    	which reference file is used (default:/gcc/resources/b37/indices/Homo_sapiens.GRCh37.GATK.illumina.fasta)
+	-o|--outputfolder	specify the outputfolder (default:/home/${WHO}/SplitVcf --> folder will be created if not exists )
+	-r|--reference    	which reference file is used (default:/apps/data/GRC/GRCh37/Homo_sapiens.GRCh37.GATK.illumina.fasta)
 "
 }
 
@@ -51,9 +51,9 @@ while true; do
 done
 
 
-if [ ! -d /gcc/groups/gaf/tmp03/${WHO}/SplitVcf ]
+if [ ! -d /home/${WHO}/SplitVcf ]
 then
-	mkdir -p /gcc/groups/gaf/tmp03/${WHO}/SplitVcf
+	mkdir -p /home//${WHO}/SplitVcf
 fi
 
 if [[ -z "${INPUT-}" ]]; then
@@ -62,13 +62,13 @@ if [[ -z "${INPUT-}" ]]; then
         exit 1
 fi
 if [[ -z "${REFERENCE-}" ]]; then
-        REFERENCE="/gcc/resources/b37/indices/Homo_sapiens.GRCh37.GATK.illumina.fasta"
+        REFERENCE="/apps/data/GRC/GRCh37/Homo_sapiens.GRCh37.GATK.illumina.fasta"
 fi
 if [[ -z "${OUTPUT-}" ]]; then
-        OUTPUT="/gcc/groups/gaf/tmp03/${WHO}/SplitVcf"
+        OUTPUT="/home/${WHO}/SplitVcf"
 fi
 
-module load GATK/3.4-0-g7e26428
+module load GATK
 
 IETS=$(awk '{if($1=="#CHROM")print $0}' ${INPUT})
 teller=0
@@ -76,11 +76,11 @@ teller=0
 allsamples=()
 for i in $IETS
 do 
-	if [ ${teller} -gt 9 ]
+	if [ ${teller} -gt 8 ]
 	then
 		allsamples+=(${i}) 
 	fi
-	(( teller++ ))
+	(( teller=$((teller+1)) ))
 
 done
 
@@ -88,10 +88,10 @@ echo "length: ${#allsamples[@]}"
 
 for i in ${allsamples[@]}
 do
-	java -Xmx2g -jar /gcc/tools/GATK-3.4-0-g7e26428/GenomeAnalysisTK.jar \
+	java -Xmx2g -jar /apps/software/GATK/3.4-46-Java-1.7.0_80/GenomeAnalysisTK.jar \
 	-R ${REFERENCE} \
 	-T SelectVariants \
 	--variant ${INPUT} \
-	-o ${OUTPUT}/${i}.splitted \
+	-o ${OUTPUT}/${i}.splitted.vcf \
 	-sn ${i}
 done
