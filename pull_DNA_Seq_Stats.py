@@ -25,7 +25,7 @@ COLNAMES_HS = {
  	'BAIT_TERRITORY': 'Bait size (bp)',
  	'TARGET_TERRITORY': 'Target size (bp)',
  	'TOTAL_READS': ',Total number of reads',
- 	'PCT_PF_UQ_READS_ALIGNED': 'Fraction reads aligned (UQ?!)',
+ 	'PCT_PF_UQ_READS_ALIGNED': 'Fraction reads aligned (UQ)',
  	'PF_UQ_BASES_ALIGNED': 'Aligned bases (Mb)',
  	'ON_BAIT_BASES': 'onBaitBases',
  	'NEAR_BAIT_BASES': 'nearBaitBases',
