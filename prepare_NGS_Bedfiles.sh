@@ -94,7 +94,7 @@ if [[ -z "${NAME-}" ]]; then
 	exit 1
 fi
 if [[ -z "${INTERVALFOLDER-}" ]]; then
-	INTERVALFOLDER="./"	
+	INTERVALFOLDER="."	
 fi
 if [[ -z "${EXTENSION-}" ]]; then
         EXTENSION="human_g1k_v37"
@@ -128,15 +128,15 @@ phiXExt=${EXTENSION}_phiX
 batchCount_X=2
 
 #check which data
-if [ $DATA == "wgs" ]
+if [ "${DATA}" == "wgs" ]
 then
         BATCHCOUNT=17
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ $DATA == "exome" ]
+elif [ "${DATA}" == "exome" ]
 then
         BATCHCOUNT=7
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ $DATA == "chr" ]
+elif [ "${DATA}" == "chr" ]
 then
 	awk '{print $1}' ${NAME}.bed | sort | uniq > countChr.tmp
 	BATCHCOUNT=$(cat countChr.tmp | wc -l)
@@ -153,7 +153,7 @@ echo "COVPERBASE: $COVPERBASE"
 
 MAP="${INTERVALFOLDER}"
 
-if [[ ${NAME} == *"baits"*  ]] || [[ ${NAME} == *"v37"* ]] || [[ ${NAME} == *"exons"* ]] || [[ ${NAME} == *".bed"* ]]
+if [[ "${NAME}" == *"baits"*  || "${NAME}" == *"v37"* || "${NAME}" == *"exons"* || "${NAME}" == *".bed"* ]]
 then
         echo "No need to put extension (baits, exons, v37 or .bed) in the name, only the name of the bed"
         exit 0
@@ -163,8 +163,6 @@ cp /apps/data/1000G/phase1/Mills_and_1000G_gold_standard/1000G_phase1.indels_Mil
 
 baits=${MAP}/${NAME}
 
-#sort -V ${baits}.bed > ${baits}.bed.sorted
-#mv ${baits}.bed.sorted ${baits}.bed
 
 ## If there are 4 columns, it adds an extra column (this is necessary for the GATK batch tool
 colcount=`awk '{print NF}' ${baits}.bed | sort | tail -n 1`
@@ -177,14 +175,13 @@ else
 	a=0
 fi
 cat ${baits}.bed > ${baits}.bed.tmp
-
 if [ $a == 0 ]
 then
 	if [ "$colcount" == "4" ]
 	then
-		echo -e 'NC_001422.1\t151\t5236\tphiX174' >> ${baits}.bed.tmp
+		echo -e 'NC_001422.1\t1\t5386\tphiX174' >> ${baits}.bed.tmp
 	else
-	        echo -e 'NC_001422.1\t151\t5236\t+\tphiX174' >> ${baits}.bed.tmp
+	        echo -e 'NC_001422.1\t1\t5386\t+\tphiX174' >> ${baits}.bed.tmp
 	fi
 fi
 
@@ -202,6 +199,10 @@ if [ -f ${baits}.withoutChrX.bed ]
 then
 	rm ${baits}.withoutChrX.bed
 fi
+
+sort -V ${baits}.bed > ${baits}.bed.sorted
+mv ${baits}.bed.sorted ${baits}.bed
+
 
 awk '{
 	if ($1 != "X"){
@@ -221,33 +222,41 @@ then
 fi
 
 module load ngs-utils
+module load BEDTools
+bedtools merge -i ${baits}.bed -c 4,5 -o distinct > ${baits}.merged.bed
 
-if [ $COVPERBASE == "true" ]
+wc -l  ${baits}.bed
+
+if [ ! -f ${baits}.genesOnly ]
+then
+	awk '{print $5}' ${baits}.merged.bed > ${baits}.genesOnly
+fi
+if [ "${COVPERBASE}" == "true" ]
 then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_intervals.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		wc -l ${TMP}/${NAME}.per_base.bed
 
-		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq -u > ${baits}.uniq.per_base.bed
-		rm ${TMP}/${NAME}.per_base.bed
+		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
+		sort -V ${baits}.uniq.per_base.bed.tmp > ${baits}.uniq.per_base.bed
+		#rm ${baits}.uniq.per_base.bed.tmp
+		#rm ${TMP}/${NAME}.per_base.bed
 
-		echo "intervals per base done: ${baits}.uniq.per_base.bed"
+		echo "per base done: ${baits}.uniq.per_base.bed"
 	else
 		echo "${baits}.uniq.per_base.bed already exists, skipped!"
 	fi
-	if [ ! -f ${baits}.genesOnly ]
-	then
-		awk '{print $5}' ${baits}.bed > ${baits}.genesOnly
-	fi
+
 	#make interval_list coverage per base
 	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
 	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
 	echo "${baits}.uniq.per_base.interval_list created"
 
 	awk '{ if ($0 !~ /^@/){
-		minus=($2 + 1);
-		print $1"\t"minus"\t"$3"\t"$4"\t"$5
+		minus=($3 -1)
+		print $1"\t"$2"\t"minus"\t"$4"\t"$5
 	}
 	else{
 		print $0
@@ -434,7 +443,7 @@ else
 
 	while read line
 	do
-		awk '{if ($2!=$3){ print $0}}' $line > ${line}.tmp
+		awk '{if ($2 != $3){ print $0}}' $line > ${line}.tmp
 		mv ${line}.tmp $line 
 	done<${MAP}/chompLines.txt
 

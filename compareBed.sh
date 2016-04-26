@@ -16,8 +16,8 @@ Arguments${normal}
         -p|--panel		Your gene panel (BED file)
 
         Optional:
-        -r|--refseq		Path to RefSeq file (default: /gcc/resources/RefSeq/refseq.gz)
-        -c|--ccdsq		Path to CCDS file (default: /gcc/resources/CCDS/ccds.gz)
+        -r|--refseq		Path to RefSeq file (default: /apps/data/RefSeq/refseq.gz)
+        -c|--ccdsq		Path to CCDS file (default: /apps/data/CCDS/ccds.gz)
         -o|--output		Output folder, will be created if non-existent (default: ./compare/)"
 }
 
@@ -71,10 +71,10 @@ fi
 
 # Fill in defaults for parameters that were not required
 if [[ -z "${REFSEQ-}" ]]; then
-        REFSEQ="/gcc/resources/RefSeq/refseq.gz"
+        REFSEQ="/apps/data/RefSeq/refseq.gz"
 fi
 if [[ -z "${CCDS-}" ]]; then
-        CCDS="/gcc/resources/CCDS/ccds.gz"
+        CCDS="/apps/data/CCDS/ccds.gz"
 fi
 if [[ -z "${OUTPUT-}" ]]; then
         OUTPUT="compare/"
@@ -126,7 +126,11 @@ echo "${space}Remove prefix 'chr' from first column..."
 	done
 
 echo "${space}Load bedtools..."
-	module load bedtools/2.22.0
+#	module load bedtools/2.22.0
+	module load BEDTools/2.23.0-goolf-1.7.20
+	
+
+	module list
 
 function create_coverage_files {
 	bed1=$1
@@ -140,6 +144,7 @@ function create_coverage_files {
 	bedtools coverage -b $bed1 -a $bed2 > ${bed1vs2}
 	awk '{ if ($8 < 1) print $0 }' $bed1vs2 > ${bed1vs2}.notFullyCovered
 	sort -V -k 1,2 ${bed1vs2}.notFullyCovered > ${bed1vs2}.notFullyCovered.sorted
+	bedtools merge -i ${bed1vs2}.notFullyCovered.sorted > ${bed1vs2}.notFullyCovered.sorted.merged
 
 	echo "${bigspace}Create ${bed2vs1}..."
 	bedtools coverage -a $bed1 -b $bed2 > ${bed2vs1}
@@ -152,6 +157,7 @@ function create_coverage_files {
 
 	awk '{ if ($8 < 1) print $0 }' ${bed2vs1}.touchedRegions > ${bed2vs1}.touchedRegions.notFullyCovered
 	sort -V -k 1,2 ${bed2vs1}.touchedRegions.notFullyCovered > ${bed2vs1}.touchedRegions.notFullyCovered.sorted
+	bedtools merge -i ${bed2vs1}.touchedRegions.notFullyCovered.sorted > ${bed2vs1}.touchedRegions.notFullyCovered.sorted.merged
 }
 
 echo "${space}Determine overlap your panel with REFSEQ..."
