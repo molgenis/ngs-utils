@@ -107,7 +107,7 @@ if [[ -z "${COVPERBASE-}" ]]; then
         COVPERBASE="false"
 fi
 if [[ -z "${DATA-}" ]]; then
-        DATA="targeted"
+        DATA="chr"
 fi
 if [[ -z "${TMP-}" ]]; then
 	whichHost=$(hostname)
@@ -129,21 +129,14 @@ phiXExt=${EXTENSION}_phiX
 batchCount_X=2
 
 #check which data
-if [ "${DATA}" == "wgs" ]
+if [ "${DATA}" == "targeted" ]
 then
-        BATCHCOUNT=17
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ "${DATA}" == "exome" ]
-then
-        BATCHCOUNT=7
-	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ "${DATA}" == "chr" ]
-then
+
+else
 	awk '{print $1}' ${NAME}.bed | sort | uniq > countChr.tmp
 	BATCHCOUNT=$(cat countChr.tmp | wc -l)
 	echo "BATCHCOUNT: $BATCHCOUNT"
-else
-	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
 fi
 
 echo "NAME: $NAME"
