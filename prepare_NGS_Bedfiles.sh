@@ -24,8 +24,9 @@ ${bold}Arguments${normal}
 	Optional:
 
 	-c|--coverageperbase	true or false (default: false)
-	-d|--data               What kind of data. exome (10 batches) or wgs (20 batches) or chr (per chromosome,splitted X into 2 for par and nonpar region). (default: targeted = batchsize of 6 (3 + 2X + 1Y)
-                                in case of wgs samples there should be no padding (this will automatically skipped when wgs is chosen)
+	-d|--data               What kind of data? Small (targeted) or bigger (chromosome)
+				Chromosome,splitted X into 2 for par and nonpar region) (default)
+				Small batchsize of 6 (3 + 2X + 1Y)
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: this folder)
 	-r|--reference 		Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.dict)
@@ -106,7 +107,7 @@ if [[ -z "${COVPERBASE-}" ]]; then
         COVPERBASE="false"
 fi
 if [[ -z "${DATA-}" ]]; then
-        DATA="targeted"
+        DATA="chr"
 fi
 if [[ -z "${TMP-}" ]]; then
 	whichHost=$(hostname)
@@ -128,21 +129,14 @@ phiXExt=${EXTENSION}_phiX
 batchCount_X=2
 
 #check which data
-if [ "${DATA}" == "wgs" ]
+if [ "${DATA}" == "targeted" ]
 then
-        BATCHCOUNT=17
 	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ "${DATA}" == "exome" ]
-then
-        BATCHCOUNT=7
-	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
-elif [ "${DATA}" == "chr" ]
-then
+
+else
 	awk '{print $1}' ${NAME}.bed | sort | uniq > countChr.tmp
 	BATCHCOUNT=$(cat countChr.tmp | wc -l)
 	echo "BATCHCOUNT: $BATCHCOUNT"
-else
-	echo "BATCHCOUNT: $((BATCHCOUNT + 1 + batchCount_X))"
 fi
 
 echo "NAME: $NAME"
@@ -306,19 +300,19 @@ then
                 	      	print $0 >> "captured.batch-"$1".bed"
                 	}
         	}' ${baits}.bed
-	### Check where to put the phiXref	
-	if [ "${chromo}" == "X" ]
-	then
-		if [[ ${position} -gt 60001 && ${position} -lt 2699520 ]] || [[ $position -gt 154931044 && $position -lt 155260560 ]]
+		### Check where to put the phiXref	
+		if [ "${chromo}" == "X" ]
 		then
-			echo $LASTLINE >> captured.batch-Xp.bed
+			if [[ ${position} -gt 60001 && ${position} -lt 2699520 ]] || [[ $position -gt 154931044 && $position -lt 155260560 ]]
+			then
+				echo $LASTLINE >> captured.batch-Xp.bed
+			else
+				echo $LASTLINE >> captured.batch-Xnp.bed
+			fi 
 		else
-			echo $LASTLINE >> captured.batch-Xnp.bed
-		fi 
-	else
-		echo $LASTLINE >> captured.batch-${chromo}.bed
+			echo $LASTLINE >> captured.batch-${chromo}.bed
+		fi
 	fi
-fi
 else
 	if [ -f ${baits}.batch-1.bed ]
 	then
@@ -334,7 +328,7 @@ else
 	
 		cat ${phiXRef} > ${AllWithoutchrXInterval}	
 		cat ${phiXRef} > ${chrXNONPARInterval}
-
+		lengthOFChrXNP1=$(cat ${chrXNONPARInterval} | wc -l)
 		cat ${baits}.withoutChrX.bed >> ${AllWithoutchrXInterval}
 
 		awk '{
@@ -362,114 +356,129 @@ else
         	}' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
 		mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}
 
-	#autosomal
-	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
-	INPUT=${AllWithoutchrXInterval} \
-	OUTPUT=${batchIntervallistDir} \
-	UNIQUE=true \
-	SCATTER_COUNT=${BATCHCOUNT}
+		lengthOFChrXNP2=$(cat ${chrXNONPARInterval} | wc -l)
 
-	echo "AUTOSOMAL DONE"
-	#non PAR region
-	java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
-     	INPUT=${chrXNONPARInterval} \
-     	OUTPUT=${batchIntervallistDir} \
-     	UNIQUE=true \
-     	SCATTER_COUNT=${batchCount_X} \
+	
+		#autosomal
+		java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+		INPUT=${AllWithoutchrXInterval} \
+		OUTPUT=${batchIntervallistDir} \
+		UNIQUE=true \
+		SCATTER_COUNT=${BATCHCOUNT}
+	
+		echo "AUTOSOMAL DONE"
+		#non PAR region
+		java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
+     		INPUT=${chrXNONPARInterval} \
+     		OUTPUT=${batchIntervallistDir} \
+     		UNIQUE=true \
+     		SCATTER_COUNT=${batchCount_X} \
 
-	echo "PAR DONE"
-	BATCH_ALL=$((BATCHCOUNT + batchCount_X))
-	#move the X chromosome folders
-	lengthR=`less ${phiXRef} | wc -l`
-	echo "lengthR: $lengthR"
-	lengthRef=$(( ${lengthR} + 2 ))
-	for i in $(seq 1 ${batchCount_X})
-	do
-		bi=$(( BATCHCOUNT + i  ))
-		ba=${baits}.batch-${bi}X
-		echo "ba=$ba bi=$bi"
-		if [[ ${i} -lt 10 ]]
-               	then
-			echo "$i is minder dan 10"
-			mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
-			tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+		echo "PAR DONE"
+		BATCH_ALL=$((BATCHCOUNT + batchCount_X))
+		#move the X chromosome folders
+		lengthR=`less ${phiXRef} | wc -l`
+		echo "lengthR: $lengthR"
+		lengthRef=$(( ${lengthR} + 2 ))
+		if [ ${lengthOFChrXNP1} -ne ${lengthOFChrXNP2} ]
+		then
+			for i in $(seq 1 ${batchCount_X})
+			do
+				bi=$(( BATCHCOUNT + i  ))
+				ba=${baits}.batch-${bi}X
+				echo "ba=$ba bi=$bi"
+				if [[ ${i} -lt 10 ]]
+               			then
+					echo "$i is minder dan 10"
+					mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
+					tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+				else
+					echo "$i is meer dan 10"
+					mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
+               	        	 	tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+				fi
+			done
 		else
-			echo "$i is meer dan 10"
-			mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
-                        tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+			rm ${chrXNONPARInterval}
+
+			echo "chrX is not existing, skipped batching for X"
 		fi
-	done
 
-	BATCH_Y=$((BATCH_ALL + 1))
+		BATCH_Y=$((BATCH_ALL + 1))
+	
+		cat ${phiXRef} > ${baits}.batch-${BATCH_Y}Y.interval_list
+		#MOVING ALL INTERVAL_LIST FILES 
+		for i in $(seq 1 ${BATCHCOUNT})
+		do
+			if [[ ${i} -lt 10 ]]
+			then
+	        	        mv ${batchIntervallistDir}/temp_000${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
+	        	        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
 
-	cat ${phiXRef} > ${baits}.batch-${BATCH_Y}Y.interval_list
-	#MOVING ALL INTERVAL_LIST FILES 
-	for i in $(seq 1 ${BATCHCOUNT})
-	do
-		if [[ ${i} -lt 10 ]]
+			elif [[ ${i} -gt 99 ]]
+			then
+				mv ${batchIntervallistDir}/temp_0${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
+                        	tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
+        		else
+                	        mv ${batchIntervallistDir}/temp_00${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
+                        	tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
+
+        		fi
+		done
+
+		rm ${baits}.batch*.interval_list
+
+		for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
+		do
+			awk '{
+	        		if($1 == "Y"){
+       	        			print $0
+        			}
+			}' ${baits}.batch-${i}.bed >> ${baits}.batch-${BATCH_Y}Y.bed
+		done
+
+		for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
+		do
+			sed '/^Y/ d' ${baits}.batch-${i}.bed > ${baits}.batch-${i}.bed.tmp ; mv ${baits}.batch-${i}.bed.tmp ${baits}.batch-${i}.bed
+		done
+
+		for i in $(ls ${MAP}/*batch-*.bed); do cat $i | awk -v var="$i" '{if( $2==$3){print var}}';done > ${MAP}/chompLines.txt	
+
+		while read line
+		do
+			awk '{if ($2 != $3){ print $0}}' $line > ${line}.tmp
+			mv ${line}.tmp $line 
+		done<${MAP}/chompLines.txt
+
+		##### Because bed is 0-based and intervallist 1-based, do start minus 1
+		for i in $(ls ${baits}.batch*.bed)
+		do
+			awk '{
+        		if ($0 !~ /^@/){
+                		minus=($2 - 1);
+                		print $1"\t"minus"\t"$3"\t"$4"\t"$5
+        		}
+        		else
+        		        print $0
+        		}' $i > ${i}.tmp
+			mv ${i}.tmp $i
+		done
+		sizeOfY=$(cat ${baits}.batch-${BATCH_Y}Y.bed | wc -l)
+		if [ $sizeOfY -eq 0 ]
 		then
-	                mv ${batchIntervallistDir}/temp_000${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-	                tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
-
-		elif [[ ${i} -gt 99 ]]
-		then
-			mv ${batchIntervallistDir}/temp_0${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-                        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
-        	else
-                        mv ${batchIntervallistDir}/temp_00${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-                        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
-
-        	fi
-	done
-
-	rm ${baits}.batch*.interval_list
-
-	for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
-	do
-	awk '{
-	        if($1 == "Y"){
-       	        	print $0
-        	}
-
-	}' ${baits}.batch-${i}.bed >> ${baits}.batch-${BATCH_Y}Y.bed
-	done
-
-	for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
-	do
-		sed '/^Y/ d' ${baits}.batch-${i}.bed > ${baits}.batch-${i}.bed.tmp ; mv ${baits}.batch-${i}.bed.tmp ${baits}.batch-${i}.bed
-	done
-
-	for i in $(ls ${MAP}/*batch-*.bed); do cat $i | awk -v var="$i" '{if( $2==$3){print var}}';done > ${MAP}/chompLines.txt	
-
-	while read line
-	do
-		awk '{if ($2 != $3){ print $0}}' $line > ${line}.tmp
-		mv ${line}.tmp $line 
-	done<${MAP}/chompLines.txt
-
-	##### Because bed is 0-based and intervallist 1-based, do start minus 1
-	for i in $(ls ${baits}.batch*.bed)
-	do
-		awk '{
-        	if ($0 !~ /^@/){
-                	minus=($2 - 1);
-                	print $1"\t"minus"\t"$3"\t"$4"\t"$5
-        	}
-        	else
-        	        print $0
-        	}' $i > ${i}.tmp
-		mv ${i}.tmp $i
-	done
-
-	echo "batching complete"
-	rm -rf ${batchIntervallistDir}/temp_0*
-fi
+			rm ${baits}.batch-${BATCH_Y}Y.bed
+		fi
+		echo "batching complete"
+		rm -rf ${batchIntervallistDir}/temp_0*
+	fi
 fi #end of if/else loop chr
-if [ ! -f ${MAP}/captured.femaleY.bed ]
+if [ -f ${baits}.batch-${BATCH_Y}Y.bed ]
 then
-	echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+	if [ ! -f ${MAP}/captured.femaleY.bed ]
+	then
+		echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+	fi
 fi
-
 #for f in ${MAP}/*_baits_*; do cp $f ${f/_baits_/_exons_}; done
 
 if [ -f ${baits}.interval_list ]
