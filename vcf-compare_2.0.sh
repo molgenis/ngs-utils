@@ -161,52 +161,89 @@ do
         fi
 done
 
+bold=`tput bold`
+normal=`tput sgr0`
+underline=`tput smul`
 
 sort -n -k1 ${SCRATCH}/diff.txt > ${SCRATCH}/differences.txt
 perl -pi -e 's|-|\t|' ${SCRATCH}/differences.txt
 printf "" > ${OUT}/vcfStats.txt
 
-falseNegative=$(cat ${SCRATCH}/notInVcf2.txt | wc -l)
-falsePositive=$(cat ${SCRATCH}/notInVcf1.txt | wc -l)
-alarm=$(cat ${SCRATCH}/inconsistent.txt | wc -l)
+alarm=0
+falseNegative=0
+falsePositive=0
+
+##NOT IN VCF2
+if [ -f ${SCRATCH}/notInVcf2.txt ]
+then
+	falseNegative=$(cat ${SCRATCH}/notInVcf2.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/notInVcf2.txt > ${SCRATCH}/notInVcf2.txt.sorted
+	printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf2.txt
+	cat ${SCRATCH}/notInVcf2.txt.sorted >> ${OUT}/notInVcf2.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/notInVcf2.txt
+fi
+
+##NOT IN VCF1
+if [ -f ${SCRATCH}/notInVcf1.txt ]
+then
+	falsePositive=$(cat ${SCRATCH}/notInVcf1.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/notInVcf1.txt > ${SCRATCH}/notInVcf1.txt.sorted
+	printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf1.txt
+	cat ${SCRATCH}/notInVcf1.txt.sorted >> ${OUT}/notInVcf1.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/notInVcf1.txt
+fi
+
+## INCONSISTENT
+if [ -f ${SCRATCH}/inconsistent.txt ]
+then
+	alarm=$(cat ${SCRATCH}/inconsistent.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/inconsistent.txt > ${SCRATCH}/inconsistent.txt.sorted
+	printf "${bold}$underline\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n$normal" > ${OUT}/inconsistent.txt
+	printf "${bold}chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n${normal}" >> ${OUT}/inconsistent.txt
+	cat ${SCRATCH}/inconsistent.txt.sorted >> ${OUT}/inconsistent.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/inconsistent.txt
+	
+fi
+
+##TRUE POS
 truePos=$(cat ${SCRATCH}/truePos.txt | wc -l)
-
-sort -V -k1 ${SCRATCH}/notInVcf2.txt > ${SCRATCH}/notInVcf2.txt.sorted
-sort -V -k1 ${SCRATCH}/notInVcf1.txt > ${SCRATCH}/notInVcf1.txt.sorted
-sort -V -k1 ${SCRATCH}/inconsistent.txt > ${SCRATCH}/inconsistent.txt.sorted
 sort -V -k1 ${SCRATCH}/truePos.txt > ${SCRATCH}/truePos.txt.sorted
-
-bold=`tput bold`
-normal=`tput sgr0`
-underline=`tput smul`
-printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf2.txt
-printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf1.txt
-printf "${bold}$underline\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n$normal" > ${OUT}/inconsistent.txt
-
-printf "${bold}chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n${normal}" >> ${OUT}/inconsistent.txt
 printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/truePos.txt
-
-cat ${SCRATCH}/notInVcf2.txt.sorted >> ${OUT}/notInVcf2.txt
-cat ${SCRATCH}/notInVcf1.txt.sorted >> ${OUT}/notInVcf1.txt
-cat ${SCRATCH}/inconsistent.txt.sorted >> ${OUT}/inconsistent.txt
 cat ${SCRATCH}/truePos.txt.sorted >> ${OUT}/truePos.txt
 
-perl -pi -e 's|-|\t|g' ${OUT}/notInVcf2.txt
-perl -pi -e 's|-|\t|g' ${OUT}/notInVcf1.txt
-perl -pi -e 's|-|\t|g' ${OUT}/inconsistent.txt
 perl -pi -e 's|-|\t|g' ${OUT}/truePos.txt
 
+
 total=$((truePos + alarm + falsePositive + falseNegative))
-
-tpr=$(awk "BEGIN {printf \"%.2f\n\", ((${truePos}/$total)*100)}")
-fpr=$(awk "BEGIN {printf \"%.2f\n\", ((${falsePositive}/$total)*100)}")
-fnr=$(awk "BEGIN {printf \"%.2f\n\", ((${falseNegative}/$total)*100)}")
-alarmRate=$(awk "BEGIN {printf \"%.2f\n\", ((${alarm}/$total)*100)}")
-
 printf "TotalNumber:${total}\n" >> ${OUT}/vcfStats.txt
+##TRUE POS
+tpr=$(awk "BEGIN {printf \"%.2f\n\", ((${truePos}/$total)*100)}")
 printf "TP:$truePos, TP rate: ${tpr}%%\n" >> ${OUT}/vcfStats.txt
-printf "FP:$falsePositive, FP rate: ${fpr}%%\n" >> ${OUT}/vcfStats.txt
-printf "FN:$falseNegative, FN rate: ${fnr}%%\n" >> ${OUT}/vcfStats.txt
-printf "Inconsistent:$alarm, InconsistentRate: ${alarmRate}%%\n" >> ${OUT}/vcfStats.txt
+
+if [ ${falseNegative} -ne 0 ]
+then
+	fnr=$(awk "BEGIN {printf \"%.2f\n\", ((${falseNegative}/$total)*100)}")
+	printf "FN:$falseNegative, FN rate: ${fnr}%%\n" >> ${OUT}/vcfStats.txt	
+else
+	printf "FP:$falseNegative, FN rate: 0%%\n" >> ${OUT}/vcfStats.txt
+
+fi
+if [ ${falsePositive} -ne 0 ]
+then	
+	fpr=$(awk "BEGIN {printf \"%.2f\n\", ((${falsePositive}/$total)*100)}")
+	printf "FP:$falsePositive, FP rate: ${fpr}%%\n" >> ${OUT}/vcfStats.txt
+else
+	printf "FP:$falsePositive, FP rate: 0%%\n" >> ${OUT}/vcfStats.txt
+fi
+if [ ${alarm} -ne 0 ]
+then
+	alarmRate=$(awk "BEGIN {printf \"%.2f\n\", ((${alarm}/$total)*100)}")
+	printf "Inconsistent:$alarm, InconsistentRate: ${alarmRate}%%\n" >> ${OUT}/vcfStats.txt
+else
+	printf "Inconsistent:$alarm, InconsistentRate: 0%%\n" >> ${OUT}/vcfStats.txt
+fi
+
+printf "done..\nComparison can be found: $OUT \n"
+
 
 exit 0
