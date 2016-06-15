@@ -42,6 +42,8 @@ my %gaf_barcode_types = ('None' => {
                                                         'IlluminaDemultiplexing'        => 1},
 						 'LEX' => {
                                                         'IlluminaDemultiplexing'        => 1},
+						 'BIO' => {
+                                                        'IlluminaDemultiplexing'        => 1},
 						 'AGI' => {
 							'IlluminaDemultiplexing'	=> 1},
 						 'MON' => {
