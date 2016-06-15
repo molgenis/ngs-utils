@@ -89,24 +89,10 @@ class Session():
         session.get('Person')
         '''
         if q:
-            req = requests.Request('POST',self.url + "v1/" + quote_plus(entity),self._get_token_header_with_content_type(),
-                params={ "_method":"GET"},
-                data=json.dumps({"q":q, "attributes":attributes, "expand": expand, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder}))
-            #prepared = req.prepare()
-            #def pretty_print_POST(req):
-            #    print('{}\n{}\n{}\n\n{}'.format(
-            #        '-----------START-----------',
-            #        req.method + ' ' + req.url,
-            #        '\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()),
-            ##        req.body,
-             #       ))
-
-            #pretty_print_POST(prepared)
             response = self.session.post(self.url + "v1/" + quote_plus(entity),
                 headers = self._get_token_header_with_content_type(),
                 params={ "_method":"GET"},
                 data=json.dumps({"q":q, "attributes":attributes, "expand": expand, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder}))
-
         else:
             response = self.session.get(self.url + "v1/" + quote_plus(entity),
                 headers = self._get_token_header(),

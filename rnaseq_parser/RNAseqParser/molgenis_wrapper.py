@@ -213,7 +213,6 @@ class Connect_Molgenis():
                 except requests.exceptions.HTTPError as e:
                     try:
                         # if there is json() information, add it to the error message, as this gives the user information on actual problem
-                        self.logger.debug(sanitized_data_list)
                         self.logger.debug(str(e.response.json()))
                     except AttributeError:
                         pass
@@ -251,10 +250,10 @@ class Connect_Molgenis():
                 try:
                     if io_stream:
                         added_id = self.session.add(entity, data=data,
-                                            files={'attachment':(file_name, io_stream)})
+                                            files={'attachment':(os.path.basename(file_path), io_stream)})
                     else:
                         added_id = self.session.add(entity, data=data,
-                                            files={'attachment':(file_name, open(file_path,'rb'))})
+                                            files={'attachment':(os.path.basename(file_path), open(file_path,'rb'))})
                 except requests.exceptions.HTTPError as e:
                     try:
                         # if there is json() information, add it to the error message, as this gives the user information on actual problem
