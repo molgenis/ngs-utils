@@ -72,11 +72,11 @@ while ($exonlines=<EXONS>){
         my $chrom = $exonarray[0];
         my $start = $exonarray[1];
         my $end = $exonarray[2];
-        my $target = $exonarray[3];
+        my $target = $exonarray[4];
         my $strandexon = "";
 
 	if ($Strand =~ /TRUE|True|true/){
-        	$strandexon = $exonarray[4];
+        	$strandexon = $exonarray[3];
         }
         elsif ($Strand =~ /FALSE|False|false/){
         	$strandexon = "+";
@@ -98,11 +98,11 @@ while ($baitlines=<BAITS>){
         my $chrbait = $baitarray[0];
         my $startbait = $baitarray[1];
         my $endbait = $baitarray[2];
-        my $targetbait = $baitarray[3];
+        my $targetbait = $baitarray[4];
 	my $strandbait = "";
 
         if ($Strand =~ /TRUE|True|true/){
-        	$strandbait = $baitarray[5];
+        	$strandbait = $baitarray[3];
         }
 	elsif ($Strand =~ /FALSE|False|false/){
         	$strandbait = "+";
