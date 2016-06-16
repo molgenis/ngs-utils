@@ -195,11 +195,11 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
         basefile = os.path.splitext(sh_file)[0]
         try:
             err_text = open(basefile+'.err','rb').read().decode("utf-8")
-        except FileNotFoundError:
+        except OSError:
             err_text = basefile+'.err'+"  not found" 
         try:
             out_text = open(basefile+'.out','rb').read().decode("utf-8")
-        except FileNotFoundError:
+        except OSError:
             out_text = basefile+'.err'+"  not found"  
         try:
             runtime = str(int(time_from_log(out_text)))
@@ -369,7 +369,7 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
             if len(verifybamid_data) >0 and len(verifybamid_data[0]['id']) > 0:
                 added_id = verifybamid_data[0]['id']+','+added_id
             connection.update_entity_rows(package+'Samples', data={'verifyBamID':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
-        except FileNotFoundError as e:
+        except OSError as e:
             print(e)
 def parse_hisat(runinfo_folder_QC,connection,package):
     '''finished'''
@@ -1061,7 +1061,7 @@ def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
                 if len(cMMetric_data) >0 and len(cMMetric_data[0]['id']) > 0:
                     added_id = cMMetric_data[0]['id']+','+added_id
             connection.update_entity_rows(package+'Samples', data={'cMMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
-        except FileNotFoundError as e:
+        except OSError as e:
             print(e)
             
 def parse_rMetrics(runinfo_folder,connection,package,pipeline):
@@ -1104,7 +1104,7 @@ def parse_rMetrics(runinfo_folder,connection,package,pipeline):
                 if len(cRMetric_data) >0 and len(cRMetric_data[0]['id']) > 0:
                     added_id = cRMetric_data[0]['id']+','+added_id
             connection.update_entity_rows(package+'Samples', data={'cRMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
-        except FileNotFoundError as e:
+        except OSError as e:
             print(e)
             
 def parse_mergeBam(runinfo_folder_genotypeCalling,connection,package):
