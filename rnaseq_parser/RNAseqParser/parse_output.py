@@ -1162,8 +1162,8 @@ def parse_kallisto(runinfo_folder_quantification,connection,package):
         with open(output_folder+'run_info.json') as run_info_json:
             run_info_text = run_info_json.read()
             n_targets = re.search('"n_targets": (\d+)', run_info_text).group(1)
-            n_bootstraps = re.search('“n_bootstraps”: (\d+)', run_info_text).group(1)
-            index_version = re.search('"index_version": (\d+)', run_info_text).group(1)
+            n_bootstraps = re.search('n_bootstraps.: (\d+)', run_info_text).group(1)
+            index_version = re.search('index_version.: (\d+)', run_info_text).group(1)
         abundance = ''
         with open(output_folder+'abundance.tsv') as abundance_tsv:
             abundance_tsv.readline()
