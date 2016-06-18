@@ -149,7 +149,7 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
         '''.out file text with date stamps, returns runtime in seconds'''
         start_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) [##|Start]',logfile_text).group(1)
         try:
-            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) ## Done',logfile_text).group(1)
+            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) ## .*?slurm_script Done',logfile_text).group(1)
         except:
             done_time_str = start_time_str
         start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CEST %Y')
@@ -308,11 +308,20 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
                                   +'Total of (\d+) informative markers passed.*?'\
                                   +'Finished extracting (\d+) bases.*?'\
                                   +'Avg Depth = (\d+\.\d+).*?',verifyBamID_log_text,re.DOTALL)
-                number_of_markers = groups.group(2)
-                number_of_informative_markers = groups.group(3)
-                extracted_bases = groups.group(4) 
-                avg_depth = groups.group(5)
-                self_only_sample_ID = groups.group(1)
+                try:
+                    number_of_markers = groups.group(2)
+                    number_of_informative_markers = groups.group(3)
+                    extracted_bases = groups.group(4) 
+                    avg_depth = groups.group(5)
+                    self_only_sample_ID = groups.group(1)
+                except AttributeError:
+                    print('tried the following regex:')
+                    pritn('finding sample ID (\S+) from VCF file.*?'\
+                                  +'Finished reading (\d+) markers from VCF file.*?'\
+                                  +'Total of (\d+) informative markers passed.*?'\
+                                  +'Finished extracting (\d+) bases.*?'\
+                                  +'Avg Depth = (\d+\.\d+).*?')
+                    print(verifyBamID_log_text)
                 self_only = bool(re.search('selfOnly option applied',out_text))
                 to_add = []
                 for skipped_marker_line in re.findall('Skipping.*?\n',verifyBamID_log_text):
