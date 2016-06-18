@@ -153,8 +153,8 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
             done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CET \d{4}) ## .*?[slurm_script Done|Done]',logfile_text).group(1)
         except:
             done_time_str = start_time_str
-        start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CEST %Y')
-        done_time = datetime.datetime.strptime(done_time_str, '%b %d %H:%M:%S CEST %Y')
+        start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CET %Y')
+        done_time = datetime.datetime.strptime(done_time_str, '%b %d %H:%M:%S CET %Y')
         delta_time = (done_time - start_time).total_seconds()
         return delta_time
     sh_id = None
