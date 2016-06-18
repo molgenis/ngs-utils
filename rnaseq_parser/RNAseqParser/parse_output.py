@@ -147,9 +147,10 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
     '''filepath to .sh file used to run tool'''
     def time_from_log(logfile_text):
         '''.out file text with date stamps, returns runtime in seconds'''
-        start_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) [##|Start]',logfile_text).group(1)
+        start_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CET \d{4}) [##|Start]',logfile_text).group(1)
         try:
-            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) ## .*?slurm_script Done',logfile_text).group(1)
+            ## Fri Mar 25 11:20:44 CET 2016 ##  /var/spool/slurmd/job2728975/slurm_script Done
+            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CET \d{4}) ## .*?[slurm_script Done|Done]',logfile_text).group(1)
         except:
             done_time_str = start_time_str
         start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CEST %Y')
@@ -316,7 +317,7 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
                     self_only_sample_ID = groups.group(1)
                 except AttributeError:
                     print('tried the following regex:')
-                    pritn('finding sample ID (\S+) from VCF file.*?'\
+                    print('finding sample ID (\S+) from VCF file.*?'\
                                   +'Finished reading (\d+) markers from VCF file.*?'\
                                   +'Total of (\d+) informative markers passed.*?'\
                                   +'Finished extracting (\d+) bases.*?'\
