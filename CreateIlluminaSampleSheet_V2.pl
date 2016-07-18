@@ -31,7 +31,7 @@ my %log_levels = (
 	'OFF'   => $OFF,
 );
 
-my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcodeType','seqType');
+my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcode2','barcodeType','seqType');
 my %gaf_barcode_types = ('None' => {
 							'IlluminaDemultiplexing'	=> 0},
 						 'GAF' => {
@@ -50,6 +50,9 @@ my %gaf_barcode_types = ('None' => {
 							'IlluminaDemultiplexing'	=> 1},
 						 'AG8' => {
                                                         'IlluminaDemultiplexing'        => 1},
+						 'SCR' => {
+                                                        'IlluminaDemultiplexing'        => 1},
+                                                 
 						);
 my $log_section_break = '##################################################################################################################################';
 
@@ -57,13 +60,14 @@ my $log_section_break = '#######################################################
 # Get options.
 #
 my %opts;
-Getopt::Std::getopts('i:o:r:l:s:', \%opts);
+Getopt::Std::getopts('i:o:r:l:s:d:', \%opts);
 
 my $input		= $opts{'i'};
 my $output		= $opts{'o'};
 my $run_to_find	= $opts{'r'};
 my $log_level	= $opts{'l'};
 my $source	= $opts{'s'};
+my $isDualBarcode	= $opts{'d'};
 
 #
 # Configure logging.
@@ -71,6 +75,7 @@ my $source	= $opts{'s'};
 # Provides default if user did not specify log level:
 $log_level = (defined($log_level) ? $log_level : 'INFO');
 $source = (defined($source) ? $source : '/gcc/resources/PrepKits');
+$isDualBarcode = (defined($isDualBarcode) ? $isDualBarcode : 'FALSE');
 
 
 # Reset log level to default if user specified illegal log level.
@@ -187,7 +192,7 @@ if ($@) {
 
 my @sequence_types;
 # extract these columns:
-my ($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lane, $barcode, $barcodeType, $seqType, $prepKit);
+my ($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lane, $barcode, $barcode2, $barcodeType, $seqType, $prepKit);
 my $experiment_count = 0;
 
 while (<$input_fh>) {
@@ -202,6 +207,7 @@ while (<$input_fh>) {
 		$flowcell				= $fields[$header{'flowcell'}];
 		$lane					= $fields[$header{'lane'}];
 		$barcode				= $fields[$header{'barcode'}];
+		$barcode2                                = $fields[$header{'barcode2'}];
 		$barcodeType			= $fields[$header{'barcodeType'}];
 		$seqType				= $fields[$header{'seqType'}];
 		$prepKit					= $fields[$header{'prepKit'}];
@@ -216,7 +222,7 @@ while (<$input_fh>) {
 			my $log_message = sprintf($format, $internalSampleID, $truncated_externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lane, $barcode, $barcodeType, $seqType);
 			$logger->info($log_message);
 			# Perform checks on input and create hashes of lane/barcode to analyse,
-			&_ProcessExperiment($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lane, $barcode, $barcodeType, $seqType);
+			&_ProcessExperiment($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lane, $barcode, $barcode2, $barcodeType, $seqType);
 		} 
 	} else {
 		$logger->fatal('Cannot parse CSV line ' . $. . ': ' . $csv->error_input);
@@ -259,7 +265,7 @@ exit(0);
 
 sub _ProcessExperiment {
 	
-	my ($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lanes, $barcode, $barcodeType, $seqType, $prepKit) = @_;
+	my ($internalSampleID, $externalSampleID, $sequencingStartDate, $sequencer, $run, $flowcell, $lanes, $barcode, $barcode2, $barcodeType, $seqType, $prepKit) = @_;
 	
 	push (@sequence_types, $seqType);
 	
@@ -308,29 +314,43 @@ sub _ProcessExperiment {
 				#
 				# Check if barcode not already exists: they must be unique!  
 				#
-				foreach my $previous_barcode (keys(%{$experiments{$lane}{$previous_barcodeType}})) { 
-					if ($previous_barcode eq $barcode) {
-						$logger->fatal('Samples multiplexed in the same lane must not share the same barcode, but barcode ' . 
-										$barcode . ' is not unique in lane ' . $lane);
-						exit(1);
+					
+				if ($isDualBarcode eq "FALSE"){
+					foreach my $previous_barcode (keys(%{$experiments{$lane}{$previous_barcodeType}})) { 
+						if ($previous_barcode eq $barcode) {
+							$logger->fatal('Samples multiplexed in the same lane must not share the same barcode, but barcode ' . 
+											$barcode . ' is not unique in lane ' . $lane);
+							exit(1);
+						}
 					}
 				}
+
+
 			}
 			
 			#
 			# All OK: Append values for new sample in existing lane. 
 			#
-			$experiments{$lane}{$barcodeType}{$barcode}{'flowcell'}			= $flowcell;
-			$experiments{$lane}{$barcodeType}{$barcode}{'internalSampleID'}	= $internalSampleID;
-						
+			if ($isDualBarcode eq "TRUE"){
+				$experiments{$lane}{$barcodeType}{$barcode."-".$barcode2}{'flowcell'}			= $flowcell;
+				$experiments{$lane}{$barcodeType}{$barcode."-".$barcode2}{'internalSampleID'}	= $internalSampleID;
+			} else{
+				$experiments{$lane}{$barcodeType}{$barcode}{'flowcell'}                   = $flowcell;
+                        	$experiments{$lane}{$barcodeType}{$barcode}{'internalSampleID'}   = $internalSampleID;
+			}		
 		} else {
 			
 			#
 			# Append values for new sample in new lane.
 			#
-			$experiments{$lane}{$barcodeType}{$barcode}{'flowcell'}			= $flowcell;
-			$experiments{$lane}{$barcodeType}{$barcode}{'internalSampleID'}	= $internalSampleID;		
-			
+			if ($isDualBarcode eq "TRUE"){
+				$experiments{$lane}{$barcodeType}{$barcode ."-".$barcode2}{'flowcell'}			= $flowcell;
+				$experiments{$lane}{$barcodeType}{$barcode."-".$barcode2}{'internalSampleID'}	= $internalSampleID;		
+			} else {
+				$experiments{$lane}{$barcodeType}{$barcode}{'flowcell'}                  = $flowcell;
+                	        $experiments{$lane}{$barcodeType}{$barcode}{'internalSampleID'}   = $internalSampleID;
+			}
+
 		}
 	}
 }
@@ -384,7 +404,12 @@ sub _WriteIlluminaSampleSheet {
 	# Write header.
 	#
 	print($output_fh '[Data]' . "\n");
-	print($output_fh 'FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleName,SampleProject' . "\n");
+	if ($isDualBarcode eq "FALSE") {
+		print($output_fh 'FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleName,SampleProject' . "\n");
+	} elsif ($isDualBarcode eq "TRUE") {
+		print($output_fh 'FCID,Lane,SampleID,SampleRef,Index,Index2,Description,Control,Recipe,Operator,SampleName,SampleProject' . "\n");
+	}
+
 	
 	#
 	# Write records.
@@ -393,30 +418,57 @@ sub _WriteIlluminaSampleSheet {
 		foreach my $barcodeType (sort(keys(%{${$experiments}{$lane}}))) {
 			
 			if ($gaf_barcode_types{$barcodeType}{'IlluminaDemultiplexing'}) {
-			
-				foreach my $barcode (sort(keys(%{${$experiments}{$lane}{$barcodeType}}))) {
-					my $record 	 = ${$experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . ',';
-					$record		.= $lane . ',';
-					# We don't use the sample IDs here: these are used to create FastQ file names
-					# Therefore use the lane numbers to create predictable FastQ filenames.
-					$record		.= 'lane' . $lane . '_' . $barcode .',';
-					# We don't use the Illumina software for alignment of reads vs. a reference genome.
-					# Hence the referene genome is irrelevant; use "Unknown".
-					$record		.= 'Unknown' . ',';
-					$record		.= $barcode . ',';
-					# Use the GAF internalSampleID as "Description".
-					$record 	.= 'GAF_sample_ID:' . ${$experiments}{$lane}{$barcodeType}{$barcode}{'internalSampleID'} . ',';
-					$record 	.= 'N' . ',';
-					$record 	.= 'R1' . ',';
-					$record 	.= 'GAF' . ',';
-					# We don't use the project names here: these are used to create subfolders for the FastQ files.
-					# Therefore use the flowcells to create predictable subdirs.
-					$record         .= 'lane' . $lane . '_' . $barcode .',';
-					$record 	.= ${experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . "\n";
-					print($output_fh $record);
-				}
-				
-			} else {
+				if ($isDualBarcode eq "FALSE") {
+					foreach my $barcode (sort(keys(%{${$experiments}{$lane}{$barcodeType}}))) {
+                                        	my $record	 = ${$experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . ',';
+	                                        $record         .= $lane . ',';
+        	                                # We don't use the sample IDs here: these are used to create FastQ file names
+                	                        # Therefore use the lane numbers to create predictable FastQ filenames.
+                        	                $record         .= 'lane' . $lane . '_' . $barcode .',';
+                                	        # We don't use the Illumina software for alignment of reads vs. a reference genome.
+         	                               # Hence the referene genome is irrelevant; use "Unknown".
+                	                        $record         .= 'Unknown' . ',';
+                        	                $record         .= $barcode . ',';
+                                	        # Use the GAF internalSampleID as "Description".
+                                        	$record         .= 'GAF_sample_ID:' . ${$experiments}{$lane}{$barcodeType}{$barcode}{'internalSampleID'} . ',';
+     	                               		$record         .= 'N' . ',';
+        	                                $record         .= 'R1' . ',';
+                	                        $record         .= 'GAF' . ',';
+                        	                # We don't use the project names here: these are used to create subfolders for the FastQ files.
+                                	        # Therefore use the flowcells to create predictable subdirs.
+                           	                $record         .= 'lane' . $lane . '_' . $barcode .',';
+                                	        $record         .= ${experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . "\n";
+                                        	print($output_fh $record);
+						}
+				} else {
+
+					foreach my $barcode (sort(keys(%{${$experiments}{$lane}{$barcodeType}}))) {
+						my ($b1, $b2) = (split /-/, $barcode);
+                                                my $record	 = ${$experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . ',';
+                                                $record         .= $lane . ',';
+                                                # We don't use the sample IDs here: these are used to create FastQ file names
+                                                # Therefore use the lane numbers to create predictable FastQ filenames.
+                                                $record         .= 'lane' . $lane . '_' . $barcode .',';
+                                                # We don't use the Illumina software for alignment of reads vs. a reference genome.
+                                               # Hence the referene genome is irrelevant; use "Unknown".
+                                                $record         .= 'Unknown' . ',';
+                                                $record         .= $b1 . ',';
+						$record   	.= $b2 . ',';
+                                                # Use the GAF internalSampleID as "Description".
+                                                $record         .= 'GAF_sample_ID:' . ${$experiments}{$lane}{$barcodeType}{$barcode}{'internalSampleID'} . ',';
+                                                $record         .= 'N' . ',';
+                                                $record         .= 'R1' . ',';
+                                                $record         .= 'GAF' . ',';
+                                                # We don't use the project names here: these are used to create subfolders for the FastQ files.
+                                                # Therefore use the flowcells to create predictable subdirs.
+                                                $record         .= 'lane' . $lane . '_' . $barcode .',';
+                                                $record         .= ${experiments}{$lane}{$barcodeType}{$barcode}{'flowcell'} . "\n";
+                                                print($output_fh $record);
+						}
+					}	
+
+
+				} else {
 				
 				my $record;
 				my $flowcell;
@@ -450,7 +502,6 @@ sub _WriteIlluminaSampleSheet {
 				$record 	.= $flowcell . "\n";
 					
 				print($output_fh $record);
-				
 			}
 		}
 	}
