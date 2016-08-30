@@ -13,6 +13,7 @@ import datetime
 import zipfile
 import configparser
 import requests
+import io
 config = configparser.RawConfigParser()
 config.read(r'RNAseqParser/CONFIG')
 if __name__ == "__main__":
@@ -121,8 +122,8 @@ def parse_samples(sample_sheet_path,connection,package,experiment_type):
         sample_input_files[samples_id] = input_file_path_id
         data = {'sample_id':samples_id,'project':project,'sample_name':sample_name,
                 'analysis_id':analysis_id,'experiment_type':experiment_type}
-        if len(input_file_2_path)==0:
-            del(data['input_file_2_path'])
+        if len(input_file_2_path.strip())==0:
+            #del(data['input_file_2_path'])
             data['sequence_type'] = 'single'
         else:
             data['sequence_type'] = 'paired'
@@ -146,13 +147,14 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
     '''filepath to .sh file used to run tool'''
     def time_from_log(logfile_text):
         '''.out file text with date stamps, returns runtime in seconds'''
-        start_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) [##|Start]',logfile_text).group(1)
+        start_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CET \d{4}) [##|Start]',logfile_text).group(1)
         try:
-            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CEST \d{4}) ## Done',logfile_text).group(1)
+            ## Fri Mar 25 11:20:44 CET 2016 ##  /var/spool/slurmd/job2728975/slurm_script Done
+            done_time_str = re.search('## \w+ (\w+ \d+ \d+:\d+:\d+ CET \d{4}) ## .*?[slurm_script Done|Done]',logfile_text).group(1)
         except:
             done_time_str = start_time_str
-        start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CEST %Y')
-        done_time = datetime.datetime.strptime(done_time_str, '%b %d %H:%M:%S CEST %Y')
+        start_time = datetime.datetime.strptime(start_time_str,'%b %d %H:%M:%S CET %Y')
+        done_time = datetime.datetime.strptime(done_time_str, '%b %d %H:%M:%S CET %Y')
         delta_time = (done_time - start_time).total_seconds()
         return delta_time
     sh_id = None
@@ -194,11 +196,11 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
         basefile = os.path.splitext(sh_file)[0]
         try:
             err_text = open(basefile+'.err','rb').read().decode("utf-8")
-        except FileNotFoundError:
+        except OSError:
             err_text = basefile+'.err'+"  not found" 
         try:
             out_text = open(basefile+'.out','rb').read().decode("utf-8")
-        except FileNotFoundError:
+        except OSError:
             out_text = basefile+'.err'+"  not found"  
         try:
             runtime = str(int(time_from_log(out_text)))
@@ -231,8 +233,14 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
                     raise
         if not err_id:
             try:
-                err_id = connection.add_file(file_path=basefile+'.err', description='file with messages printed to stderr by program', entity=package+'File',
+                try:
+                    err_id = connection.add_file(file_path=basefile+'.err', description='file with messages printed to stderr by program', entity=package+'File',
                             data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.err').replace(' ','_')})
+                except OSError:
+                    f = io.StringIO('NO FILE FOUND')
+                    err_id = connection.add_file(file_path=basefile+'.err', io_stream=f,  description='file with messages printed to stderr by program', entity=package+'File',
+                            data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.err').replace(' ','_')})
+
                 if isinstance(err_id, list):
                     err_id = err_id[0]
             except requests.exceptions.HTTPError as e:
@@ -245,8 +253,14 @@ def parse_rnaseq_tools(sh_file_path,connection,package):
                     raise
         if not out_id:
             try:
-                out_id = connection.add_file(file_path=basefile+'.out', description='file with messages printed to stdout by program',entity=package+'File',
+                try:
+                    out_id = connection.add_file(file_path=basefile+'.out', description='file with messages printed to stdout by program',entity=package+'File',
                             data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.out').replace(' ','_')})
+                except OSError:
+                    f = io.StringIO('NO FILE FOUND')
+                    out_id = connection.add_file(file_path=basefile+'.out', io_stream=f, description='file with messages printed to stdout by program',entity=package+'File',
+                            data={'sample_file_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)+(basefile+'.out').replace(' ','_')})
+
                 if isinstance(out_id, list):
                     out_id = out_id[0]
             except requests.exceptions.HTTPError as e:
@@ -287,79 +301,93 @@ def parse_verifyBamID(runinfo_folder_QC,connection,package):
     print ('Start verifyBAMID')
     for sh_text, err_text, out_text, runtime,sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,'VerifyBamID*.sh'),connection, package):
         verifyBamID_output_path = re.search('--out (\S+)',sh_text).group(1)
-        with open(verifyBamID_output_path+'.log') as verifyBamID_log:
-            verifyBamID_log_text = verifyBamID_log.read()
-            groups = re.search('finding sample ID (\S+) from VCF file.*?'\
-                              +'Finished reading (\d+) markers from VCF file.*?'\
-                              +'Total of (\d+) informative markers passed.*?'\
-                              +'Finished extracting (\d+) bases.*?'\
-                              +'Avg Depth = (\d+\.\d+).*?',verifyBamID_log_text,re.DOTALL)
-            number_of_markers = groups.group(2)
-            number_of_informative_markers = groups.group(3)
-            extracted_bases = groups.group(4) 
-            avg_depth = groups.group(5)
-            self_only_sample_ID = groups.group(1)
-            self_only = bool(re.search('selfOnly option applied',out_text))
-            to_add = []
-            for skipped_marker_line in re.findall('Skipping.*?\n',verifyBamID_log_text):
-                if len(skipped_marker_line.strip()) == 0:
-                    continue
-                groups = re.search('marker (\S+?):(\d+)',skipped_marker_line,re.DOTALL)
-                chromosome = groups.group(1).replace('X','23')
-                chromosome = chromosome.replace('Y','24')
-                marker_type = 'no_autosomal' if 'no-autosomal' in skipped_marker_line else 'multiple_allele'
-                position = groups.group(2)
-                to_add.append({'chromosome':chromosome,'type':marker_type,'position':position})
-            skipped_marker = ','.join(add_multiple_rows(entity=package+'Skipped_marker',data=to_add,
-                                                        connection=connection))
-            pattern = '(Comparing with individual \S+.. Optimal fIBD = \d+\.\d+, LLK0 = \d+\.\d+, LLK1 = \d+\.\d+ for readgroup \d+\n'\
-                     +'Best Matching Individual is NA with IBD = \d+.\d+\n'\
-                     +'Self Individual is NA with IBD = \d+.\d+)'
-            verifyBamID_individual = ''
-            to_add = []
-            for individual in re.findall(pattern, verifyBamID_log_text):
-                groups = re.search('Optimal fIBD = (\d+\.\d+).*?'\
-                                  +'LLK0 = (\d+\.\d+).*?'\
-                                  +'LLK1 = (\d+\.\d+).*?'\
-                                  +'for readgroup (\S+)\n.*?'\
-                                  +'Best Matching Individual is (\S+) with IBD.*?',
-                                  +'Best Matching Individual is \S+ with IBD = (\d+.\d+)\n.*?'\
-                                  +'Self Individual is (\S+) with IBD.*?'\
-                                  +'Self Individual is \S+ with IBD = (\d+.\d+)',individual,re.DOTALL)
-                data = {'optimal_fIBD':groups.group(1),'llk0':groups.group(2),'llk1':groups.group(3),'readgroup':groups.group(4),'best_matching_individual':groups.group(5),
-                        'best_match_individual_IBD':groups.group(6),'self_individual':groups.group(7),'self_individual_IBD':groups.group(8)}
-                to_add.append(data)
-            verifyBamID_individual = ','.join(add_multiple_rows(entity = package+'VerifyBamID_individual', data = to_add,
-                                                                connection = connection))
-        depthRG = ','.join(parse_depth_or_self('DepthRG',verifyBamID_output_path+'.depthRG','depth', connection,package))
-        depthSM = ','.join(parse_depth_or_self('DepthSM',verifyBamID_output_path+'.depthSM','depth', connection,package))
-        selfRG = ','.join(parse_depth_or_self('SelfRG',verifyBamID_output_path+'.selfRG','self', connection,package))
-        selfSM = ','.join(parse_depth_or_self('SelfSM',verifyBamID_output_path+'.selfSM','self', connection,package))
-        multiple_allele_skip = len(re.findall('with multiple alternative alleles', err_text))
-        no_autosomal_skip = len(re.findall('Skipping no-autosomal marker',err_text))
-        data = {'multiple_allele_skip':multiple_allele_skip,'no_autosomal_skip':no_autosomal_skip,'sh_script':sh_id, 'depthRG':depthRG,
-                'out_file':out_id,'err_file':err_id,'runtime':runtime, 'depthSM':depthSM,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
-                'number_of_markers':number_of_markers,'number_of_informative_markers':number_of_informative_markers,'verifyBamID_individual':verifyBamID_individual,
-                'selfRG':selfRG,'selfSM':selfSM,'extracted_bases':extracted_bases,'avg_depth':avg_depth,'skipped_marker':skipped_marker,
-                'self_only':self_only,'self_only_sample_ID':self_only_sample_ID, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}        
         try:
-            added_id = connection.add(package+'VerifyBamID', data)[0]
-        except requests.exceptions.HTTPError as e:
-            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
-                added_id = connection.get(package+'VerifyBamID', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
-                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']
-            else:
-                raise
-        # if this sample already had a verifyBamId, find it, append the new one, and update sample row
-        verifybamid_data = connection.get(package+'VerifyBamID', [{'field':'internalId_sampleid','operator':'EQUALS','value':internalId+'_'+str(project)+'-'+str(sample_name)}])
-        if len(verifybamid_data) >0 and len(verifybamid_data[0]['id']) > 0:
-            added_id = verifybamid_data[0]['id']+','+added_id
-        connection.update_entity_rows(package+'Samples', data={'verifyBamID':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+            with open(verifyBamID_output_path+'.log') as verifyBamID_log:
+                verifyBamID_log_text = verifyBamID_log.read()
+                groups = re.search('finding sample ID (\S+) from VCF file.*?'\
+                                  +'Finished reading (\d+) markers from VCF file.*?'\
+                                  +'Total of (\d+) informative markers passed.*?'\
+                                  +'Finished extracting (\d+) bases.*?'\
+                                  +'Avg Depth = (\d+\.\d+).*?',verifyBamID_log_text,re.DOTALL)
+                try:
+                    number_of_markers = groups.group(2)
+                    number_of_informative_markers = groups.group(3)
+                    extracted_bases = groups.group(4) 
+                    avg_depth = groups.group(5)
+                    self_only_sample_ID = groups.group(1)
+                except AttributeError:
+                    print('tried the following regex:')
+                    print('finding sample ID (\S+) from VCF file.*?'\
+                                  +'Finished reading (\d+) markers from VCF file.*?'\
+                                  +'Total of (\d+) informative markers passed.*?'\
+                                  +'Finished extracting (\d+) bases.*?'\
+                                  +'Avg Depth = (\d+\.\d+).*?')
+                    print(verifyBamID_log_text)
+                self_only = bool(re.search('selfOnly option applied',out_text))
+                to_add = []
+                for skipped_marker_line in re.findall('Skipping.*?\n',verifyBamID_log_text):
+                    if len(skipped_marker_line.strip()) == 0:
+                        continue
+                    groups = re.search('marker (\S+?):(\d+)',skipped_marker_line,re.DOTALL)
+                    chromosome = groups.group(1).replace('X','23')
+                    chromosome = chromosome.replace('Y','24')
+                    marker_type = 'no_autosomal' if 'no-autosomal' in skipped_marker_line else 'multiple_allele'
+                    position = groups.group(2)
+                    to_add.append({'chromosome':chromosome,'type':marker_type,'position':position})
+                skipped_marker = ','.join(add_multiple_rows(entity=package+'Skipped_marker',data=to_add,
+                                                            connection=connection))
+                pattern = '(Comparing with individual \S+.. Optimal fIBD = \d+\.\d+, LLK0 = \d+\.\d+, LLK1 = \d+\.\d+ for readgroup \d+\n'\
+                         +'Best Matching Individual is NA with IBD = \d+.\d+\n'\
+                         +'Self Individual is NA with IBD = \d+.\d+)'
+                verifyBamID_individual = ''
+                to_add = []
+                for individual in re.findall(pattern, verifyBamID_log_text):
+                    groups = re.search('Optimal fIBD = (\d+\.\d+).*?'\
+                                      +'LLK0 = (\d+\.\d+).*?'\
+                                      +'LLK1 = (\d+\.\d+).*?'\
+                                      +'for readgroup (\S+)\n.*?'\
+                                      +'Best Matching Individual is (\S+) with IBD.*?',
+                                      +'Best Matching Individual is \S+ with IBD = (\d+.\d+)\n.*?'\
+                                      +'Self Individual is (\S+) with IBD.*?'\
+                                      +'Self Individual is \S+ with IBD = (\d+.\d+)',individual,re.DOTALL)
+                    data = {'optimal_fIBD':groups.group(1),'llk0':groups.group(2),'llk1':groups.group(3),'readgroup':groups.group(4),'best_matching_individual':groups.group(5),
+                            'best_match_individual_IBD':groups.group(6),'self_individual':groups.group(7),'self_individual_IBD':groups.group(8)}
+                    to_add.append(data)
+                verifyBamID_individual = ','.join(add_multiple_rows(entity = package+'VerifyBamID_individual', data = to_add,
+                                                                    connection = connection))
+            depthRG = ','.join(parse_depth_or_self('DepthRG',verifyBamID_output_path+'.depthRG','depth', connection,package))
+            depthSM = ','.join(parse_depth_or_self('DepthSM',verifyBamID_output_path+'.depthSM','depth', connection,package))
+            selfRG = ','.join(parse_depth_or_self('SelfRG',verifyBamID_output_path+'.selfRG','self', connection,package))
+            selfSM = ','.join(parse_depth_or_self('SelfSM',verifyBamID_output_path+'.selfSM','self', connection,package))
+            multiple_allele_skip = len(re.findall('with multiple alternative alleles', err_text))
+            no_autosomal_skip = len(re.findall('Skipping no-autosomal marker',err_text))
+            data = {'multiple_allele_skip':multiple_allele_skip,'no_autosomal_skip':no_autosomal_skip,'sh_script':sh_id, 'depthRG':depthRG,
+                    'out_file':out_id,'err_file':err_id,'runtime':runtime, 'depthSM':depthSM,'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
+                    'number_of_markers':number_of_markers,'number_of_informative_markers':number_of_informative_markers,'verifyBamID_individual':verifyBamID_individual,
+                    'selfRG':selfRG,'selfSM':selfSM,'extracted_bases':extracted_bases,'avg_depth':avg_depth,'skipped_marker':skipped_marker,
+                    'self_only':self_only,'self_only_sample_ID':self_only_sample_ID, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}        
+            try:
+                added_id = connection.add(package+'VerifyBamID', data)[0]
+            except requests.exceptions.HTTPError as e:
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    added_id = connection.get(package+'VerifyBamID', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                        'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']
+                else:
+                    raise
+            # if this sample already had a verifyBamId, find it, append the new one, and update sample row
+            verifybamid_data = connection.get(package+'VerifyBamID', [{'field':'internalId_sampleid','operator':'EQUALS','value':internalId+'_'+str(project)+'-'+str(sample_name)}])
+            if len(verifybamid_data) >0 and len(verifybamid_data[0]['id']) > 0:
+                added_id = verifybamid_data[0]['id']+','+added_id
+            connection.update_entity_rows(package+'Samples', data={'verifyBamID':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+        except OSError as e:
+            print(e)
 def parse_hisat(runinfo_folder_QC,connection,package):
     '''finished'''
     print ('Start Hisat')
     for hisat_sh_text, hisat_err_text, hisat_out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,'HisatAlignment*.sh'),connection, package):
-        groups = re.search('(\d+) reads; of these:.*?'\
+        try:
+            # paired end output
+            groups = re.search('(\d+) reads; of these:.*?'\
                           +'(\d+) \((\d+\.\d+)%\) were paired; of these:.*?'\
                           +'(\d+) \((\d+\.\d+)%\) aligned concordantly 0 times.*?'\
                           +'(\d+) \((\d+\.\d+)%\) aligned concordantly exactly 1 time.*?'\
@@ -371,11 +399,36 @@ def parse_hisat(runinfo_folder_QC,connection,package):
                           +'(\d+) \((\d+\.\d+)%\) aligned exactly 1 time.*?'\
                           +'(\d+) \((\d+\.\d+)%\) aligned \>1 times.*?'\
                           +'(\d+\.\d+)% overall alignment rate', hisat_err_text,re.DOTALL)
-        data = {'number_of_reads':groups.group(1),'number_of_paired_reads':groups.group(2),'number_of_paired_reads_p':groups.group(3),'align_pairs_conc_0_times':groups.group(4),'align_pairs_conc_0_times_p':groups.group(5),'align_pairs_conc_1_time':groups.group(6),'align_pairs_conc_1_time_p':groups.group(7),
+        
+            data = {'number_of_reads':groups.group(1),'number_of_paired_reads':groups.group(2),'number_of_paired_reads_p':groups.group(3),'align_pairs_conc_0_times':groups.group(4),'align_pairs_conc_0_times_p':groups.group(5),'align_pairs_conc_1_time':groups.group(6),'align_pairs_conc_1_time_p':groups.group(7),
                 'align_pairs_conc_2plus_time':groups.group(8),'align_pairs_conc_2plus_time_p':groups.group(9),'aligned_pairs_disconc':groups.group(10),'aligned_pairs_disconc_p':groups.group(11),'pairs_not_aligned':groups.group(12),
                 'number_mates':groups.group(13),'mates_aligned_0_times':groups.group(14),'mates_aligned_0_times_p':groups.group(15),'mates_aligned_1_time':groups.group(16),'mates_aligned_1_time_p':groups.group(17),
                 'mates_aligned_multiple':groups.group(18),'mates_aligned_multiple_p':groups.group(19),'overall_alignment_rate':groups.group(20),'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
                 'sh_script':sh_id,'out_file':out_id,'err_file':err_id,'runtime':runtime, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+        except AttributeError:
+             # single end output
+            groups = re.search('(\d+) reads; of these:.*?'\
+                          +'(\d+) \((\d+\.\d+)%\) were unpaired; of these:.*?'\
+                          +'(\d+) \((\d+.\d+)%\) aligned 0 times.*?'\
+                          +'(\d+) \((\d+\.\d+)%\) aligned exactly 1 time.*?'\
+                          +'(\d+) \((\d+\.\d+)%\) aligned \>1 times.*?'\
+                          +'(\d+\.\d+)% overall alignment rate', hisat_err_text,re.DOTALL)
+            try:
+                data = {'number_of_reads':groups.group(1),'number_of_paired_reads':int(groups.group(1))-int(groups.group(2)),'number_of_paired_reads_p':100.0-float(groups.group(3)),
+                    'mates_aligned_0_times':groups.group(4),'mates_aligned_0_times_p':groups.group(5),'mates_aligned_1_time':groups.group(6),'mates_aligned_1_time_p':groups.group(7),
+                    'mates_aligned_multiple':groups.group(8),'mates_aligned_multiple_p':groups.group(9),'overall_alignment_rate':groups.group(10),'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
+                    'sh_script':sh_id,'out_file':out_id,'err_file':err_id,'runtime':runtime, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+            except AttributeError:
+                # wrong output
+                           groups = re.search('(\d+) reads.*?'\
+                          +'(\d+\.\d+)% overall alignment rate', hisat_err_text,re.DOTALL)
+            try:
+                data = {'number_of_reads':groups.group(1),'overall_alignment_rate':groups.group(2),'internalId_sampleid':internalId+'_'+str(project)+'-'+str(sample_name),'internalId':internalId,
+                    'sh_script':sh_id,'out_file':out_id,'err_file':err_id,'runtime':runtime, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+            except AttributeError:
+                #wrong text in .err file
+                print(hisat_err_text)
+                raise
         try:
             added_id = connection.add(package+'Hisat', data)[0]
         except requests.exceptions.HTTPError as e:
@@ -508,8 +561,13 @@ def parse_variantCaller(variant_caller, runinfo_folder_QC,connection,package):
                 for reads_filter in filters:
                     search_result = re.search('(\d+) reads \((\d+.\d+)% of total\) failing '+reads_filter,err_text)
                     filtered[reads_filter] = {'p':search_result.group(2),'r':search_result.group(1)}
-            vcf_file = re.search('-o (\S+.vcf)',sh_text).group(1)
+            try:
+                vcf_file = re.search('-o (\S+.vcf.gz)',sh_text).group(1)
+            except:
+                print('vcf.gz not found, trying vcf.gz')
+                vcf_file = re.search('-o (\S+.vcf)',sh_text).group(1)
             sample_names = None
+            print(vcf_file)
             with open(vcf_file) as vcf:
                 vcf_meta_ids = {'filters':[],'info':[],'formats':[],'contigs':[],'snps':[],'alts':[],'gvcf_block':[]}
                 reference = None
@@ -609,7 +667,8 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_QC,'FastQC*.sh'),connection, package):
         fastqc_outdir = re.search('--outdir (\S+)',sh_text).group(1)
         fastqc_output_base = re.search('--noextract (\S+)',sh_text).group(1).rstrip('.fastq.gz').split(os.sep)[-1]+'_fastqc'
-        if not os.path.isfile(fastqc_output_base+'.html'):
+        if not os.path.isfile(fastqc_outdir+os.sep+fastqc_output_base+'.html'):
+            print(fastqc_output_base+'.html not found')
             fastqc_output_base = fastqc_output_base.replace('_fastqc','.fq_fastqc')
         with open(fastqc_outdir+os.sep+fastqc_output_base+'.html') as fastqc_html_file:
             fastqc_html = fastqc_html_file.read()
@@ -656,11 +715,16 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
         to_add = []
         for line in fastqc_groups.group(8).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[0]:
+                s_l[0] = s_l[0].split('-')[0]
+
             to_add.append({'base_letter':s_l[0], 'mean':s_l[1], 'median':s_l[2], 'lower_quartile':s_l[3], 'upper_quartile':s_l[4],'percentile_10th':s_l[5], 'percentile_90th':s_l[6]})
         fastqc_ids['pbsq'] = ','.join(add_multiple_rows(package+'Per_base_sequence_quality',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(9).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[1]:
+                s_l[1] = s_l[1].split('-')[0]
             to_add.append({'tile':s_l[0], 'base_letter':s_l[1], 'mean':s_l[2]})
         fastqc_ids['ptsq'] = ','.join(add_multiple_rows(package+'Per_tile_sequence_quality',to_add,connection))
         to_add = []
@@ -671,6 +735,8 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
         to_add = []
         for line in fastqc_groups.group(11).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[0]:
+                s_l[0] = s_l[0].split('-')[0]
             to_add.append({'base_letter':s_l[0], 'a':s_l[1], 'g':s_l[2], 'c':s_l[3], 't':s_l[4]})
         fastqc_ids['pbsc'] = ','.join(add_multiple_rows(package+'Per_base_sequence_content',to_add,connection))
         to_add = []
@@ -681,6 +747,8 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
         to_add = []
         for line in fastqc_groups.group(13).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[0]:
+                s_l[0] = s_l[0].split('-')[0]
             to_add.append({'base_letter':s_l[0], 'n_count':s_l[1]})
         fastqc_ids['pbnc'] = ','.join(add_multiple_rows(package+'Per_base_N_content',to_add,connection))
         to_add = []
@@ -702,11 +770,15 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
         to_add = []
         for line in fastqc_groups.group(17).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[0]:
+                s_l[0] = s_l[0].split('-')[0]
             to_add.append({'position':s_l[0], 'illumina_universal_adapter':s_l[1], 'illumina_small_rna_adapter':s_l[2], 'nextera_transposase_seq':s_l[3], 'solid_small_rna_adapter':s_l[4]})
         fastqc_ids['ac'] = ','.join(add_multiple_rows(package+'Adapter_content',to_add,connection))
         to_add = []
         for line in fastqc_groups.group(18).split('\n')[1:]:
             s_l = line.split('\t')
+            if('-') in s_l[4]:
+                s_l[4] = s_l[4].split('-')[1]
             to_add.append({'seq':s_l[0], 'count':s_l[1], 'p_value':s_l[2], 'obs_exp_max':s_l[3], 'max_obs_exp_position':s_l[4]})
         fastqc_ids['kc'] = ','.join(add_multiple_rows(package+'Kmer_content',to_add,connection))
         if '-' in fastqc_groups.group(6):
@@ -740,7 +812,7 @@ def parse_fastqc(runinfo_folder_QC,connection,package):
             added_id = fastqc_data[0]['id']+','+added_id
         connection.update_entity_rows(package+'Samples', data={'fastqc':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
 def parse_markDuplicates(runinfo_folder_genotypeCalling,connection,package):
-    print ('Start markDuplicates')
+    print ('Start markDuplies')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder_genotypeCalling,'MarkDuplicates*.sh'),connection, package):
         duplicates = re.search('Marking (\d+) records as duplicates',err_text).group(1)
         optical_duplicate_clusters = re.search('Found (\d+) optical duplicate clusters',err_text).group(1)
@@ -917,126 +989,134 @@ def parse_gatkSplitNTrim(runinfo_folder_genotypeCalling,connection,package):
 def parse_cmMetrics(runinfo_folder,connection,package, pipeline):
     print ('start cmmMetrics')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder,'CollectMultipleMetrics*.sh'),connection, package):
-        cmMetrics_base_file = re.search('O=(\S+)',sh_text).group(1)
-        with open(cmMetrics_base_file+'.alignment_summary_metrics') as alignment_summary_metrics:
-            metrics_class = alignment_summary_metrics.read().split('## METRICS CLASS')[1].split('\n')
-            alignment_summary_metrics_ids = ''
-            to_add = []
-            for line in metrics_class[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'category':s_l[0],'total_reads':s_l[1],'pf_reads':s_l[2],'pct_pf_reads':s_l[3],'pf_noise_reads':s_l[4],
-                        'pf_reads_aligned':s_l[5],'pct_pf_reads_aligned':s_l[6],'pf_aligned_bases':s_l[7],'pf_hq_aligned_reads':s_l[8],
-                        'pf_h1_aligned_bases':s_l[9],'pf_hq_aligned_q20_bases':s_l[10],'pf_h1_median_mismatches':s_l[11],'pf_mismatch_rate':s_l[12],
-                        'pf_hq_error_rate':s_l[13],'pf_indel_rate':s_l[14],'mean_read_length':s_l[15],'reads_aligned_in_pairs':s_l[16],
-                        'pct_reads_aligned_in_pairs':s_l[17],'bad_cycles':s_l[18],'strand_balance':s_l[19],'pct_chimeras':s_l[20],
-                        'pct_adapter':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
-                to_add.append(data)
-            alignment_summary_metrics = ','.join(add_multiple_rows(package+'Alignment_summary_metrics',to_add,connection))
-        with open(cmMetrics_base_file+'.insert_size_metrics') as insert_size_metrics:
-            split_file = insert_size_metrics.read().split('## METRICS CLASS')[1].split('## HISTOGRAM')[0]
-            metrics_class = split_file[0].split('\n')
-            insert_size_metrics_ids = ''
-            to_add = []
-            for line in metrics_class[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'median_insert_size':s_l[0],'median_absolute_deviation':s_l[1],'min_insert_size':s_l[2],'max_insert_size':s_l[3],
-                        'mean_insert_size':s_l[4],'standard':s_l[5],'_deviation':s_l[6],'read_pairs':s_l[7],'pair_orientation':s_l[8],
-                        'width_of_10_percent':s_l[9],'width_of_20_percent':s_l[10],'width_of_30_perc':s_l[11],'ent':s_l[12],
-                        'width_of_40_percent':s_l[13],'width_of_50_percent':s_l[14],'width_of_60_percent':s_l[15],
-                        'width_of_70_percent':s_l[16],'width_of_80_perc':s_l[17],'ent':s_l[18],'width_of_90_percent':s_l[19],
-                        'width_of_99_percent':s_l[20],'sample':s_l[21],'library':s_l[22],'read_group':s_l[23]}
-                to_add.append(data)
-            insert_size_metrics_ids = ','.join(add_multiple_rows(package+'Insert_size_metrics_class',to_add,connection))
-            histogram = split_file[1].split('\n')
-            insert_size_histogram_ids = ''
-            for line in histogram[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'insert_size':s_l[0],'all_reads_fr_count':s_l[1],'all_reads_rf_count':s_l[2]}
-                insert_size_histogram_ids += connection.add(package+'Insert_size_metrics_histogram',data)+','
-        with open(cmMetrics_base_file+'.quality_by_cycle_metrics') as alignment_summary_metrics:
-            metrics_class = alignment_summary_metrics.read().split('## HISTOGRAM')[1].split('\n')
-            quality_per_cycle_histogram_ids = ''
-            to_add = []
-            for line in metrics_class[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'cycle':s_l[0],'mean_quality':s_l[1]}
-                to_add.append(data)
-            quality_per_cycle_histogram_ids = ','.join(add_multiple_rows(package+'Quality_by_cycle_metrics',to_add,connection))                         
-        with open(cmMetrics_base_file+'.quality_by_cycle_metrics') as alignment_summary_metrics:
-            metrics_class = alignment_summary_metrics.read().split('## HISTOGRAM')[1].split('\n')
-            quality_distribution_histogram_ids = ''
-            to_add = []
-            for line in metrics_class[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'cycle':s_l[0],'mean_quality':s_l[1]}
-                to_add.append(data)
-            quality_distribution_histogram_ids = ','.join(add_multiple_rows(package+'Quality_distribution_metrics',to_add,connection))  
-        if 'QC' in runinfo_folder:
-            internalId_sampleid = str(internalId)+'_'+str(project)+'-'+str(sample_name)
-        elif 'genotypeCalling' in runinfo_folder:
-            # after genotypecalling there is not more internal id, keys with value None get removed before adding
-            internalId_sampleid = None
-        else:
-            raise ValueError('runinfo folder does not contain QC or genotypeCalling, need that information to proceed. runinfo_folder = '+str(runinfo_folder))
-        data = {'alignment_summary_metrics':alignment_summary_metrics_ids.rstrip(','),'insert_size_metrics_class':insert_size_metrics_ids.rstrip(','),'insert_size_metrics_histogram':insert_size_histogram_ids.rstrip(','),
-                'pipeline':pipeline,'qual_by_cycle_metrics':quality_per_cycle_histogram_ids.rstrip(','),'qual_distribution_metrics':quality_distribution_histogram_ids.rstrip(','),
-                'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId_sampleid,'internalId':internalId,
-                'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
         try:
-            added_id = connection.add(package+'CMMetrics', data)[0]
-        except requests.exceptions.HTTPError as e:
-            if 'Duplicate value' in e.response.json()['errors'][0]['message']:
-                added_id = connection.get(package+'CMMetrics', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
-                                    'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']  
-        if 'QC' in runinfo_folder:
-            cMMetric_data = connection.get(package+'CMMetrics', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
-            if len(cMMetric_data) >0 and len(cMMetric_data[0]['id']) > 0:
-                added_id = cMMetric_data[0]['id']+','+added_id
-        connection.update_entity_rows(package+'Samples', data={'cMMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+            cmMetrics_base_file = re.search('O=(\S+)',sh_text).group(1)
+            with open(cmMetrics_base_file+'.alignment_summary_metrics') as alignment_summary_metrics:
+                metrics_class = alignment_summary_metrics.read().split('## METRICS CLASS')[1].split('\n')
+                alignment_summary_metrics_ids = ''
+                to_add = []
+                for line in metrics_class[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'category':s_l[0],'total_reads':s_l[1],'pf_reads':s_l[2],'pct_pf_reads':s_l[3],'pf_noise_reads':s_l[4],
+                            'pf_reads_aligned':s_l[5],'pct_pf_reads_aligned':s_l[6],'pf_aligned_bases':s_l[7],'pf_hq_aligned_reads':s_l[8],
+                            'pf_h1_aligned_bases':s_l[9],'pf_hq_aligned_q20_bases':s_l[10],'pf_h1_median_mismatches':s_l[11],'pf_mismatch_rate':s_l[12],
+                            'pf_hq_error_rate':s_l[13],'pf_indel_rate':s_l[14],'mean_read_length':s_l[15],'reads_aligned_in_pairs':s_l[16],
+                            'pct_reads_aligned_in_pairs':s_l[17],'bad_cycles':s_l[18],'strand_balance':s_l[19],'pct_chimeras':s_l[20],
+                            'pct_adapter':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
+                    to_add.append(data)
+                alignment_summary_metrics = ','.join(add_multiple_rows(package+'Alignment_summary_metrics',to_add,connection))
+            with open(cmMetrics_base_file+'.insert_size_metrics') as insert_size_metrics:
+                split_file = insert_size_metrics.read().split('## METRICS CLASS')[1].split('## HISTOGRAM')[0]
+                metrics_class = split_file[0].split('\n')
+                insert_size_metrics_ids = ''
+                to_add = []
+                for line in metrics_class[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'median_insert_size':s_l[0],'median_absolute_deviation':s_l[1],'min_insert_size':s_l[2],'max_insert_size':s_l[3],
+                            'mean_insert_size':s_l[4],'standard':s_l[5],'_deviation':s_l[6],'read_pairs':s_l[7],'pair_orientation':s_l[8],
+                            'width_of_10_percent':s_l[9],'width_of_20_percent':s_l[10],'width_of_30_perc':s_l[11],'ent':s_l[12],
+                            'width_of_40_percent':s_l[13],'width_of_50_percent':s_l[14],'width_of_60_percent':s_l[15],
+                            'width_of_70_percent':s_l[16],'width_of_80_perc':s_l[17],'ent':s_l[18],'width_of_90_percent':s_l[19],
+                            'width_of_99_percent':s_l[20],'sample':s_l[21],'library':s_l[22],'read_group':s_l[23]}
+                    to_add.append(data)
+                insert_size_metrics_ids = ','.join(add_multiple_rows(package+'Insert_size_metrics_class',to_add,connection))
+                histogram = split_file[1].split('\n')
+                insert_size_histogram_ids = ''
+                for line in histogram[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'insert_size':s_l[0],'all_reads_fr_count':s_l[1],'all_reads_rf_count':s_l[2]}
+                    insert_size_histogram_ids += connection.add(package+'Insert_size_metrics_histogram',data)+','
+            with open(cmMetrics_base_file+'.quality_by_cycle_metrics') as alignment_summary_metrics:
+                metrics_class = alignment_summary_metrics.read().split('## HISTOGRAM')[1].split('\n')
+                quality_per_cycle_histogram_ids = ''
+                to_add = []
+                for line in metrics_class[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'cycle':s_l[0],'mean_quality':s_l[1]}
+                    to_add.append(data)
+                quality_per_cycle_histogram_ids = ','.join(add_multiple_rows(package+'Quality_by_cycle_metrics',to_add,connection))                         
+            with open(cmMetrics_base_file+'.quality_by_cycle_metrics') as alignment_summary_metrics:
+                metrics_class = alignment_summary_metrics.read().split('## HISTOGRAM')[1].split('\n')
+                quality_distribution_histogram_ids = ''
+                to_add = []
+                for line in metrics_class[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'cycle':s_l[0],'mean_quality':s_l[1]}
+                    to_add.append(data)
+                quality_distribution_histogram_ids = ','.join(add_multiple_rows(package+'Quality_distribution_metrics',to_add,connection))  
+            if 'QC' in runinfo_folder:
+                internalId_sampleid = str(internalId)+'_'+str(project)+'-'+str(sample_name)
+            elif 'genotypeCalling' in runinfo_folder:
+                # after genotypecalling there is not more internal id, keys with value None get removed before adding
+                internalId_sampleid = None
+            else:
+                raise ValueError('runinfo folder does not contain QC or genotypeCalling, need that information to proceed. runinfo_folder = '+str(runinfo_folder))
+            data = {'alignment_summary_metrics':alignment_summary_metrics_ids.rstrip(','),'insert_size_metrics_class':insert_size_metrics_ids.rstrip(','),'insert_size_metrics_histogram':insert_size_histogram_ids.rstrip(','),
+                    'pipeline':pipeline,'qual_by_cycle_metrics':quality_per_cycle_histogram_ids.rstrip(','),'qual_distribution_metrics':quality_distribution_histogram_ids.rstrip(','),
+                    'err_file':err_id,'out_file':out_id,'runtime':runtime,'internalId_sampleid':internalId_sampleid,'internalId':internalId,
+                    'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+            try:
+                added_id = connection.add(package+'CMMetrics', data)[0]
+            except requests.exceptions.HTTPError as e:
+                if 'Duplicate value' in e.response.json()['errors'][0]['message']:
+                    added_id = connection.get(package+'CMMetrics', query=[{'field':'internalId_sampleid', 'operator':'EQUALS', 
+                                        'value':internalId+'_'+str(project)+'-'+str(sample_name)}])[0]['id']  
+            if 'QC' in runinfo_folder:
+                cMMetric_data = connection.get(package+'CMMetrics', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+                if len(cMMetric_data) >0 and len(cMMetric_data[0]['id']) > 0:
+                    added_id = cMMetric_data[0]['id']+','+added_id
+            connection.update_entity_rows(package+'Samples', data={'cMMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+        except OSError as e:
+            print(e)
+            
 def parse_rMetrics(runinfo_folder,connection,package,pipeline):
     '''finished'''
     print ('start rMetrics')
     for sh_text, err_text, out_text, runtime, sample_name, internalId, project,sh_id, err_id, out_id, tool_ids in parse_rnaseq_tools(os.path.join(runinfo_folder,'CollectRnaSeqMetrics*.sh'),connection, package):
         rMetrics = re.search('OUTPUT=(\S+.rna_metrics.log)', sh_text).group(1)
         # remove below line when on cluster
-        with open(rMetrics) as rMetrics_file:
-            split_file = rMetrics_file.read().split('## METRICS CLASS')[1].split('## HISTOGRAM')[0]
-            metrics_class = split_file[0].split('\n')
-            metrics_ids = ''
-            to_add = []
-            for line in metrics_class[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'pf_bases':s_l[0],'pf_aligned_bases':s_l[1],'ribosomal_bases':s_l[2],'coding_bases':s_l[3],
-                        'utr_bases':s_l[4],'intronic_bases':s_l[5],'intergenic_bases':s_l[6],'ignored_reads':s_l[7],
-                        'correct_strand_reads':s_l[8],'incorrect_strand_reads':s_l[9],'pct_ribosomal_bases':s_l[10],
-                        'pct_coding_bases':s_l[11],'pct_utr_bases':s_l[12],'pct_intronic_bases':s_l[13],'pct_intergenic_bases':s_l[14],
-                        'pct_mrna_bases':s_l[15],'pct_usable_bases':s_l[16],'pct_correct_strand_reads':s_l[17],
-                        'median_cv_coverage':s_l[18],'median_5prime_bias':s_l[19],'median_3prime_bias':s_l[20],
-                        'median_5prime_to_3prime_bias':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
-                to_add.append(data)
-            metrics_ids = ','.join(add_multiple_rows(package+'Rnaseq_metrics_class',to_add,connection))
-            histogram = split_file[1].split('\n')
-            metrics_histogram_ids = ''
-            for line in histogram[2:]:
-                if len(line.strip()) == 0: continue
-                s_l = line.split('\t')
-                data = {'all_reads_normalized_coverage':s_l[0],'normalized_position':s_l[1],'sample_exp_normalized_coverage':s_l[2],'sample_normalized_coverage':s_l[3]}
-                metrics_histogram_ids += connection.add(package+'Rnaseq_metrics_histogram',data)+','
- 
-        data = {'rnaseq_metrics_class':metrics_ids.rstrip(','),'rnaseq_metrics_histogram':metrics_histogram_ids.rstrip(','),'err_file':err_id,'out_file':out_id,'runtime':runtime,
-                'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
-        added_id = connection.add(package+'CRMetrics', data)[0]
-        if 'QC' in runinfo_folder:
-            cRMetric_data = connection.get(package+'CRMetrics', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
-            if len(cRMetric_data) >0 and len(cRMetric_data[0]['id']) > 0:
-                added_id = cRMetric_data[0]['id']+','+added_id
-        connection.update_entity_rows(package+'Samples', data={'cRMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+        try:
+            with open(rMetrics) as rMetrics_file:
+                split_file = rMetrics_file.read().split('## METRICS CLASS')[1].split('## HISTOGRAM')[0]
+                metrics_class = split_file[0].split('\n')
+                metrics_ids = ''
+                to_add = []
+                for line in metrics_class[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'pf_bases':s_l[0],'pf_aligned_bases':s_l[1],'ribosomal_bases':s_l[2],'coding_bases':s_l[3],
+                            'utr_bases':s_l[4],'intronic_bases':s_l[5],'intergenic_bases':s_l[6],'ignored_reads':s_l[7],
+                            'correct_strand_reads':s_l[8],'incorrect_strand_reads':s_l[9],'pct_ribosomal_bases':s_l[10],
+                            'pct_coding_bases':s_l[11],'pct_utr_bases':s_l[12],'pct_intronic_bases':s_l[13],'pct_intergenic_bases':s_l[14],
+                            'pct_mrna_bases':s_l[15],'pct_usable_bases':s_l[16],'pct_correct_strand_reads':s_l[17],
+                            'median_cv_coverage':s_l[18],'median_5prime_bias':s_l[19],'median_3prime_bias':s_l[20],
+                            'median_5prime_to_3prime_bias':s_l[21],'sample':s_l[22],'library':s_l[23],'read_group':s_l[24]}
+                    to_add.append(data)
+                metrics_ids = ','.join(add_multiple_rows(package+'Rnaseq_metrics_class',to_add,connection))
+                histogram = split_file[1].split('\n')
+                metrics_histogram_ids = ''
+                for line in histogram[2:]:
+                    if len(line.strip()) == 0: continue
+                    s_l = line.split('\t')
+                    data = {'all_reads_normalized_coverage':s_l[0],'normalized_position':s_l[1],'sample_exp_normalized_coverage':s_l[2],'sample_normalized_coverage':s_l[3]}
+                    metrics_histogram_ids += connection.add(package+'Rnaseq_metrics_histogram',data)+','
+     
+            data = {'rnaseq_metrics_class':metrics_ids.rstrip(','),'rnaseq_metrics_histogram':metrics_histogram_ids.rstrip(','),'err_file':err_id,'out_file':out_id,'runtime':runtime,
+                    'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+            added_id = connection.add(package+'CRMetrics', data)[0]
+            if 'QC' in runinfo_folder:
+                cRMetric_data = connection.get(package+'CRMetrics', [{'field':'id','operator':'EQUALS','value':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}])
+                if len(cRMetric_data) >0 and len(cRMetric_data[0]['id']) > 0:
+                    added_id = cRMetric_data[0]['id']+','+added_id
+            connection.update_entity_rows(package+'Samples', data={'cRMetrics':added_id}, row_id = str(project)+'-'+str(sample_name)+'-'+str(analysis_id))
+        except OSError as e:
+            print(e)
+            
 def parse_mergeBam(runinfo_folder_genotypeCalling,connection,package):
     '''finished'''
     print('start mergeBam')
@@ -1070,11 +1150,15 @@ def parse_flagstat(runinfo_folder_genotypeCalling,connection,package):
                                '(\d+) \+ 0 singletons \((\d+.\d+)%.*?'+\
                                '(\d+) \+ 0 with mate mapped to a different chr.*?'+\
                                '(\d+) \+ 0 with mate mapped to a different chr \(mapQ\>=(\d+)\)',flagstat_data,re.DOTALL)
-        data = {'mate_mapped_to_diff_chr':groups.group(14),'mate_mapped_to_diff_chr_mq5':groups.group(15),'n_read1':groups.group(7),'duplicates':groups.group(4),
+        try:
+            data = {'mate_mapped_to_diff_chr':groups.group(14),'mate_mapped_to_diff_chr_mq5':groups.group(15),'n_read1':groups.group(7),'duplicates':groups.group(4),
                 'n_read2':groups.group(8),'paired_in_sequencing':groups.group(6),'properly_paired':groups.group(9),'properly_paired_perc':groups.group(10),'secondary_mapped_reads':groups.group(2),'total_reads':groups.group(1),
                 'singletons':groups.group(12),'singletons_perc':groups.group(13),'supplementary':groups.group(3),'total_mapped_reads':groups.group(5),'with_itself_and_mate_mapped':groups.group(11),
                 'total_mapped_reads_perc':groups.group(5),'err_file':err_id,'out_file':out_id,'runtime':runtime,
                 'sh_script':sh_id, 'tools':tool_ids,'sample_id':str(project)+'-'+str(sample_name)+'-'+str(analysis_id)}
+        except AtributeError:
+            print(flagstat_data)
+            raise
         try:
             added_id = connection.add(package+'Flagstat', data)
         except requests.exceptions.HTTPError:
@@ -1088,8 +1172,8 @@ def parse_kallisto(runinfo_folder_quantification,connection,package):
         with open(output_folder+'run_info.json') as run_info_json:
             run_info_text = run_info_json.read()
             n_targets = re.search('"n_targets": (\d+)', run_info_text).group(1)
-            n_bootstraps = re.search('“n_bootstraps”: (\d+)', run_info_text).group(1)
-            index_version = re.search('"index_version": (\d+)', run_info_text).group(1)
+            n_bootstraps = re.search('n_bootstraps.: (\d+)', run_info_text).group(1)
+            index_version = re.search('index_version.: (\d+)', run_info_text).group(1)
         abundance = ''
         with open(output_folder+'abundance.tsv') as abundance_tsv:
             abundance_tsv.readline()
