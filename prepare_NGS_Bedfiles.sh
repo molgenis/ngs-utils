@@ -168,10 +168,29 @@ fi
 
 module load ngs-utils
 module load BEDTools
+
+
+if [ -f ${baits}.bed ]
+then
+	echo "print phiX count"
+	a=$(grep phiX174 ${baits}.bed | wc -l)
+else
+	a=0
+fi
+
+if [ $a == 0 ]
+then
+	echo -e 'NC_001422.1\t1\t5386\tphiX174' >> ${baits}.bed
+else
+	echo "phiX already inside bed file" 
+fi
+
+sort -V ${baits}.bed > ${baits}.bed.sorted
+mv ${baits}.bed.sorted ${baits}.bed
+
 bedtools merge -i ${baits}.bed -c 3,4 -o distinct > ${baits}.merged.bed
 
 wc -l  ${baits}.bed
-
 
 #
 ##
