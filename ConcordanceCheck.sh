@@ -38,11 +38,11 @@ else
 	#########################################################################
 	#########################################################################
 	
-	module load ngs-utils/16.06.1 
+	module load ngs-utils/16.09.1 
 
 	##Create .fam, .lgen and .map file from sample_report.txt
 	sed -e '1,10d' ${s}_FinalReport_2.txt.tmp | awk '{print "1",$2,"0","0","0","1"}' | uniq > ${s}.concordance.fam
-	sed -e '1,10d' ${s}_FinalReport_2.txt.tmp | awk '{print "1",$2,$1,$3,$4}' | awk -f ${toolDir}RecodeFRToZero.awk > ${s}.concordance.lgen
+	sed -e '1,10d' ${s}_FinalReport_2.txt.tmp | awk '{print "1",$2,$1,$3,$4}' | awk -f ${EBROOTNGSMINUTILS}RecodeFRToZero.awk > ${s}.concordance.lgen
 	sed -e '1,10d' ${s}_FinalReport_2.txt.tmp | awk '{print $6,$1,"0",$7}' OFS="\t" | sort -k1n -k4n | uniq > ${arrayTmpMap}
 	grep -P '^[123456789]' ${arrayTmpMap} | sort -k1n -k4n > ${arrayMapFile}
 	grep -P '^[X]\s' ${arrayTmpMap} | sort -k4n >> ${arrayMapFile}
@@ -149,20 +149,6 @@ else
 	-comp ${n}.genotypeArray.ExonFiltered.HomozygousRefRemoved.FINAL.vcf \
 	-o ${n}.GATK.VCF.Concordance.output.grp 
 
-
-	### Compare Array data with raw NGS data using verifyBamID
-	
-#	module load verifyBamID/1.1.2-goolf-1.7.20
-#	
-#	verifyBamID \
-#	--bam ${b} \
-#	--vcf ${s}.genotypeArray.ExonFiltered.vcf \
-#	--out ${s}.VerifyBamID \
-#	--smID ${s} \
-#	--verbose \
-#	--ignoreRG \
-#	--best \
-#	--chip-mix
 
 ##Put Relevant outputdata to output folder
 
