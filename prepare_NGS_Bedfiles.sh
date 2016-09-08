@@ -188,7 +188,7 @@ fi
 sort -V ${baits}.bed > ${baits}.bed.sorted
 mv ${baits}.bed.sorted ${baits}.bed
 
-bedtools merge -i ${baits}.bed -c 3,4 -o distinct > ${baits}.merged.bed
+bedtools merge -i ${baits}.bed -c 4 -o distinct > ${baits}.merged.bed
 
 wc -l  ${baits}.bed
 
@@ -483,11 +483,22 @@ else
 		rm -rf ${batchIntervallistDir}/temp_0*
 	fi
 fi #end of if/else loop chr
-if [ -f ${baits}.batch-${BATCH_Y}Y.bed ]
+if [ ! -z ${BATCH_Y+x} ]
+then
+	if [ -f ${baits}.batch-${BATCH_Y}Y.bed ]
+	then
+        	if [ ! -f ${MAP}/captured.femaleY.bed ]
+        	then
+        	        echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+        	fi
+	fi
+fi
+if [ -f ${baits}.batch-Y.bed ]
 then
 	if [ ! -f ${MAP}/captured.femaleY.bed ]
 	then
 		echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
 	fi
 fi
+
 #for f in ${MAP}/*_baits_*; do cp $f ${f/_baits_/_exons_}; done
