@@ -7,6 +7,8 @@ Created on Jul 31, 2015
 import time
 import argparse
 import warnings
+import os
+
 try:
     # Python 3
     import configparser
@@ -24,7 +26,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 config = configparser.RawConfigParser()
-config.read(r'RNAseqParser/CONFIG')
+dir = os.path.dirname(__file__)
+config.read(os.path.join(dir,'RNAseqParser/CONFIG'))
 def configSectionMap(section):
     configs = {}
     options = config.options(section)
