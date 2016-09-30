@@ -119,7 +119,7 @@ with open(os.path.join(current_dir,'RNAseqParser/CONFIG'),'w') as configfile:
 from RNAseqParser import parse_output
 
 print('Running parse_RNAseq_parser with configuration options:')
-print((open(os.path.join(dir,'RNAseqParser/CONFIG')).read()))
+print(open(os.path.join(current_dir,'RNAseqParser/CONFIG')).read())
   
 # make a connection to the molgenis database. This connection will be passed to the other functions
 with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
