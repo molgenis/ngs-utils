@@ -15,7 +15,8 @@ import configparser
 import requests
 import io
 config = configparser.RawConfigParser()
-config.read(os.path.join(dir,'RNAseqParser/CONFIG'))
+current_dir = os.path.dirname(__file__)
+config.read(os.path.join(current_dir,'RNAseqParser/CONFIG'))
 if __name__ == "__main__":
     config.read(r'CONFIG')
 def configSectionMap(section):
