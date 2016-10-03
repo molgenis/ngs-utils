@@ -110,17 +110,9 @@ if [[ -z "${DATA-}" ]]; then
         DATA="chr"
 fi
 if [[ -z "${TMP-}" ]]; then
-	whichHost=$(hostname)
-	if [ "$whichHost" == "zinc-finger.gcc.rug.nl" ]
-	then
-		 TMP="/groups/umcg-gaf/tmp05/tmp"
-	elif [ "$whichHost" == "calculon" ]
-	then
-		TMP="/groups/umcg-gaf/tmp04/tmp"
-	else
-		echo "unknown host!"
-		exit 1
-	fi
+	THISDIR=$(pwd)
+	TMP=${THISDIR}/TMP/
+	mkdir ${TMP}	
 fi
 
 BATCHCOUNT=3
@@ -144,6 +136,7 @@ echo "INTERVALSFOLDER: $INTERVALFOLDER"
 echo "EXTENSION: $EXTENSION"
 echo "REFERENCE: $REFERENCE"
 echo "COVPERBASE: $COVPERBASE"
+echo "TMPDIR: ${TMP}"
 
 MAP="${INTERVALFOLDER}"
 
