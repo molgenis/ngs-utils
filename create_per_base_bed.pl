@@ -45,13 +45,12 @@ while (my $lines=<INPUT>){
                 my $chr = $array[0];
                 my $start = $array[1];
                 my $stop = $array[2];
-                my $strand = $array[3];
-		my $gene = $array[4];
+		my $gene = $array[3];
                 my $region = ($stop-$start);
                 #Iterate over region and create bins
 		open (OUTPUT, ">>", "$outputfolder/$output.per_base.bed" ) or die $!;
                 for (my $i=($start+1); $i<=$stop; $i=($i+$binSize)){
-                    print OUTPUT "$chr\t" . $i . "\t" . ($i+1) . "\t$strand\t$gene\n";
+                    print OUTPUT "$chr\t" . $i . "\t" . ($i+1) . "\t$gene\n";
                 }
                 close(OUTPUT);
 

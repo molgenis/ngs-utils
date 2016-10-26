@@ -7,6 +7,8 @@ Created on Jul 31, 2015
 import time
 import argparse
 import warnings
+import os
+
 try:
     # Python 3
     import configparser
@@ -24,7 +26,8 @@ class MyParser(argparse.ArgumentParser):
         sys.exit(2)
 
 config = configparser.RawConfigParser()
-config.read(r'RNAseqParser/CONFIG')
+current_dir = os.path.dirname(__file__)
+config.read(os.path.join(current_dir,'RNAseqParser/CONFIG'))
 def configSectionMap(section):
     configs = {}
     options = config.options(section)
@@ -95,7 +98,7 @@ if len(sys.argv)==1:
     sys.exit(1)
 # overwrite the values in the config file with any values given on the command line. 
 # If none given, the overwritten value is same as current value in the config file
-with open(r'RNAseqParser/CONFIG','w') as configfile:
+with open(os.path.join(current_dir,'RNAseqParser/CONFIG'),'w') as configfile:
     config.set('paths','ena',args.ENA_path)
     config.set('settings','analysis_id',args.analysis_id)
     config.set('paths','runinfo_folder_qc',args.runinfo_folder_qc)
@@ -116,7 +119,7 @@ with open(r'RNAseqParser/CONFIG','w') as configfile:
 from RNAseqParser import parse_output
 
 print('Running parse_RNAseq_parser with configuration options:')
-print((open('RNAseqParser/CONFIG').read()))
+print(open(os.path.join(current_dir,'RNAseqParser/CONFIG')).read())
   
 # make a connection to the molgenis database. This connection will be passed to the other functions
 with molgenis_wrapper.Connect_Molgenis(configSectionMap('settings')['server'],
