@@ -90,6 +90,7 @@ then
 	inputVcf2=${VCF2%.*}
 	gzip -c -d $VCF2 > ${inputVcf2}
 elif [ "${checkformatVCF1}" == "vcf" ]
+then
 	inputVcf1=$VCF1
 	inputVcf2=$VCF2
 else
