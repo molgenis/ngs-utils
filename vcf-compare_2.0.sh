@@ -76,7 +76,7 @@ printf "vcf1:${VCF1}\nvcf2:${VCF2}"> "${OUT}/runparameters.txt"
 checkformatVCF1=${VCF1##*.}
 checkformatVCF2=${VCF2##*.}
 
-if [ $checkformatVCF1 != $checkformatVCF2 ]
+if [ "${checkformatVCF1}" != "${checkformatVCF2}" ]
 then
 	echo "formats are not the same ($checkformatVCF1 vs $checkformatVCF2)"
 	exit 1
@@ -99,7 +99,7 @@ fi
 
 vcf01="$(basename ${inputVcf1})"
 vcf02="$(basename ${inputVcf2})"
-if [ ${vcf01} == ${vcf02} ]; then
+if [ "${vcf01}" == "${vcf02}" ]; then
 	usage
 	echo
 	echo "ERROR: ${vcf01} is equal to ${vcf02}."
