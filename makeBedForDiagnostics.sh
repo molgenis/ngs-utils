@@ -44,17 +44,9 @@ echo "copied ${fileName} ${newName}/"
 ## navigate to folder 
 cd ${newName}
 
-withoutExtension=${fileName%.*}
 
-awk '{ 
-	if ($0 !~ /^@/){
-		plus=($3 +1); print $1"\t"$2"\t"plus"\t"$4 
-	}
-}' ${fileName} > ${withoutExtension}_StopPlusOne.bed
-echo "created ${withoutExtension}_StopPlusOne.bed"
-
-cp ${withoutExtension}_StopPlusOne.bed human_g1k_v37/captured.bed
-echo "copied ${withoutExtension}_StopPlusOne.bed to human_g1k_v37/captured.bed"
+cp ${fileName} human_g1k_v37/captured.bed
+echo "copied ${fileName} to human_g1k_v37/captured.bed"
 module load ngs-utils
 
 cd human_g1k_v37/
