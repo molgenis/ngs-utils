@@ -283,9 +283,10 @@ sub _ProcessExperiment {
 	# Check if barcodeType is one for which we know how to handle it. 
 	#
 	unless (exists($gaf_barcode_types{$barcodeType})) {
-		$logger->fatal('Detected unknown barcodeType ' . $barcodeType . ' for internalSampleID ' . $internalSampleID . '.');
-		$logger->fatal('Known barcodeType values are ' . join(' || ', keys(%gaf_barcode_types)) . '.');
-		exit(1);
+		$gaf_barcode_types{$barcodeType}{'IlluminaDemultiplexing'}=1;
+		#$logger->fatal('Detected unknown barcodeType ' . $barcodeType . ' for internalSampleID ' . $internalSampleID . '.');
+		#$logger->fatal('Known barcodeType values are ' . join(' || ', keys(%gaf_barcode_types)) . '.');
+		#exit(1);
 	}
 	
 	my @lanes = split(',',$lanes); # Separate multiple lane values like "1,2".
