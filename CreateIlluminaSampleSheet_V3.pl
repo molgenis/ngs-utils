@@ -31,6 +31,7 @@ my %log_levels = (
 	'OFF'   => $OFF,
 );
 
+my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcode2','barcodeType','seqType');
 my %gaf_barcode_types = ('None' => {
 							'IlluminaDemultiplexing'	=> 0},
 						 'GAF' => {
@@ -75,12 +76,7 @@ my $isDualBarcode	= $opts{'d'};
 $log_level = (defined($log_level) ? $log_level : 'INFO');
 $source = (defined($source) ? $source : '/gcc/resources/PrepKits');
 $isDualBarcode = (defined($isDualBarcode) ? $isDualBarcode : 'FALSE');
-my @gaf_column_names;
-if ($isDualBarcode eq "FALSE"){
-        my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcodeType','seqType');
-}else{
-      	my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcode2','barcodeType','seqType');
-}
+
 
 # Reset log level to default if user specified illegal log level.
 $log_level = (
@@ -286,12 +282,11 @@ sub _ProcessExperiment {
 	#
 	# Check if barcodeType is one for which we know how to handle it. 
 	#
-	unless (exists($gaf_barcode_types{$barcodeType})) {
-		$gaf_barcode_types{$barcodeType}{'IlluminaDemultiplexing'}=1;
-		#$logger->fatal('Detected unknown barcodeType ' . $barcodeType . ' for internalSampleID ' . $internalSampleID . '.');
-		#$logger->fatal('Known barcodeType values are ' . join(' || ', keys(%gaf_barcode_types)) . '.');
-		#exit(1);
-	}
+#	unless (exists($gaf_barcode_types{$barcodeType})) {
+#		$logger->fatal('Detected unknown barcodeType ' . $barcodeType . ' for internalSampleID ' . $internalSampleID . '.');
+#		$logger->fatal('Known barcodeType values are ' . join(' || ', keys(%gaf_barcode_types)) . '.');
+#		exit(1);
+#	}
 	
 	my @lanes = split(',',$lanes); # Separate multiple lane values like "1,2".
 	
