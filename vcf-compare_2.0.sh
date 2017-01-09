@@ -159,6 +159,7 @@ done<${SCRATCH}/${vcf02}.stripped.txt
 printf "" > ${SCRATCH}/differences.txt
 printf "" > ${SCRATCH}/diff.txt
 
+echo "comparing vcf1 with vcf2"
 for i in "${!arrVCF1[@]}"
 do
 	if [ "${arrVCF2[$i]+abc}" ] && printf "$i ${arrVCF1[$i]}\n" >> ${SCRATCH}/truePos.txt
@@ -173,6 +174,9 @@ do
 		printf "$i\t${arrVCF1[$i]}\n" >> ${SCRATCH}/notInVcf2.txt
 	fi
 done
+
+echo "comparing vcf2 with vcf1"
+
 for i in "${!arrVCF2[@]}"
 do
         if [ "${arrVCF1[$i]+abc}" ]

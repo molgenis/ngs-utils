@@ -31,7 +31,6 @@ my %log_levels = (
 	'OFF'   => $OFF,
 );
 
-my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcode2','barcodeType','seqType');
 my %gaf_barcode_types = ('None' => {
 							'IlluminaDemultiplexing'	=> 0},
 						 'GAF' => {
@@ -76,7 +75,12 @@ my $isDualBarcode	= $opts{'d'};
 $log_level = (defined($log_level) ? $log_level : 'INFO');
 $source = (defined($source) ? $source : '/gcc/resources/PrepKits');
 $isDualBarcode = (defined($isDualBarcode) ? $isDualBarcode : 'FALSE');
-
+my @gaf_column_names;
+if ($isDualBarcode eq "FALSE"){
+        my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcodeType','seqType');
+}else{
+      	my @gaf_column_names = ('internalSampleID','externalSampleID','sequencingStartDate','sequencer','run','flowcell','lane','barcode','barcode2','barcodeType','seqType');
+}
 
 # Reset log level to default if user specified illegal log level.
 $log_level = (
