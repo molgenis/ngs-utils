@@ -73,8 +73,6 @@ my %UGT1A1Table = (
     "257"  => "*37",
 );
 
-
-
 #
 # Check user input.
 #
@@ -330,7 +328,7 @@ while (<$input_fh>) {
 					$gene = $iPLEXUnexpected;
 				}
 				&_printGLIMP($sampleID, $verrichting, $gene, $output);
-				}
+			}
 		}
 	}
 }
@@ -488,6 +486,10 @@ my %Intron_6_2 =(
 	"*80" => 0,
 );
 
+my %alternatieven =(
+	"*4" => "*4N",
+	);
+
 
 if ($taqman eq $iPLEXUnexpected){
 	my $log_message = "$sampleID not in Taqman file: $taqmanCN." ;
@@ -506,11 +508,20 @@ if ($taqman eq $iPLEXUnexpected){
 	foreach my $allelOne (@allel1) {
 		foreach my $allelTwo (@allel2){
 			my $voorspeld = (($Exon_9{$allelOne} + $Exon_9{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}));
+			
 			if ( $voorspeld eq $taqmanCN){
 				
 				#print "gelijk $voorspeld eq $taqmanCN \n\n";
 				$newCYP2D6 .= $allelOne.'/'.$allelTwo . ' OR ';
 			}
+			#elsif(1==2){
+				
+				# druk ook de alternatieven in je array, @allel1 = add('*4n'), en doorloop de loop nog een keer.
+				
+			#	}
+			
+			
+			
 			else{
 				my $log_message	= "sample: $sampleID predicted allels: $allelOne/$allelTwo: ";
 				$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
@@ -545,6 +556,12 @@ while (<$fh>) {
 	if( my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9]+)\t([0-9]+)\t([0-9]+).+$/ ) {
 				
 		if ($sampleID eq $id){
+			#check for non existing values.
+			if (! exists $UGT1A1Table{$var2} || ! exists $UGT1A1Table{$var1}){
+				$UGT1A1line = $iPLEXUnexpected;
+				$logger->warn("$sampleID: $var1 or $var2 does not exist");
+				#next;
+			}
 			if ($UGT1A1Table{$var2} eq "*1"){
 				$UGT1A1line = $UGT1A1Table{$var2}.'/'.$UGT1A1Table{$var1};
 				$logger->info("$id, $var1, $var2");
