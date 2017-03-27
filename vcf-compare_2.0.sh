@@ -8,7 +8,7 @@ set -u  # Exit if any uninitialised variable is used.
 
 usage() {
     echo '##################################################################################################'
-    echo ' This tool compares 2 VCF files and shows only the different rows based on the following columns:'
+    echo ' This tool compares 2 VCF files (or GZIPPED vcf) and shows only the different rows based on the following columns:'
     echo '   CHROM, POS, REF, ALT and SampleID:GT'
     echo
     echo ' Usage:'
@@ -24,7 +24,6 @@ usage() {
 declare VCF1=""
 declare VCF2=""
 declare OUT=""
-
 #
 # Take the parameters given on the commandline and assign them to variables.
 #
@@ -73,9 +72,35 @@ printf "vcf1:${VCF1}\nvcf2:${VCF2}"> "${OUT}/runparameters.txt"
 #
 # select filenames from given path and check if they are unique.
 #
-vcf01="$(basename ${VCF1})"
-vcf02="$(basename ${VCF2})"
-if [ ${vcf01} == ${vcf02} ]; then
+
+checkformatVCF1=${VCF1##*.}
+checkformatVCF2=${VCF2##*.}
+
+if [ "${checkformatVCF1}" != "${checkformatVCF2}" ]
+then
+	echo "formats are not the same ($checkformatVCF1 vs $checkformatVCF2)"
+	exit 1
+fi
+
+if [ "${checkformatVCF1}" == "gz" ]
+then
+	inputVcf1=${VCF1%.*}
+	gzip -c -d $VCF1 > ${inputVcf1}
+
+	inputVcf2=${VCF2%.*}
+	gzip -c -d $VCF2 > ${inputVcf2}
+elif [ "${checkformatVCF1}" == "vcf" ]
+then
+	inputVcf1=$VCF1
+	inputVcf2=$VCF2
+else
+	echo "not a correct format, please use vcf or vcf.gz"
+	exit 1
+fi
+
+vcf01="$(basename ${inputVcf1})"
+vcf02="$(basename ${inputVcf2})"
+if [ "${vcf01}" == "${vcf02}" ]; then
 	usage
 	echo
 	echo "ERROR: ${vcf01} is equal to ${vcf02}."
@@ -83,15 +108,16 @@ if [ ${vcf01} == ${vcf02} ]; then
 	echo
 	exit 1
 fi
+
 ##Remove header
-grep -v '^#' $VCF1 > ${SCRATCH}/${vcf01}.removedHeader.txt
+grep -v '^#' ${inputVcf1} > ${SCRATCH}/${vcf01}.removedHeader.txt
 ## Get only necessary columns
 awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${SCRATCH}/${vcf01}.removedHeader.txt > ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt
 ##get only genotype call
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf01}.stripped.txt
 
 
-awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' $VCF2 > ${SCRATCH}/${vcf02}.stripped.txt
+awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${inputVcf2} > ${SCRATCH}/${vcf02}.stripped.txt
 grep -v '^#' ${SCRATCH}/${vcf02}.stripped.txt > ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf02}.stripped.txt
 
@@ -133,6 +159,7 @@ done<${SCRATCH}/${vcf02}.stripped.txt
 printf "" > ${SCRATCH}/differences.txt
 printf "" > ${SCRATCH}/diff.txt
 
+echo "comparing vcf1 with vcf2"
 for i in "${!arrVCF1[@]}"
 do
 	if [ "${arrVCF2[$i]+abc}" ] && printf "$i ${arrVCF1[$i]}\n" >> ${SCRATCH}/truePos.txt
@@ -147,6 +174,9 @@ do
 		printf "$i\t${arrVCF1[$i]}\n" >> ${SCRATCH}/notInVcf2.txt
 	fi
 done
+
+echo "comparing vcf2 with vcf1"
+
 for i in "${!arrVCF2[@]}"
 do
         if [ "${arrVCF1[$i]+abc}" ]

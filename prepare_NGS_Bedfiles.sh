@@ -194,8 +194,8 @@ cat ${phiXRef} > ${baits}.interval_list.tmp
 cat ${baits}.bed >> ${baits}.interval_list.tmp
 
 awk '{ if ($0 !~ /^@/){
-                minus=($3 -1)
-                print $1"\t"$2"\t"minus"\t+\t"$4
+                minus=($2+1)
+                print $1"\t"minus"\t"$3"\t+\t"$4
         }
 	else{
              	print $0
