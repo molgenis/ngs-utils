@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 set -u
 
@@ -14,11 +16,17 @@ then
 
         tmpName="tmp06"
 fi
-
-
 GAVINHOME=/groups/umcg-gd/${tmpName}/GavinStandAlone/
 
-cd $GAVINHOME/tools
+if [ $host == "calculon" ]
+then
+	tmpName=tmp04
+	GAVINHOME=/groups/umcg-gdio/${tmpName}/GavinStandAlone/
+fi
+
+ml GavinStandAlone/1.0.0
+
+cd ${GAVINHOME}/input
 
 
 if ls ../input/*.vcf.gz 1> /dev/null 2>&1
@@ -43,7 +51,7 @@ then
 		filepath=$(readlink -f $i)
 		a=$(basename $i)
 		b=${a%%.*}
-		cp GavinStandAlone.sh ../tmpGavin/GavinStandAlone_${b}.sh
+		cp ${EBROOTGAVINSTANDALONE}/GavinStandAlone.sh ../tmpGavin/GavinStandAlone_${b}.sh
 		cd ../tmpGavin/
 
 		perl -pi -e "s|GavinStandAlone_VULIN|GavinStandAlone_${b}|" GavinStandAlone_${b}.sh
