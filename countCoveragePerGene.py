@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 import csv
 from collections import defaultdict
