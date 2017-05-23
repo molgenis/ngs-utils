@@ -12,7 +12,8 @@ dictU10=dict()
 dictU20=dict()
 dictU50=dict()
 dictU100=dict()
-reader = csv.DictReader(open("/groups/umcg-gaf/tmp04/umcg-rkanninga/CoverageOverview.txt", "rb"), delimiter="\t")
+print sys.argv[1]
+reader = csv.DictReader(open(sys.argv[1], "rb"), delimiter="\t")
 for row in reader:
 	gene=row['Gene']
 	cov=row['AvgCoverage']

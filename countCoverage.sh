@@ -186,7 +186,7 @@ cp ${TMP}/CoverageOverview.txt.tmp ${WORKDIR}/CoverageOverview.txt
 echo "DONE, final file is ${WORKDIR}/CoverageOverview.txt"
 
 echo "now creating per Gene calculations"
-python countCoveragePerGene.py > ${WORKDIR}/CoverageOverview_PerGene.txt
+python countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
 
 echo -e "Gene\tAvgCoverage\tNo of Targets\tMedian\tu10x\tu20x\tu50x\tu100x" > ${WORKDIR}/CoverageOverview_PerGene.sorted.txt
 
