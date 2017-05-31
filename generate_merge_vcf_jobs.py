@@ -1,11 +1,21 @@
 
 import math
 import glob  
+import argparse
 
-outdir="/groups/umcg-bios/tmp04/projects/BIOS_RNA/merge_gvcfs_freeze2/merged_vcfs/"
-list_of_vcfs = "list_of_freeze2_vcfs.txt"
-jobs_dir = "jobs/mergeHaplotypeVcfs/"
-ref_genome = "/apps/data/ftp.broadinstitute.org/bundle/2.8/b37/human_g1k_v37.fasta"
+parser = argparse.ArgumentParser(description='Generate slurm jobs for merging vcfs.')
+parser.add_argument(['-o','--outdir'], required=True, action='store_const',help="Output directory")
+parser.add_argument(['-l','--list_of_vcfs'], required=True, action='store_const',help="File with list of vcfs to merge")
+parser.add_argument(['-j','--jobs_dir'], required=True, action='store_const',help="Dir to write jobs to")
+parser.add_argument(['-r','--ref_genome'], required=True, action='store_const',help="Reference genome")
+
+args = parser.parse_args()
+
+
+outdir=args.outdir
+list_of_vcfs = args.list_of_vcfs
+jobs_dir = args.jobdir
+ref_genome = args.ref_genome
 
 template = """#!/bin/bash
 #SBATCH --job-name=MergeGvcfs_batchREPLACEBATCH_chrREPLACECHROMOSOME
