@@ -21,9 +21,18 @@ def main():
                         break
                     if i_vcf == 0:
                         ## print metadata line
+                        if 'ID=GT' in line:
+                            # Add GL info to header
+                            print('##FORMAT=<ID=GL,Number=G,Type=Integer,Description="Genotype likelihood: -(PL)/10"">\n', end='', file=fd_out)
+                        
                         print(line, end='', file=fd_out)
                 ## loop records
+                index = 0
                 for line in fd_vcf:
+                    if index % 10000 == 0:
+                        sys.stdout.write('Processed '+str(index)+' SNPs\n')
+                        sys.stdout.flush()
+                    index += 1
                     l = line.rstrip().split('\t')
                     field = l[8].split(':')
                     ## index PL
