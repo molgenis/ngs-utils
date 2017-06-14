@@ -23,7 +23,7 @@ def main():
                         ## print metadata line
                         if 'ID=GT' in line:
                             # Add GL info to header
-                            print('##FORMAT=<ID=GL,Number=G,Type=Integer,Description="Genotype likelihood: -(PL)/10"">\n', end='', file=fd_out)
+                            print('##FORMAT=<ID=GL,Number=G,Type=Integer,Description="Genotype likelihood: -(PL)/10">\n', end='', file=fd_out)
                         
                         print(line, end='', file=fd_out)
                 ## loop records
