@@ -1,5 +1,4 @@
 #!/bin/env python3
-
 import argparse
 from Bio.bgzf import BgzfWriter
 import gzip
@@ -24,7 +23,7 @@ def main():
                         if 'ID=GT' in line:
                             # Add GL info to header
                             print('##FORMAT=<ID=GL,Number=G,Type=Integer,Description="Genotype likelihood: -(PL)/10">\n', end='', file=fd_out)
-                        
+                            
                         print(line, end='', file=fd_out)
                 ## loop records
                 index = 0
@@ -33,7 +32,7 @@ def main():
                         sys.stdout.write('Processed '+str(index)+' SNPs\n')
                         sys.stdout.flush()
                     index += 1
-                    l = line.rstrip().split('\t')
+                    split_line = line.rstrip().split('\t')
                     field = l[8].split(':')
                     ## index PL
                     i_PL = l[8].split(':').index('PL')
@@ -43,31 +42,29 @@ def main():
                     field.insert(0, GT)
                     l[8] = ':'.join(field)
                     ## index GL
-                    i_GL = l[8].split(':').index('GL')
-                    s = '\t'.join(l[:9])
+                    i_GL = split_line[8].split(':').index('GL')
+                    s = '\t'.join(split_line[:9])
                     print(s, sep='\t', file=fd_out, end='')
-                    for i_GT in range(9, len(l)):
-                        lGT = l[i_GT]
-                        info = l[i_GT].split(':')
-                        if lGT == './.:0,0':
-                            toSplit = './.:0,0:0'
-                            info = toSplit.split(':')
+                    for i_GT in range(9, len(split_line)):
+                        lGT = split_line[i_GT]
+                        info = split_line[i_GT].split(':')
                         if info[0] == './.':
+                            info = ['./.','0,0','0']
                             s_GL = '.,.,.'
                         else:
-                            s_PL = l[i_GT].split(':')[i_PL]
+                            s_PL = split_line[i_GT].split(':')[i_PL]
                             if s_PL == '.':
                                 s_GL = '.,.,.'
                             else:
                                 s_GL = ','.join(
-                                    str(-float(PL)/10) for PL in s_PL.split(','))
+                                        str(-float(PL)/10) for PL in s_PL.split(',')
+                                    )
                             if s_GL==".":
                                 print(line)
                                 exit()
                         info.insert(i_GL, s_GL)
-                        l[i_GT] = info    
                         print('\t' +
-                            ':'.join(l[i_GT]), sep='\t', end='',
+                            ':'.join(info), sep='\t', end='',
                             file=fd_out)
                     print(end='\n', file=fd_out)
 
