@@ -33,20 +33,19 @@ def main():
                         sys.stdout.flush()
                     index += 1
                     split_line = line.rstrip().split('\t')
-                    field = l[8].split(':')
+                    field = split_line[8].split(':')
                     ## index PL
-                    i_PL = l[8].split(':').index('PL')
+                    i_PL = split_line[8].split(':').index('PL')
                     field.append('GL')
                     GT = field.pop(0)
                     field.sort()
                     field.insert(0, GT)
-                    l[8] = ':'.join(field)
+                    split_line[8] = ':'.join(field)
                     ## index GL
                     i_GL = split_line[8].split(':').index('GL')
                     s = '\t'.join(split_line[:9])
                     print(s, sep='\t', file=fd_out, end='')
                     for i_GT in range(9, len(split_line)):
-                        lGT = split_line[i_GT]
                         info = split_line[i_GT].split(':')
                         if info[0] == './.':
                             info = ['./.','0,0','0']
