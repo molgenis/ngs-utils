@@ -46,7 +46,6 @@ def main():
                     s = '\t'.join(split_line[:9])
                     print(s, sep='\t', file=fd_out, end='')
                     for i_GT in range(9, len(split_line)):
-                        lGT = split_line[i_GT]
                         info = split_line[i_GT].split(':')
                         if info[0] == './.':
                             info = ['./.','0,0','0']
