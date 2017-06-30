@@ -686,7 +686,7 @@ my $sampleID = shift;
 my %Hs00010001_cn = (); # Hs00010001_cn (=exon 9)
 my %Hs04502391_cn = (); # Hs04502391_cn (=intron 6)
 my %Hs04083572_cn = (); # Hs04083572_cn (=intron 2)
-my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv"; #BUG: schrijft output in scriptfolder
+my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv";
 
 # watch out the encoding!
 open(my $tagman_fh, '<:utf8', $taqmanFileCSV)
