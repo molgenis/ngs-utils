@@ -54,10 +54,12 @@ my $logger = Log::Log4perl::get_logger();
 #
 # Global vars
 #
-my @verrichtingen = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP2D6','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR (rs1801133)','SLCO1B1','TPMT','UGT1A1','VKORC1');
+my @verrichtingen = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP2D6','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR','SLCO1B1','TPMT','UGT1A1','VKORC1');
 my $dropsenceError = "DNA isolation failed";
 my $iPLEXUnexpected = "DNA analyse niet conclusief";
+my $IPLEXEmpty = 'Unknown haplotype'; 
 my $iPLEXManualCheck = "Graag handmatig naar kijken.";
+my $outputDir = dirname($output);
 my $PGX = "PGX";
 
 #
@@ -67,43 +69,24 @@ unless (defined($output)) {
 	_Usage();
 	exit(1);
 }
-#if ($dropsence =~ /^$/ || $output =~ /^$/) {
-#	_Usage();
-#	exit(1);
-#}
-
-if ($dropsence eq $output) {
-	_Usage();
-	$logger->fatal('Output file is the same as the input file. Select a different file for the output.');
-	exit(1);
-}
-#unless (-f $output && -r $output) {
-#	$logger->fatal('Cannot read/access file: ' . $output);
-#	exit(1);
-#}
-
 
 #
 # main 
 #
 
-#TODO's
-#-fix CYP2D6 als tagman + ipex unexpected wordt aangeleverd
-
-
-
 #
 # Always check Dropsence input. And store failed is in global array.
 #
 
-my @verrichtingList = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR (rs1801133)','SLCO1B1','TPMT','VKORC1');
+my @verrichtingList = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR','SLCO1B1','TPMT','VKORC1');
 my @verrichtingUGT1A1 = ('UGT1A1');
 my @verrichtingCYP2D6 = ('CYP2D6');
 my %samplesPassed;
 
 #inputFolder only
 if (defined($inputFolder) && defined($output)){
-	$logger->info('Parsing input folder.');
+	$logger->warn('Parsing input folder nog niet geimplementeerd.');
+	exit(1);
 	$iplex  = $inputFolder . 'PGxReport_combined_voorbeeld.csv';
 	$taqman = $inputFolder . 'Taqman_voorbeeld.xls';
 	$UGT1A1 = $inputFolder . 'UGT1A1_voorbeeld.txt';
@@ -118,30 +101,17 @@ if (defined($inputFolder) && defined($output)){
 	push(@verrichtingList , @verrichtingUGT1A1);
 	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 	exit(0);
-} else{
-
-	&_convertExcelToCSV($taqman);
-	&_convertExcelToCSV($dropsence);
-	%samplesPassed = %{&_checkDropsence($dropsence)};
-}
-
-
-#if (defined( -f $dropsence) && !defined($iplex) && !defined($UGT1A1)) {
-#	&_convertExcelToCSV($dropsence);
-#	&_checkDropsence($dropsence);
-#}
-
-
+} 
 # check only iplex data, without verrichtingen Tagman and UGT1A1
-if (defined($dropsence) && defined($iplex) && !defined($taqman)&& !defined($UGT1A1)){
-		# situatie met alleen een iplexfile
-	_Usage();
-	exit(1);
-	#$logger->info('alleen iplex');
-	#&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+if (!defined($dropsence) && defined($iplex) && !defined($taqman)&& !defined($UGT1A1)){
+	# situatie met alleen een iplexfile
+	#_Usage();
+	#exit(1);
+	$logger->info('alleen iplex');
+	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 }
 # check only UGT1A1 file, without iplex verrichtingen
-if (defined($dropsence) && defined($UGT1A1) && !defined($iplex)){
+if (!defined($dropsence) && defined($UGT1A1) && !defined($iplex)){
 	_Usage();
 	exit(1);
 	#$logger->info('alleen UGT1A1');
@@ -149,7 +119,7 @@ if (defined($dropsence) && defined($UGT1A1) && !defined($iplex)){
 }
 
 # check iplex including Taqman file, without UGT1A1 verrichting
-if (defined($dropsence) && defined($iplex) && defined($taqman)&& !defined($UGT1A1)){
+if (!defined($dropsence) && defined($iplex) && defined($taqman)&& !defined($UGT1A1)){
 	_Usage();
 	exit(1);
 	#$logger->info('alleen iplex en taqman');
@@ -161,7 +131,7 @@ if (defined($dropsence) && defined($iplex) && defined($taqman)&& !defined($UGT1A
 }
 
 # check iplex + UGT1A1 file, without Tagman verrichting
-if (defined($dropsence) && defined($iplex) && defined($UGT1A1) && !defined($taqman)){
+if (!defined($dropsence) && defined($iplex) && defined($UGT1A1) && !defined($taqman)){
 	_Usage();
 	exit(1);
 	#voeg extra verrichting toe
@@ -172,13 +142,21 @@ if (defined($dropsence) && defined($iplex) && defined($UGT1A1) && !defined($taqm
 
 
 # check iplex + Tagman and UGT1A1 file 
-if (defined($dropsence) && defined($iplex) && defined($UGT1A1) && defined($taqman)){
+if (!defined($dropsence) && defined($iplex) && defined($UGT1A1) && defined($taqman)){
 	$logger->info('Parsing Iplex, Taqman and UGT1A1 files.');
 	&_convertExcelToCSV($taqman);
 	#voeg extra verrichting toe
-	#push(@verrichtingList , @verrichtingCYP2D6);
+	push(@verrichtingList , @verrichtingCYP2D6);
 	push(@verrichtingList , @verrichtingUGT1A1);
 	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	exit(0);
+}
+
+# only dropsence test
+if (defined( -f $dropsence) && !defined($iplex) && !defined($UGT1A1) && !defined($taqman)) {
+	&_convertExcelToCSV($dropsence);
+	&_checkDropsence($dropsence);
+	exit(0);
 }
 
 
@@ -274,11 +252,12 @@ sub _printGLIMP{
 	my $delimiter = "\t";
 	open($output_fh, '>>', $output) or die "Can't open outputfile file.";;
 	my $line = $sampleID . "$delimiter$verrichting$delimiter$delimiter" . $result ."$delimiter". "$delimiter". "$delimiter$PGX\n" ; 
+	$logger->debug("RESULTLINE: $line");
 	if (!$result eq ''){
 		print($output_fh $line);
 	} else{
 		my $log_message = "$sampleID, $verrichting is empty";
-		$logger->info($log_message);
+		$logger->warn($log_message);
 	}
 	close($output_fh);
 } 
@@ -315,72 +294,84 @@ while (<$input_fh>) {
 		if ($. == 1) {
 				next;
 			}
-		#
-		## Check if sample did not fail QC.
-		#
 		my @fields= $csv->fields();
 		$sampleID	= $fields[$header{'Sample'}];
 		
 		
-		if (exists $samplesPassed{$sampleID}){
-					
+		#select only A sampleIds, and merge B and C later.	
+		if ($sampleID =~ /A$/) {
+			
+			my $sampleShort = $sampleID;
+			chop($sampleShort);
+			
+			# Voor elke rij worden de aanwezige verrichting geparsed, geconverteerd en weggeschreven naar de outputfile.			
 			foreach my $verrichting(@verrichtingList) {
 				if ($verrichting eq 'CYP2D6') {
-							
+					
+					my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
+					$logger->debug("$sampleID best match voor verrichting: $verrichting = $BesteVerrichting \n");
+												
 					$sampleID	= $fields[$header{'Sample'}];
 					# get new CYP2D6 string;
-					$gene		= &_convertCYP2D6( $sampleID, $fields[$header{$verrichting}], &_parseTaqman($taqman,$sampleID));
-					&_printGLIMP($sampleID, $verrichting, $gene, $output);
+					$gene		= &_convertCYP2D6( $sampleID, $BesteVerrichting, &_parseTaqman($taqman,$sampleShort));
+										
+					&_printGLIMP($sampleShort, $verrichting, $gene, $output);
 			
 				}elsif ($verrichting eq 'DPYD') {
-				
+					my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
+					my $DPYD_rs56038477 = &_ABC_check($sampleID,'DPYD (rs56038477)',$iplex);
+					my $DPYD_rs67376798 = &_ABC_check($sampleID,'DPYD (rs67376798)',$iplex);
+					$logger->debug("$sampleID best match voor verrichting: $verrichting zijn $BesteVerrichting , $DPYD_rs56038477 , $DPYD_rs67376798 \n");
 					$sampleID	= $fields[$header{'Sample'}];
 					#get correct DPYD;
-					$gene		= &_convertDPYD($fields[$header{$verrichting}],$fields[$header{'DPYD (rs56038477)'}],$fields[$header{'DPYD (rs67376798)'}]);
-				
-					#print "$sampleID, $verrichting, $gene, $output \n" ;
-					&_printGLIMP($sampleID, $verrichting, $gene, $output);
+					#$gene		= &_convertDPYD($fields[$header{$verrichting}],$fields[$header{'DPYD (rs56038477)'}],$fields[$header{'DPYD (rs67376798)'}]);
+					$gene		= &_convertDPYD($BesteVerrichting,$DPYD_rs56038477,$DPYD_rs67376798);
+					
+					&_printGLIMP($sampleShort, $verrichting, $gene, $output);
 							
 				}elsif ($verrichting eq 'UGT1A1') {
 				
 					$sampleID	= $fields[$header{'Sample'}];
-				
+					
 					#get correct UGT1A1;
-					$gene = &_convertUGT1A1($UGT1A1,$sampleID);
+					$gene = &_convertUGT1A1($UGT1A1,$sampleShort);
 				
-					#print "$sampleID, $verrichting, $gene, $output \n" ;
-					&_printGLIMP($sampleID, $verrichting, $gene, $output);
+					&_printGLIMP($sampleShort, $verrichting, $gene, $output);
 							
 				}elsif ($verrichting eq 'TPMT') {
-				
+					my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
+					$logger->debug("$sampleID best match voor verrichting: $verrichting = $BesteVerrichting \n");
 					$sampleID	= $fields[$header{'Sample'}];
 					#get correct TPMT;
-					$gene = &_convertTPMT($fields[$header{$verrichting}],$sampleID);
-					#print "$sampleID, $verrichting, $gene, $output \n" ;
-					&_printGLIMP($sampleID, $verrichting, $gene, $output);
+					$gene = &_convertTPMT($BesteVerrichting,$sampleID);
+					#$gene = &_convertTPMT($fields[$header{$verrichting}],$sampleID);
+					
+					&_printGLIMP($sampleShort, $verrichting, $gene, $output);
 							
 				}
 				else {
+					my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
+					$logger->debug("$sampleID best match voor verrichting: $verrichting = $BesteVerrichting \n");
 					$sampleID	= $fields[$header{'Sample'}];
-					$gene		= $fields[$header{$verrichting}];
-					#print $verrichting;
-					print "$sampleID, $verrichting, $gene, $output \n" ;
+					$gene		= $BesteVerrichting;
+					$logger->debug("$sampleShort, $verrichting, $gene, $output \n");
 				
-					if ($gene eq 'Unexpected') {
+					if ($gene eq 'Unknown haplotype') {
 						$gene = $iPLEXUnexpected;
 					}
-					&_printGLIMP($sampleID, $verrichting, $gene, $output);
+					&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+					
+					}		
 				}
-			}
-		} else{
-			$logger->warn("$sampleID not in or failed Dropsense QC.");
-			next;
+			} # close A if loop
+			else {$logger->debug("SKIP: $sampleID\n")};
 		}
 	}
 }
-}
 
-# TODO: Wat als er homozygote snp wordt gecalled?
+#
+## functions.
+#
 
 #
 # Gets 3 DPYD values, and returns converted results back.
@@ -393,7 +384,7 @@ my $REF = '';
 my $ALT = '';
 
 
-if ($DPYD1 eq 'Unexpected') {
+if ($DPYD1 eq 'Unknown haplotype') {
 	$newDPYD=$iPLEXUnexpected;
 	}else{
 	
@@ -542,54 +533,55 @@ my %alternatieven =(
 	);
 
 
-if ($taqman eq $iPLEXUnexpected){
-	my $log_message = "$sampleID not in Taqman file: $taqmanCN." ;
+if ($taqmanCN eq $iPLEXUnexpected | $CYP2D6 eq $IPLEXEmpty ){
+	my $log_message = "$sampleID not in Taqman file, or CopyNumber is missing: $taqmanCN." ;
 	$logger->warn($log_message);
-	return $taqmanCN;
+	return "tagmanError:$taqmanCN";
 } else{
 	
-	my ($var1,$var2) = split /\//, $CYP2D6;
+	my @options = split / OR /, $CYP2D6;
+	foreach my $option (@options){
+		  	
+		my ($var1,$var2) = split /\//, $option;
 
-	$logger->info("Converting sample-$sampleID: $var1 and $var2\n");
-	my @allel1 = split /;/, $var1;
-	my @allel2 = split /;/, $var2;
+		$logger->debug("CYP2D6 sample: $sampleID: $option and tagman: $taqmanCN\n");
+		my @allel1 = split /;/, $var1;
+		my @allel2 = split /;/, $var2;
 	
-	# add alternatives
-	foreach my $key(@allel1){
-		if (exists $alternatieven{$key}){
-			push (@allel1, $alternatieven{$key});
-			
-		}
-	}
-	foreach my $key(@allel2){
-		if (exists $alternatieven{$key}){
-			push (@allel2, $alternatieven{$key});
-			
-		}
-	}
-	
-	
-	#
-	# for all possible combinations off allel 1 and 2, calculate the predicted copyNumbers. That compare with the Taqman results and report the correct options. 
-	foreach my $allelOne (@allel1) {
-		foreach my $allelTwo (@allel2){
-			my $voorspeld = (($Exon_9{$allelOne} + $Exon_9{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}));
-			
-			if ( $voorspeld eq $taqmanCN){
-				
-				#print "gelijk $voorspeld eq $taqmanCN \n\n";
-				$newCYP2D6 .= $allelOne.'/'.$allelTwo . ' OR ';
+		# add alternatives
+		foreach my $key(@allel1){
+			if (exists $alternatieven{$key}){
+				push (@allel1, $alternatieven{$key});
 			}
-			else{
-				my $log_message	= "sample: $sampleID predicted allels: $allelOne/$allelTwo: ";
-				$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
-				$logger->warn($log_message);
-				
+		}
+		foreach my $key(@allel2){
+			if (exists $alternatieven{$key}){
+				push (@allel2, $alternatieven{$key});
 			}
+		}
+	
+		#
+		# for all possible combinations off allel 1 and 2, calculate the predicted copyNumbers. That compare with the Taqman results and report the correct options. 
+		foreach my $allelOne (@allel1) {
+			foreach my $allelTwo (@allel2){
+				my $voorspeld = (($Exon_9{$allelOne} + $Exon_9{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}));
 			
+				if ( $voorspeld eq $taqmanCN){
+				
+					$logger->debug("gelijk $voorspeld eq $taqmanCN \n");
+					$newCYP2D6 .= $allelOne.'/'.$allelTwo . ' OR ';
+				}
+				else{
+					my $log_message	= "sample: $sampleID predicted allels: $allelOne/$allelTwo: ";
+					$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
+					$logger->warn($log_message);
+					}
+				
+				}
+			
+			}
 		}
 	}
-}
 
 # remove extra OR at the back of string.
  $newCYP2D6 = substr($newCYP2D6, 0, -4);
@@ -606,6 +598,8 @@ sub _convertUGT1A1{
 my $UGT1A1 = shift;
 my $sampleID = shift;
 my $UGT1A1line = '';
+my $CorrectionBase = 253; # basis voor afronding.  $CorrectionBase(253) - Controlewaard = afronding§($correctionFactor)
+my $correctionFactor = '';
 
 # De UGT1A1 tandem repeat analyse bevat een vertaalslag van fragmentlengte naar haplotype zoals hieronder weergegeven.
 # (TA)5: 251 bp (haplotype *36)
@@ -624,48 +618,48 @@ my %UGT1A1Table = (
 my $fh;
 open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
 
+# pakt de controle sample en berekend correctieFactor.
 while (<$fh>) {
-	if( my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9]*)\t([0-9]*)\t([0-9]*)$/ ) {
-				#print "TEST: $id, $var1, $var2\n";
+	if( my ( $id, $var1, $var2 ) = $_ =~ m/^(CONTROLE)\t([0-9.]+)\t([0-9.]+).+$/ ) {
+		$correctionFactor = $CorrectionBase - $var1;
+	}
+}
+close($fh);
+
+open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
+
+# pakt beide UGT1A1 lengtes, rond af, haalt de correctieFactor eraf, en return 2 UGT1A1 allele.
+while (<$fh>) {
+	if( my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9a-zA-z.]*)\t([0-9.]*)\t([0-9.]*)$/ ) {
+				$logger->all("TEST:UGT1A1: sampleID: $id, " . &_roundup($var1) . ", " . &_roundup($var2) . ", " . 'correctie factor +'.$correctionFactor);
 		if ($sampleID eq $id){
 			#check for non existing values.
-			if (! exists $UGT1A1Table{$var2} || ! exists $UGT1A1Table{$var1}){
+			if (! exists $UGT1A1Table{(&_roundup($var2)+$correctionFactor)} || ! exists $UGT1A1Table{(&_roundup($var1)+$correctionFactor)}){
 				$UGT1A1line = $iPLEXUnexpected;
-				$logger->warn("$sampleID: $var1 or $var2 does not exist");
+				$logger->warn("$sampleID: $var1 or $var2 does not exist in %UGT1A1Table");
 				#next;
 			}
-			if ($UGT1A1Table{$var2} eq "*1"){
-				$UGT1A1line = $UGT1A1Table{$var2}.'/'.$UGT1A1Table{$var1};
-				#$logger->info("$id, $var1, $var2");
+			if ($UGT1A1Table{(&_roundup($var2)+$correctionFactor)} eq "*1"){
+				$UGT1A1line = $UGT1A1Table{(&_roundup($var2)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundup($var1)+$correctionFactor)};
+				$logger->info("UGT1A1: sampleID: $id, " . &_roundup($var2) . ", " . &_roundup($var1) . ", " . 'correctie factor +'.$correctionFactor);
 			}else{
-				print "\n\n Exists? $sampleID\n\n";
-				$UGT1A1line = $UGT1A1Table{$var1}.'/'.$UGT1A1Table{$var2};	
-				$logger->info("$id, $var1, $var2");
+				$UGT1A1line = $UGT1A1Table{(&_roundup($var1)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundup($var2)+$correctionFactor)};	
+				$logger->info("UGT1A1: sampleID: $id, " . &_roundup($var1) . ", " . &_roundup($var2) . ", " . 'correctie factor +'.$correctionFactor);
 			}
+		}else{
+			next;
 		}
+		
+		
 	}
 }	
 	close($fh);
 	return $UGT1A1line;
 }
 
-sub _parseUGT1A1{
-my $UGT1A1 = shift;
-my $output = shift;
-unlink($output);
+###
 
-my $fh;
-open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
-
-while (<$fh>) {
-	
-	if( my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9]+)\t([0-9]+)\t([0-9]+).+$/ ) {
-			
-			&_printGLIMP($id,'UGT1A1', &_convertUGT1A1($UGT1A1,$id), $output); 
-	}
-}	
-	close($fh);
-}
+###
 
 
 sub _convertTPMT{
@@ -675,24 +669,24 @@ my $newTPMT = '';
 
 if ($TPMT =~ m/.1..3A.OR..3B..3C/){
 	$newTPMT =	'*1/*3A';
-} elsif($TPMT eq 'Unexpected'){
+} elsif($TPMT eq 'Unknown haplotype'){
 	$newTPMT = $iPLEXUnexpected;
 }
 else{
 	$newTPMT =	$TPMT;
 }
-	print "hoi";
 	return $newTPMT;
 }
 
 
+# Leest Tagman file in en return de CopyNummers voor 3 metingen in 1 string. Indien 1 meting leeg is wordt een error gereturnd.
 sub _parseTaqman{
 my $taqmanFile = shift;
 my $sampleID = shift;
 my %Hs00010001_cn = (); # Hs00010001_cn (=exon 9)
 my %Hs04502391_cn = (); # Hs04502391_cn (=intron 6)
 my %Hs04083572_cn = (); # Hs04083572_cn (=intron 2)
-my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv";
+my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv"; #BUG: schrijft output in scriptfolder
 
 # watch out the encoding!
 open(my $tagman_fh, '<:utf8', $taqmanFileCSV)
@@ -714,9 +708,9 @@ my $csv = Text::CSV->new
 $csv->parse($header);
 $csv->column_names([$csv->fields]);
 
-# parse the rest
+# parse de Kollom CN Predicted tot aan sample ID 'NTC'
 while (my $row = $csv->getline_hr($tagman_fh)) {
-	if ($row->{'Sample Name'} =~ m/^Blanco/){
+	if ($row->{'Sample Name'} =~ m/^NTC/){
 		last;
 	} else{
 		$Hs04083572_cn{$row->{'Sample Name'}} = $row->{'CN Predicted'};
@@ -729,8 +723,9 @@ while (<$tagman_fh>) {
          last;
     }
 }
+# parse de Kollom CN Predicted tot aan sample ID 'NTC'
 while (my $row = $csv->getline_hr($tagman_fh)) {
-	if ($row->{'Sample Name'} =~ m/^Blanco/){
+	if ($row->{'Sample Name'} =~ m/^NTC/){
 		last;
 	} else{
 		$Hs00010001_cn{$row->{'Sample Name'}} = $row->{'CN Predicted'};
@@ -742,8 +737,9 @@ while (<$tagman_fh>) {
          last;
     }
 }
+# parse de Kollom CN Predicted tot aan sample ID 'NTC'
 while (my $row = $csv->getline_hr($tagman_fh)) {
-	if ($row->{'Sample Name'} =~ m/^Blanco/){
+	if ($row->{'Sample Name'} =~ m/^NTC/){
 		last;
 	} else{
 		$Hs04502391_cn{$row->{'Sample Name'}} = $row->{'CN Predicted'};
@@ -753,10 +749,78 @@ while (my $row = $csv->getline_hr($tagman_fh)) {
 $csv->eof or $csv->error_diag;
 close $tagman_fh;
 
-if (exists $Hs00010001_cn{$sampleID}){
+#return de 3 metingen als die er  zijn, of andere een error $iPLEXUnexpected.
+if (! $Hs00010001_cn{$sampleID} eq '' && ! $Hs04502391_cn{$sampleID} eq ''  && ! $Hs04083572_cn{$sampleID} eq '' ){
+	$logger->debug("Tagman return for sample $sampleID: $Hs00010001_cn{$sampleID},$Hs04502391_cn{$sampleID},$Hs04083572_cn{$sampleID}");
 	return ("$Hs00010001_cn{$sampleID},$Hs04502391_cn{$sampleID},$Hs04083572_cn{$sampleID}");
 } else{
+	$logger->debug("Tagman return for sample $sampleID: CN Predicted fields empty. Response: $iPLEXUnexpected ");
 	return $iPLEXUnexpected;
+	}
+}
+
+# geeft per ABC sample rij de meest gemeten waarde terug.
+sub _ABC_check{
+my $sampleID = shift;
+my $verrichting = shift;
+my $iplexFile = shift;
+
+chop($sampleID);
+my $sampleA = $sampleID . 'A';
+my $sampleB = $sampleID . 'B';
+my $sampleC = $sampleID . 'C';
+my $celA = '';
+my $celB = '';
+my $celC = '';
+
+$logger->debug("chopped ID:$sampleID, $sampleA $sampleB $sampleC");
+
+# watch out the encoding!
+open(my $iplex_fh, '<:utf8', $iplexFile)
+    or die "Can't open $iplexFile: $!";
+    
+# skip to first header af sampleblock
+my $header = '';
+while (<$iplex_fh>) {
+    if (/^Sample,/) {
+        $header = $_;
+        last;
+    }
+}
+
+my $csv = Text::CSV->new
+    or die "Text::CSV error: " . Text::CSV->error_diag;
+
+# define column names    
+$csv->parse($header);
+$csv->column_names([$csv->fields]);
+
+# parse the rest
+while (my $row = $csv->getline_hr($iplex_fh)) {
+	if ($row->{'Sample'} =~ m/^$sampleA/){
+		$logger->debug("we hebben een $row->{'Sample'} match: $sampleA. Verrichting $verrichting is: $row->{$verrichting}");
+		$celA = $row->{$verrichting};
+	} elsif($row->{'Sample'} =~ m/^$sampleB/){
+		$logger->debug("we hebben een $row->{'Sample'} match: $sampleB. Verrichting $verrichting is: $row->{$verrichting}");
+		$celB = $row->{$verrichting};
+	} elsif($row->{'Sample'} =~ m/^$sampleC/){
+		$logger->debug("we hebben een $row->{'Sample'} match: $sampleC. Verrichting $verrichting is: $row->{$verrichting}");
+		$celC = $row->{$verrichting};
+	}else{
+		#next;
+	}
+}
+
+# matches 3 kollomen, en return 1 van 2 matchende
+	if ($celA eq $celB | $celA eq $celC){
+        $logger->debug("celA $celA match met $celB of $celC");
+        return $celA;
+    }elsif ($celB eq $celC){
+		$logger->debug("celB $celB match met $celC");
+		return $celB;
+	} else{
+		$logger->warn("$celA  $celB $celC matchen niet. return: $iPLEXUnexpected ");
+		return $iPLEXUnexpected;
 	}
 }
 
@@ -771,7 +835,7 @@ my $storage_book;
 
 my $filename = basename($sourcename,  ".xls");
 my $CSV_fh;
-my $filenameOut = $filename . '.csv';
+my $filenameOut = $outputDir.'/'.$filename . '.csv';
 open($CSV_fh, '>', $filenameOut);
 print($CSV_fh '');
 open($CSV_fh, '>>', $filenameOut);
@@ -801,6 +865,11 @@ foreach my $source_sheet_number (0 .. $source_book->{SheetCount}-1) {
 }
 close($CSV_fh);
 } 
+
+sub _roundup {
+    my $n = shift;
+    return(($n == int($n)) ? $n : int($n + 0.5))
+}
  
  
 sub _Usage {
@@ -813,10 +882,7 @@ print <<EOF;
 Usage: perl FGX.pl [options]
 
 Options:
--f inputFolder containing Dropsense, Taqman, Iplex and UGT1A1 file.
 -o outputfile 	 (';' separated .csv/txt)
-
-OR
 -d dropsensefile (.xls)
 -o outputfile 	 (';' separated .csv/txt)
 -t taqman	 (.xls)
