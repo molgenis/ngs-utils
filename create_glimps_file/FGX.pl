@@ -59,7 +59,6 @@ my $dropsenceError = "DNA isolation failed";
 my $iPLEXUnexpected = "DNA analyse niet conclusief";
 my $IPLEXEmpty = 'Unknown haplotype'; 
 my $iPLEXManualCheck = "Graag handmatig naar kijken.";
-my $outputDir = dirname($output);
 my $PGX = "PGX";
 
 #
@@ -69,6 +68,7 @@ unless (defined($output)) {
 	_Usage();
 	exit(1);
 }
+my $outputDir = dirname($output);
 
 #
 # main 
@@ -390,6 +390,7 @@ if ($DPYD1 eq 'Unknown haplotype') {
 	
 	my ($GEN1, $GEN2) = split /\s*\/\s*/, $DPYD1;
 
+	# Both wildtype? return $DPYD1
 	if ($DPYD2 eq 'WT/WT' && $DPYD3 eq 'WT/WT'){
 		$newDPYD = $DPYD1;
 	}elsif ($GEN1 ne '*1' && $GEN2 ne '*1' ) {
@@ -567,12 +568,13 @@ if ($taqmanCN eq $iPLEXUnexpected | $CYP2D6 eq $IPLEXEmpty ){
 				my $voorspeld = (($Exon_9{$allelOne} + $Exon_9{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}));
 			
 				if ( $voorspeld eq $taqmanCN){
-				
-					$logger->debug("gelijk $voorspeld eq $taqmanCN \n");
+					my $log_message	= "sample: $sampleID predicted allels eqal: $allelOne/$allelTwo: ";
+					$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
+					$logger->info($log_message);	
 					$newCYP2D6 .= $allelOne.'/'.$allelTwo . ' OR ';
 				}
 				else{
-					my $log_message	= "sample: $sampleID predicted allels: $allelOne/$allelTwo: ";
+					my $log_message	= "sample: $sampleID predicted allels differ: $allelOne/$allelTwo: ";
 					$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
 					$logger->warn($log_message);
 					}
@@ -686,7 +688,7 @@ my $sampleID = shift;
 my %Hs00010001_cn = (); # Hs00010001_cn (=exon 9)
 my %Hs04502391_cn = (); # Hs04502391_cn (=intron 6)
 my %Hs04083572_cn = (); # Hs04083572_cn (=intron 2)
-my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv";
+my $taqmanFileCSV = basename($taqmanFile,  ".xls") . ".csv"; #BUG: schrijft output in scriptfolder
 
 # watch out the encoding!
 open(my $tagman_fh, '<:utf8', $taqmanFileCSV)
