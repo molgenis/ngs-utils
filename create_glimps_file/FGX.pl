@@ -56,7 +56,7 @@ my $logger = Log::Log4perl::get_logger();
 #
 my @verrichtingen = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP2D6','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR','SLCO1B1','TPMT','UGT1A1','VKORC1');
 my $dropsenceError = "DNA isolation failed";
-my $iPLEXUnexpected = "DNA analyse niet conclusief";
+my $iPLEXUnexpected = "DNA onderzoek niet conclusief";
 my $IPLEXEmpty = 'Unknown haplotype'; 
 my $iPLEXManualCheck = "Graag handmatig naar kijken.";
 my $PGX = "PGX";
@@ -248,9 +248,13 @@ return \%experiment_pass;
 # adds a verrichting row to outputfile for given sampleid 
 sub _printGLIMP{
 	my ($sampleID, $verrichting, $result, $output) = @_;
-	my $output_fh;
-	my $delimiter = "\t";
-	open($output_fh, '>>', $output) or die "Can't open outputfile file.";;
+	my $outputDir = dirname($output);
+	my $fileName = "/input_" . basename($output);
+	my $output_fh; 
+	my $outputFile = $outputDir . $fileName; 
+	
+	my $delimiter = ";";
+	open($output_fh, '>>', $outputFile) or die "Can't open outputfile file.";;
 	my $line = $sampleID . "$delimiter$verrichting$delimiter$delimiter" . $result ."$delimiter". "$delimiter". "$delimiter$PGX\n" ; 
 	$logger->debug("RESULTLINE: $line");
 	if (!$result eq ''){
@@ -537,7 +541,7 @@ my %alternatieven =(
 if ($taqmanCN eq $iPLEXUnexpected | $CYP2D6 eq $IPLEXEmpty ){
 	my $log_message = "$sampleID not in Taqman file, or CopyNumber is missing: $taqmanCN." ;
 	$logger->warn($log_message);
-	return "tagmanError:$taqmanCN";
+	return "TaqmanError:$taqmanCN";
 } else{
 	
 	my @options = split / OR /, $CYP2D6;
@@ -886,11 +890,10 @@ Usage: perl FGX.pl [options]
 Options:
 -o outputfile 	 (';' separated .csv/txt)
 -d dropsensefile (.xls)
--o outputfile 	 (';' separated .csv/txt)
 -t taqman	 (.xls)
 -i iplex file	 (.csv)
 -u UGT1A1 file	 (.txt)
--l log_level
+-l log_level	 DEBUG or INFO(default)
 
 #########################################################################################################
 EOF
