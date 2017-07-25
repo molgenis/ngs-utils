@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use Getopt::Std;
@@ -54,7 +54,7 @@ my $logger = Log::Log4perl::get_logger();
 #
 # Global vars
 #
-my @verrichtingen = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP2D6','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR','SLCO1B1','TPMT','UGT1A1','VKORC1');
+my @verrichtingen = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP2D6','CYP3A4','CYP3A5','DPYD','FactorV','HLA-B','MTHFR','SLCO1B1','TPMT','UGT1A1','VKORC1');
 my $dropsenceError = "DNA isolation failed";
 my $iPLEXUnexpected = "DNA onderzoek niet conclusief";
 my $IPLEXEmpty = 'Unknown haplotype'; 
@@ -78,7 +78,7 @@ my $outputDir = dirname($output);
 # Always check Dropsence input. And store failed is in global array.
 #
 
-my @verrichtingList = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP3A4','CYP3A5','DPYD','F5','HLA-B','MTHFR','SLCO1B1','TPMT','VKORC1');
+my @verrichtingList = ('CYP1A2','CYP2B6','CYP2C19','CYP2C9','CYP3A4','CYP3A5','DPYD','FactorV','HLA-B','MTHFR','SLCO1B1','TPMT','VKORC1');
 my @verrichtingUGT1A1 = ('UGT1A1');
 my @verrichtingCYP2D6 = ('CYP2D6');
 my %samplesPassed;
