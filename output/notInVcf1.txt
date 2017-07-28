@@ -1,0 +1,2 @@
+chr	pos	ref	alt	gen
+2	197645	A	G	./.

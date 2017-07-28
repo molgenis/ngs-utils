@@ -1,3 +1,4 @@
+#!/bin/bash
 set -e
 set -u
 
@@ -60,7 +61,7 @@ if [[ -z "${projectName:-}" ]]; then
 
 fi
 count=1
-totalCount=$(ls ${inputFolder}/*_${pairedMateNameOne}_* | wc -l)
+totalCount=$(ls -1 ${inputFolder}/*_${pairedMateNameOne}_* | wc -l)
 printf "externalSampleID,externalFastQ_1,externalFastQ_2,barcode,project,capturingKit,seqType,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell\n" > "${workDir}/${projectName}.csv"
 for i in $(ls ${inputFolder}/*_${pairedMateNameOne}_*)
 do
@@ -70,7 +71,7 @@ do
 
 	printf "${withoutExtension2}" >> "${workDir}/${projectName}.csv" ##externalSampleID
 	printf ",${i}," >> "${workDir}/${projectName}.csv" ## externalFastQ1 
-	printf "$i" | tr '_R1_' '_R2_' >> "${workDir}/${projectName}.csv" ## externalFastQ1
+	printf "$i" | sed -r 's/_R1_/_R2_/g'  >> "${workDir}/${projectName}.csv" ## externalFastQ1
 	printf ",${withoutExtension2}" >> "${workDir}/${projectName}.csv" ## barcode
 	printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
 	printf ",$capturingKit" >> "${workDir}/${projectName}.csv" ## capturingKit
