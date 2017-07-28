@@ -1,4 +1,0 @@
-[1m[4m			|	vcf1		|		vcf2		
-(B[m[1mchr	position	| ref	alt	gen	|	ref	alt	gen
-(B[m2	199144 	| G	A	./.	|	G	T	./. 
-X	8504773 	| G	T	1	|	G	T	0 

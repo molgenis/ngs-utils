@@ -1,5 +1,0 @@
-TotalNumber:94
-TP:90, TP rate: 95.74%
-FN:1, FN rate: 1.06%
-FP:1, FP rate: 1.06%
-Inconsistent:2, InconsistentRate: 2.13%

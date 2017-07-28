@@ -1,2 +1,0 @@
-vcf1:/groups/umcg-gaf/tmp04/projects/PlatinumSubset/run01/results/variants/PlatinumSample_NA12891.final.vcf.gz
-vcf2:PlatinumSample_NA12891.final.vcf.gz
