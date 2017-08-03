@@ -7,7 +7,6 @@ function showHelp() {
 	#
 	cat <<EOH
 ===============================================================================================================
-Script to copy (sync) data from a succesfully finished analysis project from tmp to prm storage.
 Usage:
 	$(basename $0) OPTIONS
 Options:
