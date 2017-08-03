@@ -27,7 +27,7 @@ then
 	showHelp
 fi
 
-if [[ "${1}" == "makeSampleSheet" ]]
+if [[ "${1}" == "MakeSampleSheet" ]]
 then
 	shift
 	/home/umcg-rkanninga/makeSamplesheet.sh ${@}
