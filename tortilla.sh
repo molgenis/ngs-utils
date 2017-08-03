@@ -30,19 +30,19 @@ fi
 if [[ "${1}" == "MakeSamplesheet" ]]
 then
 	shift
-	/home/umcg-rkanninga/makeSamplesheet.sh ${@}
+	${EBROOTNGSMINUTILS}/makeSamplesheet.sh ${@}
 elif [[ "${1}" == "Bamout" ]]
 then
 	shift
-	$EBROOTNGSMINUTILS/bamout.sh ${@}
+	${EBROOTNGSMINUTILS}/bamout.sh ${@}
 
 elif [[ "${1}" == "CountCoverage" ]]
 then
 	shift
-	$EBROOTNGSMINUTILS/CountCoverage.sh ${@}
+	${EBROOTNGSMINUTILS}/CountCoverage.sh ${@}
 
 elif [[ "${1}" == "VcfCompare" ]]
 then
 	shift
-	$EBROOTNGSMINUTILS/vcf-compare_2.0.sh
+	${EBROOTNGSMINUTILS}/vcf-compare_2.0.sh
 fi
