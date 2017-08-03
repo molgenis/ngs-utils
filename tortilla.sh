@@ -39,7 +39,7 @@ then
 elif [[ "${1}" == "CountCoverage" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/CountCoverage.sh ${@}
+	${EBROOTNGSMINUTILS}/countCoverage.sh ${@}
 
 elif [[ "${1}" == "VcfCompare" ]]
 then
