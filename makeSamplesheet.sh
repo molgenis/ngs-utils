@@ -19,7 +19,7 @@ Options:
 
 	Optional:
 	-w	workDir (default is this directory)
-	-m	mateOneName (difference between mateNames, e.g. R1 for mate 1 and R2 for mate 2) (default= R1)
+	-m	mateOneName (difference between mateNames, e.g. R1 for mate 1 and R2 for mate 2) (default= R1_)
 
 Output will be written in workDir with the name: {projectName}.csv
 ===============================================================================================================
@@ -46,7 +46,7 @@ if [[ -z "${workDir:-}" ]]; then
 	workDir=$(pwd)
 fi
 if [[ -z "${pairedMateNameOne:-}" ]]; then
-	pairedMateNameOne="R1"
+	pairedMateNameOne="R1_"
 fi
 if [[ -z "${capturingKit:-}" ]]; then
 	echo -e '\nERROR: Must specify a capturingKit\n'
@@ -59,9 +59,9 @@ if [[ -z "${projectName:-}" ]]; then
 
 fi
 count=1
-totalCount=$(ls ${inputFolder}/*_${pairedMateNameOne}_* | wc -l)
+totalCount=$(ls ${inputFolder}/*_${pairedMateNameOne}* | wc -l)
 printf "externalSampleID,externalFastQ_1,externalFastQ_2,barcode,project,capturingKit,seqType,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell\n" > "${workDir}/${projectName}.csv"
-for i in $(ls ${inputFolder}/*_${pairedMateNameOne}_*)
+for i in $(ls ${inputFolder}/*_${pairedMateNameOne}*)
 do
 	fileName=${i%%.*}
 	withoutExtension=$(basename ${fileName})
