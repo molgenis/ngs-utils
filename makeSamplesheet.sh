@@ -69,9 +69,12 @@ do
 	withoutExtension=${baseNameFile%%_*}
 	printf "${withoutExtension}" >> "${workDir}/${projectName}.csv" ##externalSampleID
 	printf ",${i}," >> "${workDir}/${projectName}.csv" ## externalFastQ1 
-	pairedMateNameTwo=$(echo "${pairedMateNameOne}" | sed 's|1|2|')
 
-	printf "${i}" | sed -r "s|${pairedMateNameOne}|${pairedMateNameTwo}|g"  >> "${workDir}/${projectName}.csv" ## externalFastQ1
+	pairedMateNameTwo=$(echo "${pairedMateNameOne}" | sed 's|1|2|')
+	cleanPairedMateNameOne=$(echo $pairedMateNameOne | sed 's|\.|\\.|')
+	cleanPairedMateNameTwo=$(echo $pairedMateNameTwo | sed 's|\.|\\.|')
+
+	printf "${i}" | sed -r "s|${cleanPairedMateNameOne}|${cleanPairedMateNameTwo}|g"  >> "${workDir}/${projectName}.csv" ## externalFastQ1
 	printf ",${withoutExtension}" >> "${workDir}/${projectName}.csv" ## barcode
 	printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
 	printf ",$capturingKit" >> "${workDir}/${projectName}.csv" ## capturingKit
@@ -83,7 +86,7 @@ do
 	printf ",Dummy" >> "${workDir}/${projectName}.csv" ##sequencer
 	printf ",DummyRun" >> "${workDir}/${projectName}.csv" ##run
 	printf ",DummyFlowcell\n" >> "${workDir}/${projectName}.csv" ## flowcell
-
+	
 	echo "${count} of ${totalCount} done"
 
 	if [ "${count}" == "${totalCount}" ]
