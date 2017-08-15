@@ -862,7 +862,7 @@ sub _roundup {
 sub _Usage {
 	print <<EOF;
 #########################################################################################################
-# This script creates a GLIMS output file using 4 input files (Dropsense | Taqman | Iplex | UGT1A1 ).  #
+# This script creates a GLIMS output file using 4 input files (Dropsense | Taqman | Iplex | UGT1A1 ).   #
 #                                                                                                       #
 #########################################################################################################
 Usage: perl PGx.pl [options]
