@@ -487,7 +487,7 @@ sub _convertCYP2D6{
 		"*69" => 1,
 		"*82" => 1,
 		"*109" => 1,
-		"*80" => 0,
+		#"*80" => 0,
 	);
 	# Taqman opzoek hash
 	my %Intron_6_2 =(
@@ -531,7 +531,7 @@ sub _convertCYP2D6{
 		"*69" => 1,
 		"*82" => 1,
 		"*109" => 1,
-		"*80" => 0,
+		#"*80" => 0,
 	);
 	
 	my %alternatieven = (
@@ -597,7 +597,7 @@ sub _convertCYP2D6{
 }
 
 sub _convertUGT1A1 {
-my $UGT1A1 = shift;
+	my $UGT1A1 = shift;
 	my $sampleID = shift;
 	my $UGT1A1line = '';
 	my $CorrectionBase = 253; # basis voor afronding.  $CorrectionBase(253) - Controlewaard = afronding§($correctionFactor)
