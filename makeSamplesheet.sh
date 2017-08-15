@@ -60,9 +60,9 @@ if [[ -z "${projectName:-}" ]]; then
 
 fi
 count=1
-totalCount=$(ls ${inputFolder}/*${pairedMateNameOne}* | wc -l)
+totalCount=$(ls ${inputFolder}/*${pairedMateNameOne}*.gz | wc -l)
 printf "externalSampleID,externalFastQ_1,externalFastQ_2,barcode,project,capturingKit,seqType,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell\n" > "${workDir}/${projectName}.csv"
-for i in $(ls ${inputFolder}/*${pairedMateNameOne}*)
+for i in $(ls ${inputFolder}/*${pairedMateNameOne}*.gz)
 do
 	fileName=${i%%.*}
 	baseNameFile=$(basename ${fileName})
