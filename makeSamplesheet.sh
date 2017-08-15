@@ -19,7 +19,8 @@ Options:
 
 	Optional:
 	-w	workDir (default is this directory)
-	-m	mateOneName (difference between mateNames, e.g. R1 for mate 1 and R2 for mate 2) (default= R1)
+	-m	mateOneName (difference between mateNames, e.g. R1 for mate 1 and R2 for mate 2) (default= _R1_)
+		N.B. please also specify the character before and after the 1 (e.g. _1.)
 
 Output will be written in workDir with the name: {projectName}.csv
 ===============================================================================================================
@@ -46,7 +47,7 @@ if [[ -z "${workDir:-}" ]]; then
 	workDir=$(pwd)
 fi
 if [[ -z "${pairedMateNameOne:-}" ]]; then
-	pairedMateNameOne="R1"
+	pairedMateNameOne="_R1_"
 fi
 if [[ -z "${capturingKit:-}" ]]; then
 	echo -e '\nERROR: Must specify a capturingKit\n'
@@ -59,18 +60,22 @@ if [[ -z "${projectName:-}" ]]; then
 
 fi
 count=1
-totalCount=$(ls ${inputFolder}/*_${pairedMateNameOne}_* | wc -l)
+totalCount=$(ls ${inputFolder}/*${pairedMateNameOne}*.gz | wc -l)
 printf "externalSampleID,externalFastQ_1,externalFastQ_2,barcode,project,capturingKit,seqType,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell\n" > "${workDir}/${projectName}.csv"
-for i in $(ls ${inputFolder}/*_${pairedMateNameOne}_*)
+for i in $(ls ${inputFolder}/*${pairedMateNameOne}*.gz)
 do
 	fileName=${i%%.*}
-	withoutExtension=$(basename ${fileName})
-	withoutExtension2=${withoutExtension%%_*}
-
-	printf "${withoutExtension2}" >> "${workDir}/${projectName}.csv" ##externalSampleID
+	baseNameFile=$(basename ${fileName})
+	withoutExtension=${baseNameFile%%_*}
+	printf "${withoutExtension}" >> "${workDir}/${projectName}.csv" ##externalSampleID
 	printf ",${i}," >> "${workDir}/${projectName}.csv" ## externalFastQ1 
-	printf "$i" | sed -r 's/_R1_/_R2_/g'  >> "${workDir}/${projectName}.csv" ## externalFastQ1
-	printf ",${withoutExtension2}" >> "${workDir}/${projectName}.csv" ## barcode
+
+	pairedMateNameTwo=$(echo "${pairedMateNameOne}" | sed 's|1|2|')
+	cleanPairedMateNameOne=$(echo $pairedMateNameOne | sed 's|\.|\\.|')
+	cleanPairedMateNameTwo=$(echo $pairedMateNameTwo | sed 's|\.|\\.|')
+
+	printf "${i}" | sed -r "s|${cleanPairedMateNameOne}|${cleanPairedMateNameTwo}|g"  >> "${workDir}/${projectName}.csv" ## externalFastQ1
+	printf ",${withoutExtension}" >> "${workDir}/${projectName}.csv" ## barcode
 	printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
 	printf ",$capturingKit" >> "${workDir}/${projectName}.csv" ## capturingKit
 	printf ",PE" >> "${workDir}/${projectName}.csv" ## seqType
