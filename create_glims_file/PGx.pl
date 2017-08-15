@@ -104,7 +104,7 @@ if (defined($inputFolder) && defined($output)) {
 	#voeg extra verrichting toe
 	push(@verrichtingList , @verrichtingCYP2D6);
 	push(@verrichtingList , @verrichtingUGT1A1);
-	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 	exit(0);
 }
 
@@ -114,7 +114,7 @@ if (!defined($dropsence) && defined($iplex) && !defined($taqman) && !defined($UG
 	#_Usage();
 	#exit(1);
 	$logger->info('alleen iplex');
-	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 }
 
 # check only UGT1A1 file, without iplex verrichtingen
@@ -134,7 +134,7 @@ if (!defined($dropsence) && defined($iplex) && defined($taqman) && !defined($UGT
 	#&_convertExcelToCSV($taqman);
 	#my $taqmanCSV = basename($taqman,  ".xls") . ".csv";
 	#push(@verrichtingList, @verrichtingCYP2D6);
-	#&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	#&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 }
 
 # check iplex + UGT1A1 file, without Tagman verrichting
@@ -144,7 +144,7 @@ if (!defined($dropsence) && defined($iplex) && defined($UGT1A1) && !defined($taq
 	#voeg extra verrichting toe
 	#$logger->info('alleen iplex en UGT1A1');
 	#push(@verrichtingList , @verrichtingUGT1A1);
-	#&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	#&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 }
 
 # check iplex + Tagman and UGT1A1 file 
@@ -154,7 +154,7 @@ if (!defined($dropsence) && defined($iplex) && defined($UGT1A1) && defined($taqm
 	#voeg extra verrichting toe
 	push(@verrichtingList , @verrichtingCYP2D6);
 	push(@verrichtingList , @verrichtingUGT1A1);
-	&_createGlimpFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
+	&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
 	exit(0);
 }
 
@@ -233,7 +233,7 @@ sub _checkDropsence {
 				
 				# error foreach possible verrichting;
 				foreach my $verrichting (@verrichtingen) {
-					&_printGLIMP($sampleID,$verrichting,$dropsenceError,$output);
+					&_printGLIMS($sampleID,$verrichting,$dropsenceError,$output);
 				}
 			} else {
 				$experiment_pass{$sampleID} = 1;
@@ -250,7 +250,7 @@ sub _checkDropsence {
 
 #
 # adds a verrichting row to outputfile for given sampleid 
-sub _printGLIMP {
+sub _printGLIMS {
 	my ($sampleID, $verrichting, $result, $output) = @_;
 	my $outputDir = dirname($output);
 	my $fileName = "/input_" . basename($output);
@@ -272,7 +272,7 @@ sub _printGLIMP {
 
 #
 # 
-sub _createGlimpFile{
+sub _createGlimsFile{
 	my ($iplex, $taqman, $UGT1A1, $output ,@verrichtingList) = @_;
 	
 	#
@@ -322,7 +322,7 @@ sub _createGlimpFile{
 						# get new CYP2D6 string;
 						$gene		= &_convertCYP2D6( $sampleID, $BesteVerrichting, &_parseTaqman($taqman,$sampleShort));
 						
-						&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 				
 					} elsif ($verrichting eq 'DPYD') {
 						my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
@@ -334,7 +334,7 @@ sub _createGlimpFile{
 						#$gene		= &_convertDPYD($fields[$header{$verrichting}],$fields[$header{'DPYD (rs56038477)'}],$fields[$header{'DPYD (rs67376798)'}]);
 						$gene		= &_convertDPYD($BesteVerrichting,$DPYD_rs56038477,$DPYD_rs67376798);
 						
-						&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 						
 					} elsif ($verrichting eq 'UGT1A1') {
 						
@@ -343,7 +343,7 @@ sub _createGlimpFile{
 						#get correct UGT1A1;
 						$gene = &_convertUGT1A1($UGT1A1,$sampleShort);
 						
-						&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 						
 					} elsif ($verrichting eq 'TPMT') {
 						my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
@@ -353,7 +353,7 @@ sub _createGlimpFile{
 						$gene = &_convertTPMT($BesteVerrichting,$sampleID);
 						#$gene = &_convertTPMT($fields[$header{$verrichting}],$sampleID);
 						
-						&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 						
 					} else {
 						my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
@@ -365,7 +365,7 @@ sub _createGlimpFile{
 						if ($gene eq 'Unknown haplotype') {
 							$gene = $iPLEXUnexpected;
 						}
-						&_printGLIMP($sampleShort, $verrichting, $gene, $output);
+						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 						
 					}
 				}
@@ -862,13 +862,13 @@ sub _roundup {
 sub _Usage {
 	print <<EOF;
 #########################################################################################################
-# This script creates a GLIMPs output file using 4 input files (Dropsense | Taqman | Iplex | UGT1A1 ).  #
+# This script creates a GLIMS output file using 4 input files (Dropsense | Taqman | Iplex | UGT1A1 ).  #
 #                                                                                                       #
 #########################################################################################################
-Usage: perl FGX.pl [options]
+Usage: perl PGx.pl [options]
 
 Options:
-	-o output file     (';' separated .csv/txt)
+	-o output file     (';' separated .csv/txt in GLIMS format)
 	-d dropsense file  (.xls)
 	-t taqman file     (.xls)
 	-i iplex file      (.csv)
