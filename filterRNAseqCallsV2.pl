@@ -30,6 +30,17 @@ usage() and exit(1) unless $outputFile;
 usage() and exit(1) unless $GQ;
 
 
+
+####Check if call rate is between 0 and 1, else exit with error
+if (defined $callRate) {
+    if ($callRate >= 0 && $callRate <= 1) {
+        #Pass
+    }else{
+        exit("User specified option callRate is not between 0 and 1!\n");
+    }
+}
+
+
 ####Open input VCF file
 print "Analyzing file: $inputFile\n";
 if ($inputFile =~ /.gz$/) { #Check if input VCF file is in (b)gzip format
