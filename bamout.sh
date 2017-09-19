@@ -20,13 +20,14 @@ ${bold}Arguments${normal}
 	-i|--bam		bam input file 
 
         Optional:
+	-e|--extended		see all the reads of the bam in the outputbam (on/off) (default is on) N.B. this can take a long some time when selecting large range
 	-w|--workingdir		default (this dir)
         -r|--reference          Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta)
 	-g|--gender		When the region is chromosome X then a gender should be specified (Male/Female)"
 }
 
 module load ngs-utils
-PARSED_OPTIONS=$(getopt -n "$0"  -o p:i:r:g:w: --long "region:bam:reference:gender:workingdir:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o p:i:r:gw:e: --long "region:bam:reference:gender:workingdir:extended:"  -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
@@ -66,6 +67,10 @@ while true; do
                 case "$2" in
                 *) INPUT=$2 ; shift 2 ;;
             esac ;;
+        -e|--extended)
+                case "$2" in
+                *) EXTENDED=$2 ; shift 2 ;;
+            esac ;;
         --) shift ; break ;;
         *) echo "Internal error!" ; exit 1 ;;
   esac
@@ -86,17 +91,18 @@ fi
 if [[ -z "${REFERENCE-}" ]]; then
         REFERENCE="/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta"
 fi
-
+if [[ -z "${EXTENDED-}" ]]; then
+        EXTENDED="on"
+fi
 if [[ -z "${WORKDIR-}" ]]; then
         WORKDIR=$(pwd)
 fi
-
 
 if [[ $REGION == *"X"* || $REGION == *"x"* ]]
 then
 	if [[ -z "${GENDER-}" ]]; then
 		echo "No gender supplied, please fill in a gender (Male or Female) when using chromosome X region"
-        	usage
+		usage
 		exit 1
 	fi
 
@@ -109,7 +115,7 @@ then
 	else
 		echo "Gender is not Female or Male, exiting"
 		exit 1
-	fi	
+	fi
 fi
 
 
@@ -119,15 +125,34 @@ myregion=$(echo "${REGION}" | tr : _)
 
 BAS=$(basename ${INPUT})
 
-java -XX:ParallelGCThreads=2 -Xmx12g -jar \
-${EBROOTGATK}/GenomeAnalysisTK.jar \
--T HaplotypeCaller \
--R ${REFERENCE} \
--I ${INPUT} \
--bamout ${WORKDIR}/${BAS}.${myregion}.bam \
--variant_index_type LINEAR \
--variant_index_parameter 128000 \
--o ${WORKDIR}/"${BAS}".vcf \
--L "${REGION}" \
---emitRefConfidence GVCF \
--ploidy ${ploidy}
+
+if [ $EXTENDED == "on" ] 
+then
+	java -XX:ParallelGCThreads=2 -Xmx12g -jar \
+	${EBROOTGATK}/GenomeAnalysisTK.jar \
+	-T HaplotypeCaller \
+	-R ${REFERENCE} \
+	-I ${INPUT} \
+	-bamout ${WORKDIR}/${BAS}.${myregion}.bam \
+	-variant_index_type LINEAR \
+	-variant_index_parameter 128000 \
+	-forceActive \
+	-disableOptimizations \
+	-o ${WORKDIR}/"${BAS}".vcf \
+	-L "${REGION}" \
+	--emitRefConfidence GVCF \
+	-ploidy ${ploidy}
+else
+	java -XX:ParallelGCThreads=2 -Xmx12g -jar \
+        ${EBROOTGATK}/GenomeAnalysisTK.jar \
+        -T HaplotypeCaller \
+        -R ${REFERENCE} \
+        -I ${INPUT} \
+        -bamout ${WORKDIR}/${BAS}.${myregion}.bam \
+        -variant_index_type LINEAR \
+        -variant_index_parameter 128000 \
+        -o ${WORKDIR}/"${BAS}".vcf \
+        -L "${REGION}" \
+        --emitRefConfidence GVCF \
+        -ploidy ${ploidy}
+fi
