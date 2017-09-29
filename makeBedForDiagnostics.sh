@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 set -e
 set -u
 
@@ -53,11 +55,11 @@ else
 fi
 
 
-if [ -d /apps/data/Agilent/"${name}" ]
+if [ -d "/apps/data/Agilent/${name}" ]
 then
 	echo "/apps/data/Agilent/${name} already exists"
 	exit 1
-elif [ -d /apps/data/UMCG/Diagnostics/"${name}" ]
+elif [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
 then
 	echo "/apps/data/UMCG/Diagnostics/${name} already exists"
 	exit 1
@@ -66,7 +68,7 @@ fi
 thisDir=$(pwd)
 umcgDir=/apps/data/UMCG/Diagnostics/
 
-mkdir -p "${name}"/human_g1k_v37/
+mkdir -p "${name}/human_g1k_v37/"
 echo "created ${name}/human_g1k_v37/"
 cp "${bedfile}" "${name}"/
 echo "copied ${bedfile} ${name}/"
@@ -83,12 +85,12 @@ cd human_g1k_v37/
 
 ## Run the prepare step
 
-if [[ ${exome} == 'true' ]]
+if [[ "${exome}" == 'true' ]]
 then
-	echo 'Creating Bedfiles for a New ExomeKit'
+	echo 'Creating bedfiles for a new exomekit'
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
 else
-	echo "Creating Bedfiles for a New kit ${name}"
+	echo "Creating bedfiles for a new kit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
 fi
 
@@ -97,20 +99,20 @@ cd "${thisDir}"
 echo "copied ${name} to ${umcgDir}"
 cp -r "${name}" ${umcgDir}
 
-cd ${umcgDir}/"${name}"/human_g1k_v37/
+cd "${umcgDir}/${name}/human_g1k_v37/"
 echo "renaming captured into ${name}"
-rename captured "${name}" captured.*
+rename "captured" "${name}" "captured."*
 
 
 
 #perbase
-cd ${umcgDir}/CoveragePerBase/
+cd "${umcgDir}/CoveragePerBase/"
 mkdir "${name}"
 cd "${name}"
 ln -sf ../../"${name}"/
 
 #pertarget
-cd ${umcgDir}/CoveragePerTarget/
+cd "${umcgDir}/CoveragePerTarget/"
 mkdir "${name}"
 cd "${name}"
 ln -sf ../../"${name}"/
