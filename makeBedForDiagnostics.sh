@@ -76,7 +76,7 @@ echo "copied ${bedfile} ${name}/"
 cd "${name}"
 
 
-cp "${bedfile}" human_g1k_v37/captured.bed
+cp "${bedfile}" "human_g1k_v37/captured.bed"
 echo "copied ${bedfile} to human_g1k_v37/captured.bed"
 
 module load ngs-utils
@@ -87,7 +87,7 @@ cd human_g1k_v37/
 
 if [[ "${exome}" == 'true' ]]
 then
-	echo 'Creating bedfiles for a new exomekit'
+	echo 'Creating bedfiles for a new exomekit ${name}'
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
 else
 	echo "Creating bedfiles for a new kit ${name}"
@@ -103,19 +103,17 @@ cd "${umcgDir}/${name}/human_g1k_v37/"
 echo "renaming captured into ${name}"
 rename "captured" "${name}" "captured."*
 
-
-
 #perbase
 cd "${umcgDir}/CoveragePerBase/"
 mkdir "${name}"
 cd "${name}"
-ln -sf ../../"${name}"/
+ln -sf "../../${name}"/
 
 #pertarget
 cd "${umcgDir}/CoveragePerTarget/"
 mkdir "${name}"
 cd "${name}"
-ln -sf ../../"${name}"/
+ln -sf "../../${name}"/
 
 echo "FINISHED"
 
