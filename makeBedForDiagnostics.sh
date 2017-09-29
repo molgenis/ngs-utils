@@ -13,7 +13,7 @@ Usage:
 Options:
 	-h   Show this help.
 	-b   Name of the BED file
-	-d   Name of the directory
+	-n   Name of the new BED file
 	-e   Making BED file for exomekit [default=false]
 ===============================================================================================================
 EOH
@@ -24,7 +24,7 @@ EOH
 
 while getopts "b:d:e:h" opt;
 do
-	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; d)directory="${OPTARG}";; e)exome="${OPTARG}";;
+	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; d)name="${OPTARG}";; e)exome="${OPTARG}";;
 	esac
 done
 
@@ -37,9 +37,9 @@ then
 fi
 
 
-if [[ -z "${directory:-}" ]]
+if [[ -z "${name:-}" ]]
 then
-	echo -e '\nERROR: Must specify a directory!\n'
+	echo -e '\nERROR: Must specify a Name for the new Bed file!\n'
 
         showHelp
         exit 1
@@ -53,29 +53,29 @@ else
 fi
 
 
-if [ -d /apps/data/Agilent/$directory ]
+if [ -d /apps/data/Agilent/"${name}" ]
 then
-	echo "/apps/data/Agilent/$directory already exists"
+	echo "/apps/data/Agilent/"${name}" already exists"
 	exit 1
-elif [ -d /apps/data/UMCG/Diagnostics/$directory ]
+elif [ -d /apps/data/UMCG/Diagnostics/"${name}" ]
 then
-	echo "/apps/data/UMCG/Diagnostics/$directory already exists"
+	echo "/apps/data/UMCG/Diagnostics/"${name}" already exists"
 	exit 1
 fi
 
 thisDir=$(pwd)
-UMCGDir=/apps/data/UMCG/Diagnostics/
+umcgDir=/apps/data/UMCG/Diagnostics/
 
-mkdir -p ${directory}/human_g1k_v37/
-echo "created ${directory}/human_g1k_v37/"
-cp ${bedfile} ${directory}/
-echo "copied ${bedfile} ${directory}/"
+mkdir -p "${name}"/human_g1k_v37/
+echo "created "${name}"/human_g1k_v37/"
+cp "${bedfile}" "${name}"/
+echo "copied "${bedfile}" "${name}"/"
 ## navigate to folder
-cd ${directory}
+cd "${name}"
 
 
-cp ${bedfile} human_g1k_v37/captured.bed
-echo "copied ${bedfile} to human_g1k_v37/captured.bed"
+cp "${bedfile}" human_g1k_v37/captured.bed
+echo "copied "${bedfile}" to human_g1k_v37/captured.bed"
 
 module load ngs-utils
 
@@ -84,36 +84,36 @@ cd human_g1k_v37/
 ## Run the prepare step
 
 if [[ ${exome} == 'true' ]]
-	then
+then
 	echo 'Creating Bedfiles for a New ExomeKit'
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
 else
-	echo "Creating Bedfiles for a New kit ${directory}"
+	echo "Creating Bedfiles for a New kit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
 fi
 
 ##
 cd $thisDir
-echo "copied ${directory} to ${UMCGDir}"
-cp -r ${directory} ${UMCGDir}
+echo "copied "${name}" to ${umcgDir}"
+cp -r "${name}" ${umcgDir}
 
-cd ${UMCGDir}/${directory}/human_g1k_v37/
-echo "renaming captured into ${directory}"
-rename captured ${directory} captured.*
+cd ${umcgDir}/"${name}"/human_g1k_v37/
+echo "renaming captured into "${name}""
+rename captured "${name}" captured.*
 
 
 
 #perbase
-cd ${UMCGDir}/CoveragePerBase/
-mkdir ${directory}
-cd ${directory}
-ln -sf ../../${directory}/
+cd ${umcgDir}/CoveragePerBase/
+mkdir "${name}"
+cd "${name}"
+ln -sf ../../"${name}"/
 
 #pertarget
-cd ${UMCGDir}/CoveragePerTarget/
-mkdir ${directory}
-cd ${directory}
-ln -sf ../../${directory}/
+cd ${umcgDir}/CoveragePerTarget/
+mkdir "${name}"
+cd "${name}"
+ln -sf ../../"${name}"/
 
 echo "FINISHED"
 
