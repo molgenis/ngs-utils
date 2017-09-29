@@ -55,11 +55,11 @@ fi
 
 if [ -d /apps/data/Agilent/"${name}" ]
 then
-	echo "/apps/data/Agilent/"${name}" already exists"
+	echo "/apps/data/Agilent/${name} already exists"
 	exit 1
 elif [ -d /apps/data/UMCG/Diagnostics/"${name}" ]
 then
-	echo "/apps/data/UMCG/Diagnostics/"${name}" already exists"
+	echo "/apps/data/UMCG/Diagnostics/${name} already exists"
 	exit 1
 fi
 
@@ -67,15 +67,15 @@ thisDir=$(pwd)
 umcgDir=/apps/data/UMCG/Diagnostics/
 
 mkdir -p "${name}"/human_g1k_v37/
-echo "created "${name}"/human_g1k_v37/"
+echo "created ${name}/human_g1k_v37/"
 cp "${bedfile}" "${name}"/
-echo "copied "${bedfile}" "${name}"/"
+echo "copied ${bedfile} ${name}/"
 ## navigate to folder
 cd "${name}"
 
 
 cp "${bedfile}" human_g1k_v37/captured.bed
-echo "copied "${bedfile}" to human_g1k_v37/captured.bed"
+echo "copied ${bedfile} to human_g1k_v37/captured.bed"
 
 module load ngs-utils
 
@@ -93,12 +93,12 @@ else
 fi
 
 ##
-cd $thisDir
-echo "copied "${name}" to ${umcgDir}"
+cd "${thisDir}"
+echo "copied ${name} to ${umcgDir}"
 cp -r "${name}" ${umcgDir}
 
 cd ${umcgDir}/"${name}"/human_g1k_v37/
-echo "renaming captured into "${name}""
+echo "renaming captured into ${name}"
 rename captured "${name}" captured.*
 
 
