@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+import math
 import csv
 from collections import defaultdict
 
@@ -12,7 +13,7 @@ dictU10=dict()
 dictU20=dict()
 dictU50=dict()
 dictU100=dict()
-print sys.argv[1]
+#print sys.argv[1]
 reader = csv.DictReader(open(sys.argv[1], "rb"), delimiter="\t")
 for row in reader:
 	gene=row['Gene']
@@ -22,24 +23,26 @@ for row in reader:
 	u20=row['u20']
 	u50=row['u50']
 	u100=row['u100']
+	if row['Gene'] not in dictAvgCoverage:
+		dictAvgCoverage[row['Gene']] = 0 
+		dictMedian[row['Gene']] = 0
+		dictU10[row['Gene']] = 0
+		dictU20[row['Gene']] = 0
+		dictU50[row['Gene']] = 0
+		dictU100[row['Gene']] = 0
+		dictCount[row['Gene']] = 0
 
-	if row['Gene'] not in dictAvgCoverage.keys():
-		dictAvgCoverage[row['Gene']] = float(cov)
-		dictMedian[row['Gene']] = float(median)
-                dictU10[row['Gene']] = float(u10)
-                dictU20[row['Gene']] = float(u20)
-                dictU50[row['Gene']] = float(u50)
-                dictU100[row['Gene']] = float(u100)
-		dictCount[row['Gene']] = 1
-	else:
-		dictAvgCoverage[row['Gene']] += float(cov)
-		dictMedian[row['Gene']] += float(median)
+	dictAvgCoverage[row['Gene']] += float(cov)
+	dictMedian[row['Gene']] += float(median)
+	if u10:
 		dictU10[row['Gene']] += float(u10)
+	if u20:
 		dictU20[row['Gene']] += float(u20)		
+	if u50:
 		dictU50[row['Gene']] += float(u50)
+	if u100:
 		dictU100[row['Gene']] += float(u100)
-
-		dictCount[row['Gene']] += 1
+	dictCount[row['Gene']] += 1
 
 
 for gene in dictAvgCoverage:
