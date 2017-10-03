@@ -1,13 +1,13 @@
 
-# Comparers samples with an heterozygous snp in a particulair gene to the same sample with an ASE effect. 
-## Then creases a file with the genes containing a heterozygous snp, samples with heterozygous snp in the gene, 
+# Comparers samples with an heterozygous snp in a particulair gene to the same sample with an ASE effect concerning the same gene. 
+## Then creates a file with the genes containing a heterozygous snp, samples with heterozygous snp in the gene, 
 ### sample with an ASE effect in the gene and the ratio of the hetrozygous snps vs ASE effect.
 ##
 
 import glob, sys, fileinput, csv, io, vcf, argparse
 
 parser = argparse.ArgumentParser(description='Process chromosome of intrest, and use the correct gtf, vcf and patient files, to compare GT to ASE effect')
-parser.add_argument('--chr', help='chromosome to use')
+parser.add_argument('--chr', help='chromosome to use, for X and Y use capital letters')
 parser.add_argument('--gtf', help='gtf file to use')
 parser.add_argument('--vcf', help='vcf file to use')
 parser.add_argument('--sd', '--sampledirectory', help='use directory with ASE.txt files per sample')
@@ -32,31 +32,31 @@ with open(args.gtf) as f:
         genelocation = []
         if line.startswith(args.chr):
             splitline = line.split('\t')
-            geneID = splitline[8]
-            ENSG = geneID.split('gene_id "')
-            ENSGA = ENSG[1].split('"; ')
-            ENSGnr = ENSGA[0]
-            if splitline[2] == 'exon':
-                start = int(splitline[3])
-                stop = int(splitline[4]) + 1
-                chr = int(splitline[0])
-                genelocation.append(chr)
-                genelocation.append(start)
-                genelocation.append(stop)
-                genelocation.append(ENSGnr)
-                genelocation.append(range(start, stop))
-                dctchr22geneloc [ENSGnr] = genelocation
+            if splitline[0] == args.chr:
+                geneID = splitline[8]
+                ENSG = geneID.split('gene_id "')
+                ENSGA = ENSG[1].split('"; ')
+                ENSGnr = ENSGA[0]
+                if splitline[2] == 'exon':
+                    start = int(splitline[3])
+                    stop = int(splitline[4]) + 1 # +1 to include last bp of the gene
+                    chr = (splitline[0])
+                    genelocation.append(chr)
+                    genelocation.append(start)
+                    genelocation.append(stop)
+                    genelocation.append(ENSGnr)
+                    genelocation.append(range(start, stop))
+                    dctchr22geneloc [ENSGnr] = genelocation
 #
 # creates a dictionary with sample name as key of samples with an ASE effect, and ENSG numbers as value per sample.
 #
-geneAElist = glob.glob(args.sd+'/HG00*.txt')
+geneAElist = glob.glob(args.sd+'/*.txt')
 geneAEpersample ={}
 samplenamelist = []
-listASEgenes = []
 
-for name in geneAElist:
-    nameA = name.split('/')
-    nameB = nameA[-1].split('.')
+for file_path in geneAElist:
+    file_name = file_path.split('/')
+    nameB = file_name[-1].split('.')
     samplename = nameB[0]
     samplenamelist.append(samplename)
 
@@ -64,14 +64,12 @@ for name in geneAElist:
 
     with open(fileHG) as g:
          g.readline()
-         list = []
+         sample_list = []
          for line in g:
             splitlineB = line.split('\t')
             ENSG = splitlineB[3]
-            list.append(ENSG)
-            listASEgenes.append(ENSG)
-    geneAEpersample [samplename] = list
-setASEgenes = set(listASEgenes)
+            sample_list.append(ENSG)
+    geneAEpersample [samplename] = sample_list
 
 #
 # Creates a dictionary with key sample name of samples in the vcf file. 
@@ -108,9 +106,7 @@ for sample in dctHetGT:
                 listhtrzgenes.append(dctchr22geneloc[genes][3])
                 if sample not in dctHetGTperGene:
                     dctHetGTperGene[sample] = []
-                    dctHetGTperGene[sample].append(dctchr22geneloc[genes][3])
-                else:
-                    dctHetGTperGene[sample].append(dctchr22geneloc[genes][3])
+                dctHetGTperGene[sample].append(dctchr22geneloc[genes][3])
 
 sethtrzgenes = set(listhtrzgenes) 
 
@@ -121,18 +117,15 @@ sethtrzgenes = set(listhtrzgenes)
 dctENSGht = {}
 
 for gene in sethtrzgenes:
-    dctENSGht[gene] = []
     sampleHT = []
     sampleASE = []
-    dctENSGht[gene].append(gene)
     for sample in dctHetGTperGene:
         if gene in dctHetGTperGene[sample]:
             sampleHT.append(sample)
         if gene in geneAEpersample[sample]:
             sampleASE.append(sample)
-    dctENSGht[gene].append(sampleHT)
-    dctENSGht[gene].append(sampleASE)
-    dctENSGht[gene].append(float(len(sampleASE)/len(sampleHT)))
+    ratio = float(len(sampleASE)/len(sampleHT))        
+    dctENSGht[gene] = [sampleHT, sampleASE, ratio]
 
 #
 # creases a csv file with the genes with a heterozygous snp, samples with heterozygous snp in the gene, 
@@ -141,7 +134,7 @@ for gene in sethtrzgenes:
 with open(args.od+'/'+args.of, 'w') as outfile:
     outfile.write('ENSGid\tHetrozygous\tASE\tratioHTRZvsASE')
     for gene in dctENSGht:
-        outfile.write('\n'+gene+'\t'+','.join(dctENSGht[gene][1])+'\t'+','.join(dctENSGht[gene][2])+'\t'+(str(dctENSGht[gene][3])))
+        outfile.write('\n'+gene+'\t'+','.join(dctENSGht[gene][0])+'\t'+','.join(dctENSGht[gene][1])+'\t'+(str(dctENSGht[gene][2])))
 
 print ('finished')
 
