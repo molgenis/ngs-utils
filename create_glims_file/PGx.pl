@@ -390,7 +390,7 @@ sub _convertDPYD {
 	my $REF = '';
 	my $ALT = '';
 	
-	if ($DPYD1 eq 'Unknown haplotype') {
+	if ($DPYD1 eq 'Unknown haplotype' || $DPYD2 eq 'Unknown haplotype' || $DPYD3 eq 'Unknown haplotype' ) {
 		$newDPYD=$iPLEXUnexpected;
 	} else {
 		
@@ -622,7 +622,7 @@ sub _convertUGT1A1 {
 	# pakt de controle sample en berekend correctieFactor.
 	while (<$fh>) {
 		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(CONTROLE)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			$correctionFactor = $CorrectionBase - $var1;
+			$correctionFactor = $CorrectionBase - &_roundup($var1);
 		}
 	}
 	close($fh);
