@@ -101,12 +101,9 @@ fi
 vcf01="$(basename ${inputVcf1})"
 vcf02="$(basename ${inputVcf2})"
 if [ "${vcf01}" == "${vcf02}" ]; then
-	usage
-	echo
-	echo "ERROR: ${vcf01} is equal to ${vcf02}."
-	echo "       Make sure the filenames are unique!"
-	echo
-	exit 1
+	echo "files are identical, vcf02 gets a suffix"
+	t="${vcf02}.2"
+	vcf02=${t}
 fi
 
 ##Remove header

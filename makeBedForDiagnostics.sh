@@ -1,67 +1,119 @@
+#!/usr/bin/bash
+
 set -e
 set -u
 
+function showHelp() {
+	#
+	# Display commandline help on STDOUT.
+	#
+	cat <<EOH
+===============================================================================================================
+Script to make Bed files for Diagnostics.
+Usage:
+	$(basename $0) OPTIONS
+Options:
+	-h   Show this help.
+	-b   Name of the BED file
+	-n   Name of the new BED file
+	-e   Making BED file for exomekit [default=false]
+===============================================================================================================
+EOH
+	trap - EXIT
+	exit 0
+}
+
+
+while getopts "b:d:e:h" opt;
+do
+	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; d)name="${OPTARG}";; e)exome="${OPTARG}";;
+	esac
+done
+
+if [[ -z "${bedfile:-}" ]]
+then
+	echo -e '\nERROR: Must specify a BED file!\n'
+
+	showHelp
+        exit 1
+fi
+
+
+if [[ -z "${name:-}" ]]
+then
+	echo -e '\nERROR: Must specify a Name for the new Bed file!\n'
+
+        showHelp
+        exit 1
+fi
+
+if [[ -z "${exome:-}" ]]
+then
+	exome="false"
+else
+	exome="true"
+fi
+
+
+if [ -d "/apps/data/Agilent/${name}" ]
+then
+	echo "/apps/data/Agilent/${name} already exists"
+	exit 1
+elif [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
+then
+	echo "/apps/data/UMCG/Diagnostics/${name} already exists"
+	exit 1
+fi
+
 thisDir=$(pwd)
+umcgDir=/apps/data/UMCG/Diagnostics/
 
-if [ $thisDir != "/apps/data/Agilent" ]
-then
-	echo "you should be in /apps/data/Agilent to run this"
-	exit 1
-
-fi
-
-fileName=$1
-if [ -z  ${1+x} ]
-then
-	echo "expecting 2 arguments (filename and newFile name)"
-	echo "e.g. sh makeBedForDiagnostics.sh PCS_3004471_+en-20_target_v2.BED PCS_v4"
-	exit 1
-fi
+mkdir -p "${name}/human_g1k_v37/"
+echo "created ${name}/human_g1k_v37/"
+cp "${bedfile}" "${name}"/
+echo "copied ${bedfile} ${name}/"
+## navigate to folder
+cd "${name}"
 
 
-if [[ $fileName != *target* ]]
-then
-	echo "expecting target file, not bp.. If it is the target file, than please put in the name"
-	exit 1
-fi	
+cp "${bedfile}" "human_g1k_v37/captured.bed"
+echo "copied ${bedfile} to human_g1k_v37/captured.bed"
 
-newName=$2
-
-if [ -d /apps/data/Agilent/$newName ]
-then
-	echo "/apps/data/Agilent/$newName already exists"
-	exit 1
-elif [ -d /apps/data/UMCG/Diagnostics/$newName ]
-then
-	echo "/apps/data/UMCG/Diagnostics/$newName already exists"
-	exit 1
-fi
-
-mkdir -p ${newName}/human_g1k_v37/
-echo "created ${newName}/human_g1k_v37/"
-cp ${fileName} ${newName}/
-echo "copied ${fileName} ${newName}/"
-## navigate to folder 
-cd ${newName}
-
-
-cp ${fileName} human_g1k_v37/captured.bed
-echo "copied ${fileName} to human_g1k_v37/captured.bed"
 module load ngs-utils
 
 cd human_g1k_v37/
 
 ## Run the prepare step
-sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
 
-## 
-cd $thisDir
-echo "copied ${newName} to /apps/data/UMCG/Diagnostics/"
-cp -r ${newName} /apps/data/UMCG/Diagnostics/
+if [[ "${exome}" == 'true' ]]
+then
+	echo 'Creating bedfiles for a new exomekit ${name}'
+	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
+else
+	echo "Creating bedfiles for a new kit ${name}"
+	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
+fi
 
-cd /apps/data/UMCG/Diagnostics/${newName}/human_g1k_v37/
-echo "renaming captured into ${newName}"
-rename captured ${newName} captured.*
+##
+cd "${thisDir}"
+echo "copied ${name} to ${umcgDir}"
+cp -r "${name}" ${umcgDir}
+
+cd "${umcgDir}/${name}/human_g1k_v37/"
+echo "renaming captured into ${name}"
+rename "captured" "${name}" "captured."*
+
+#perbase
+cd "${umcgDir}/CoveragePerBase/"
+mkdir "${name}"
+cd "${name}"
+ln -sf "../../${name}"/
+
+#pertarget
+cd "${umcgDir}/CoveragePerTarget/"
+mkdir "${name}"
+cd "${name}"
+ln -sf "../../${name}"/
 
 echo "FINISHED"
 
