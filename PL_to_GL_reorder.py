@@ -29,8 +29,8 @@ def main():
                 index = 0
                 for line in fd_vcf:
                     if index % 10000 == 0:
-                        sys.stdout.write('Processed '+str(index)+' SNPs\n')
-                        sys.stdout.flush()
+                        flush_print('Processed '+str(index)+' SNPs\n')
+                        
                     index += 1
                     split_line = line.rstrip().split('\t')
                     field = split_line[8].split(':')
@@ -66,9 +66,12 @@ def main():
                             ':'.join(info), sep='\t', end='',
                             file=fd_out)
                     print(end='\n', file=fd_out)
-
+                flush_print('Total SNPs: '+str(index))
     return
 
+def flush_print(message):
+    print(message)
+    system.stdout.flush()
 
 def parse_args():
     parser = argparse.ArgumentParser()
