@@ -21,12 +21,12 @@ ${bold}Arguments${normal}
 	-w|--workdir		working directory (default: /groups/umcg-gaf/tmp04/coverage/{panel})
 	-s|--structure		relative path from permanentDir that contains coveragepertarget files(default: run01/results/coverage/CoveragePerTarget/)
 	-d|--permanentdir	location of the permanantDir (default: /groups/umcg-gd/prm02/projects/)
-	-t|--tmp		Give tmpfolder location (default: \${workdir}/tmp)"
+	-t|--tmp		Give tmpfolder location (default: \${workdir}/tmp)
 
 It will automatically get all files that are in the structure, the following command will be executed:
 e.g.
 command: ls \${permanentDir}/*\${panel}/\${structure}/*\${panel}*.coveragePerTarget.txt
-weaved command: ls /groups/umcg-gd/prm02/projects/*-Exoom_v1/run01/results/coverage/CoveragePerTarget/*Exoom_v1*.coveragePerTarget.txt
+weaved command: ls /groups/umcg-gd/prm02/projects/*-Exoom_v1/run01/results/coverage/CoveragePerTarget/*Exoom_v1*.coveragePerTarget.txt"
 
 
 }
@@ -98,7 +98,7 @@ if [[ -z "${TMP-}" ]]; then
 	mkdir -p ${TMP}	
 	echo "makedir ${TMP}"
 fi
-
+echo "starting"
 
 rm -rf ${WORKDIR}
 mkdir -p ${WORKDIR}/coverage/
@@ -107,7 +107,6 @@ mkdir -p ${WORKDIR}/tmp/
 echo "starting to extract all the ${PANEL} projects and retreive the coverage for each sample"
 echo "ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt"
 count=0
-
 for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
 do
 	if [ $count == 0 ]
@@ -115,7 +114,7 @@ do
 		awk '{print $2,$3,$4,$6}' $i > ${TMP}/firstcolumns.txt
 		count=$((count+1))
 	fi
-	 
+ 
 	NAMEFILE=$(basename $i)
 	DIRNAME=$(dirname $i)
 	SAMPLENAME=${NAMEFILE%%.*}
@@ -125,11 +124,10 @@ do
 done
 
 echo "${WORKDIR}/coverage/"
+total=$(ls ${WORKDIR}/coverage/*.coverage | wc -l)
 
-for i in $(ls -d ${WORKDIR})
-do
-	find $i/coverage/ -type f -name "*.coverage" | xargs paste > ${TMP}/BIG.pasta
-done
+paste ${WORKDIR}/coverage/*.coverage > ${TMP}/BIG.pasta
+
 
 echo "## calculate MEDIAN ##"
 ## calculate MEDIAN ##
@@ -182,13 +180,16 @@ paste ${TMP}/BigupdatedFile50.txt ${TMP}/BIG.pasta.percentageU100 > ${TMP}/Bigup
 echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tu10\tu20\tu50\tu100" > ${WORKDIR}/CoverageOverview.txt
 tail -n+2 ${TMP}/BigupdatedFile100.txt >> ${WORKDIR}/CoverageOverview.txt 
 head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
-cp ${TMP}/CoverageOverview.txt.tmp ${WORKDIR}/CoverageOverview.txt
-echo "DONE, final file is ${WORKDIR}/CoverageOverview.txt"
+cp ${TMP}/CoverageOverview.txt.tmp ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
 
+echo "DONE, final file is ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt"
 echo "now creating per Gene calculations"
-python countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
+ml ngs-utils
+#python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
+echo "python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt"
+python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
 
-echo -e "Gene\tAvgCoverage\tNo of Targets\tMedian\tu10x\tu20x\tu50x\tu100x" > ${WORKDIR}/CoverageOverview_PerGene.sorted.txt
+echo -e "Gene\tAvgCoverage\tNo of Targets\tMedian\tu10x\tu20x\tu50x\tu100x" > ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
 
-sort -V -k1 ${WORKDIR}/CoverageOverview_PerGene.txt >> ${WORKDIR}/CoverageOverview_PerGene.sorted.txt
-echo "done, gene file can be found here: ${WORKDIR}/CoverageOverview_PerGene.sorted.txt"
+sort -V -k1 ${WORKDIR}/CoverageOverview_PerGene.txt >> ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
+echo "done, gene file can be found here: ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt"
