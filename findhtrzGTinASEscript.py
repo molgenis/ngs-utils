@@ -30,23 +30,22 @@ dctchr22geneloc = {}
 with open(args.gtf) as f:
     for line in f:
         genelocation = []
-        if line.startswith(args.chr):
-            splitline = line.split('\t')
-            if splitline[0] == args.chr:
-                geneID = splitline[8]
-                ENSG = geneID.split('gene_id "')
-                ENSGA = ENSG[1].split('"; ')
-                ENSGnr = ENSGA[0]
-                if splitline[2] == 'exon':
-                    start = int(splitline[3])
-                    stop = int(splitline[4]) + 1 # +1 to include last bp of the gene
-                    chr = (splitline[0])
-                    genelocation.append(chr)
-                    genelocation.append(start)
-                    genelocation.append(stop)
-                    genelocation.append(ENSGnr)
-                    genelocation.append(range(start, stop))
-                    dctchr22geneloc [ENSGnr] = genelocation
+        splitline = line.split('\t')
+        if splitline[0] == args.chr:
+            geneID = splitline[8]
+            ENSG = geneID.split('gene_id "')
+            ENSGA = ENSG[1].split('"; ')
+            ENSGnr = ENSGA[0]
+            if splitline[2] == 'exon':
+                start = int(splitline[3])
+                stop = int(splitline[4]) + 1 # +1 to include last bp of the gene
+                chr = (splitline[0])
+                genelocation.append(chr)
+                genelocation.append(start)
+                genelocation.append(stop)
+                genelocation.append(ENSGnr)
+                genelocation.append(range(start, stop))
+                dctchr22geneloc [ENSGnr] = genelocation
 #
 # creates a dictionary with sample name as key of samples with an ASE effect, and ENSG numbers as value per sample.
 #
