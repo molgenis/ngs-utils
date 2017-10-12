@@ -146,8 +146,6 @@ then
         exit 0
 fi
 
-cp /apps/data/1000G/phase1/Mills_and_1000G_gold_standard/1000G_phase1.indels_Mills_and_1000G_gold_standard.indels.b37.human_g1k_v37.* ${MAP}
-
 baits=${MAP}/${NAME}
 
 if [ -f ${baits}.batch-1.bed ]
