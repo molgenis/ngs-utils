@@ -20,7 +20,7 @@ Make coverage per base file	--> coverage_per_base.sh
 ${bold}Arguments${normal}
 
 	Required:
-	-n|--name              	BED name (${bold}SHOULD ALWAYS BE the name 'captured')${normal}
+	-n|--name		BED name (${bold}SHOULD ALWAYS BE the name 'captured')${normal}
 	Optional:
 
 	-c|--coverageperbase	true or false (default: false)
@@ -29,7 +29,7 @@ ${bold}Arguments${normal}
 				Small batchsize of 6 (3 + 2X + 1Y)
 	-e|--extension		extension to the bed file (default: human_g1k_v37)
 	-o|--intervalfolder	path to intervalfolder (default: this folder)
-	-r|--reference 		Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.dict)
+	-r|--reference		Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.dict)
 	-t|--tmp		Give tmpfolder location (default: /groups/umcg-gaf/tmp04/tmp)"
 }
 
@@ -95,7 +95,7 @@ if [[ -z "${NAME-}" ]]; then
 	exit 1
 fi
 if [[ -z "${INTERVALFOLDER-}" ]]; then
-	INTERVALFOLDER="."	
+	INTERVALFOLDER="."
 fi
 if [[ -z "${EXTENSION-}" ]]; then
         EXTENSION="human_g1k_v37"
@@ -112,7 +112,7 @@ fi
 if [[ -z "${TMP-}" ]]; then
 	THISDIR=$(pwd)
 	TMP=${THISDIR}/TMP/
-	mkdir ${TMP}	
+	mkdir -p ${TMP}
 fi
 
 BATCHCOUNT=3
@@ -196,7 +196,7 @@ awk '{ if ($0 !~ /^@/){
                 print $1"\t"minus"\t"$3"\t+\t"$4
         }
 	else{
-             	print $0
+		print $0
         }}' ${baits}.interval_list.tmp > ${baits}.interval_list
 
 #
@@ -251,7 +251,7 @@ fi
 #
 awk '{
 	if ($1 != "X"){
-        	print $0 >> "'${baits}'.withoutChrX.bed"
+		print $0 >> "'${baits}'.withoutChrX.bed"
         }
 }' ${baits}.bed
 
@@ -259,7 +259,7 @@ awk '{
 rm -f ${baits}.withoutChrX.interval_list
 awk '{
 	if ($1 != "X"){
-              	print $0 >> "'${baits}'.withoutChrX.interval_list"
+		print $0 >> "'${baits}'.withoutChrX.interval_list"
         }
 }' ${baits}.interval_list
 
@@ -270,58 +270,60 @@ then
 
 	if [ -f ${baits}.batch-1.bed ]
 	then
-    		echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
+		echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
 	else
-    		batchIntervallistDir=${MAP}
-
-        	chrXNONPARBed=${baits}.batch-Xnp.bed
-        	chrXPARBed=${baits}.batch-Xp.bed
-
+		batchIntervallistDir=${MAP}
+		chrXNONPARBed=${baits}.batch-Xnp.bed
+		chrXPARBed=${baits}.batch-Xp.bed
+		
 		##Lastline is always phiX, we want to know whi
 		LASTLINE=$(tail -n1 ${baits}.bed)
-		ONEBEFORELASTLINE=$(tail -n2 ${baits}.bed | head -1)
-		OLDIFS=$IFS
-		set $ONEBEFORELASTLINE
-		chromo=$1
-		position=$2
-
-        	awk '{
-        	      	if ($1 == "X"){
+		if [[ $LASTLINE == *"NC_"* ]]
+		then
+			chromo=$(echo "${LASTLINE}" | awk '{FS=" "}{print $1}')
+			position=$(echo "${LASTLINE}" | awk '{FS=" "}{print $2}')
+		else
+			chromo=$(tail -n2 ${baits}.bed | head -1 | awk '{FS=" "}{print $1}')
+                        position=$(tail -n2 ${baits}.bed | head -1 | awk '{FS=" "}{print $2}')
+			
+		fi
+		awk '{
+			if ($1 == "X"){
 				if (($2 == 1) && ($3 == 155270560)){
 					print "X\t60001\t2699520\t+\tWGS" > "'${chrXPARBed}'" 
 					print "X\t154931044\t155260560\t+\tWGS" > "'${chrXPARBed}'" 
 					print "X\t1\t60000\t+\tWGS" > "'${chrXNONPARBed}'"
 					print "X\t2699521\t154931043\t+\tWGS" >> "'${chrXNONPARBed}'"
-				}	
-               	        	else if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
-                                	print $0 >> "'${chrXPARBed}'"
-                        	} else {
-	                        	print $0 >> "'${chrXNONPARBed}'"
-                        	}
-                	}else if ($1 == "NC_001422.1"){
+				}else if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
+					print $0 >> "'${chrXPARBed}'"
+				}else{
+					print $0 >> "'${chrXNONPARBed}'"
+				}
+			}else if ($1 == "NC_001422.1"){
+				print "it is containing phiX"
 				#do nothing, will added later
 			}
 			else{
-                	      	print $0 >> "captured.batch-"$1".bed"
-                	}
-        	}' ${baits}.bed
-		### Check where to put the phiXref	
+				print $0 >> "captured.batch-"$1".bed"
+			}
+		}' ${baits}.bed
+		### Check where to put the phiXref
 		if [ "${chromo}" == "X" ]
 		then
 			if [[ ${position} -gt 60001 && ${position} -lt 2699520 ]] || [[ $position -gt 154931044 && $position -lt 155260560 ]]
 			then
-				echo $LASTLINE >> captured.batch-Xp.bed
+				echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-Xp.bed
 			else
-				echo $LASTLINE >> captured.batch-Xnp.bed
+				echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-Xnp.bed
 			fi 
 		else
-			echo $LASTLINE >> captured.batch-${chromo}.bed
+			echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-${chromo}.bed
 		fi
 	fi
 else
 	if [ -f ${baits}.batch-1.bed ]
 	then
-	        echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
+		echo "Is this bed file already splitted before? If so, please remove the old ones or do not run this script ;)"
 	else
 		module load picard/1.130-Java-1.7.0_80
 
@@ -330,33 +332,33 @@ else
 		chrXNONPARInterval=${baits}.chrX.nonpar.interval_list
 		chrXPARInterval=${baits}.chrX.par.interval
 		AllWithoutchrXInterval=${baits}.withoutChrX.interval_list
-	
+
 		cat ${phiXRef} > ${chrXNONPARInterval}
 		lengthOFChrXNP1=$(cat ${chrXNONPARInterval} | wc -l)
 
 		awk '{
 			if ($1 == "X"){
-	       			if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
-        		                print $0 >> "'${chrXPARInterval}'"
-        			} else {
-        			        print $0 >> "'${chrXNONPARInterval}'"
-	       			}
+				if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
+					print $0 >> "'${chrXPARInterval}'"
+				} else {
+					print $0 >> "'${chrXNONPARInterval}'"
+				}
 			}
 		}' ${baits}.interval_list
 
 		if [ -f ${chrXPARInterval} ]
 		then
-		        cat ${chrXPARInterval} >> ${AllWithoutchrXInterval}
+			cat ${chrXPARInterval} >> ${AllWithoutchrXInterval}
 		fi
 
 		awk '{
 		if ($0 !~ /^@/){
-        	        minus=($2 + 1);
-        	        print $1"\t"minus"\t"$3"\t"$4"\t"$5
-        	}
-        	else
-        	        print $0
-        	}' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
+			minus=($2 + 1);
+			print $1"\t"minus"\t"$3"\t"$4"\t"$5
+		}
+		else
+			print $0
+		}' ${AllWithoutchrXInterval} > ${AllWithoutchrXInterval}.tmp
 
 		mv ${AllWithoutchrXInterval}.tmp ${AllWithoutchrXInterval}
 
@@ -372,10 +374,10 @@ else
 		echo "AUTOSOMAL DONE"
 		#non PAR region
 		java -jar -Xmx4g -XX:ParallelGCThreads=4 ${EBROOTPICARD}/picard.jar IntervalListTools \
-     		INPUT=${chrXNONPARInterval} \
-     		OUTPUT=${batchIntervallistDir} \
-     		UNIQUE=true \
-     		SCATTER_COUNT=${batchCount_X} \
+		INPUT=${chrXNONPARInterval} \
+		OUTPUT=${batchIntervallistDir} \
+		UNIQUE=true \
+		SCATTER_COUNT=${batchCount_X} \
 
 		echo "PAR DONE"
 		BATCH_ALL=$((BATCHCOUNT + batchCount_X))
@@ -391,14 +393,14 @@ else
 				ba=${baits}.batch-${bi}X
 				echo "ba=$ba bi=$bi"
 				if [[ ${i} -lt 10 ]]
-               			then
+				then
 					echo "$i is minder dan 10"
 					mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
 					tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
 				else
 					echo "$i is meer dan 10"
 					mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
-               	        	 	tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
+					tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
 				fi
 			done
 		else
@@ -414,18 +416,17 @@ else
 		do
 			if [[ ${i} -lt 10 ]]
 			then
-	        	        mv ${batchIntervallistDir}/temp_000${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-	        	        tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
+				mv ${batchIntervallistDir}/temp_000${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
+				tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
 
 			elif [[ ${i} -gt 99 ]]
 			then
 				mv ${batchIntervallistDir}/temp_0${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-                        	tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
-        		else
-                	        mv ${batchIntervallistDir}/temp_00${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
-                        	tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
-
-        		fi
+				tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
+			else
+				mv ${batchIntervallistDir}/temp_00${i}_of_${BATCHCOUNT}/scattered.intervals ${baits}.batch-${i}.interval_list
+				tail -n+${lengthRef} ${baits}.batch-${i}.interval_list > ${baits}.batch-${i}.bed
+			fi
 		done
 
 		rm ${baits}.batch*.interval_list
@@ -433,9 +434,9 @@ else
 		for i in $(seq $((${BATCHCOUNT}-2)) ${BATCHCOUNT})
 		do
 			awk '{
-	        		if($1 == "Y"){
-       	        			print $0
-        			}
+				if($1 == "Y"){
+					print $0
+				}
 			}' ${baits}.batch-${i}.bed >> ${baits}.batch-${BATCH_Y}Y.bed
 		done
 
@@ -456,13 +457,13 @@ else
 		for i in $(ls ${baits}.batch*.bed)
 		do
 			awk '{
-        		if ($0 !~ /^@/){
-                		minus=($2 - 1);
-                		print $1"\t"minus"\t"$3"\t"$4"\t"$5
-        		}
-        		else
-        		        print $0
-        		}' $i > ${i}.tmp
+			if ($0 !~ /^@/){
+				minus=($2 - 1);
+				print $1"\t"minus"\t"$3"\t"$4"\t"$5
+			}
+			else
+				print $0
+			}' $i > ${i}.tmp
 			mv ${i}.tmp $i
 		done
 		sizeOfY=$(cat ${baits}.batch-${BATCH_Y}Y.bed | wc -l)
@@ -478,10 +479,10 @@ if [ ! -z ${BATCH_Y+x} ]
 then
 	if [ -f ${baits}.batch-${BATCH_Y}Y.bed ]
 	then
-        	if [ ! -f ${MAP}/captured.femaleY.bed ]
-        	then
-        	        echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
-        	fi
+		if [ ! -f ${MAP}/captured.femaleY.bed ]
+		then
+			echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+		fi
 	fi
 fi
 if [ -f ${baits}.batch-Y.bed ]
