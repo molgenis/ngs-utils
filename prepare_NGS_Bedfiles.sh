@@ -180,7 +180,7 @@ sort -V ${baits}.bed > ${baits}.bed.sorted
 mv ${baits}.bed.sorted ${baits}.bed
 
 bedtools merge -i ${baits}.bed -c 4 -o distinct > ${baits}.merged.bed
-
+perl -pi -e "s/\r//g" ${baits}.merged.bed
 wc -l  ${baits}.bed
 
 #
@@ -214,7 +214,7 @@ then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_bed.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
 		wc -l ${TMP}/${NAME}.per_base.bed
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
