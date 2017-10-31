@@ -180,8 +180,9 @@ sort -V ${baits}.bed > ${baits}.bed.sorted
 mv ${baits}.bed.sorted ${baits}.bed
 
 bedtools merge -i ${baits}.bed -c 4 -o distinct > ${baits}.merged.bed
-
+perl -pi -e "s/\r//g" ${baits}.merged.bed
 wc -l  ${baits}.bed
+wc -l  ${baits}.merged.bed
 
 #
 ##
@@ -189,7 +190,7 @@ wc -l  ${baits}.bed
 ##
 #
 cat ${phiXRef} > ${baits}.interval_list.tmp
-cat ${baits}.bed >> ${baits}.interval_list.tmp
+cat ${baits}.merged.bed >> ${baits}.interval_list.tmp
 
 awk '{ if ($0 !~ /^@/){
                 minus=($2+1)
@@ -214,7 +215,7 @@ then
 	if [ ! -f ${baits}.uniq.per_base.bed ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_bed.pl -input ${baits}.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_bed.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
 		wc -l ${TMP}/${NAME}.per_base.bed
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
@@ -253,7 +254,7 @@ awk '{
 	if ($1 != "X"){
 		print $0 >> "'${baits}'.withoutChrX.bed"
         }
-}' ${baits}.bed
+}' ${baits}.merged.bed
 
 #cat ${phiXRef} > ${baits}.withoutChrX.interval_list
 rm -f ${baits}.withoutChrX.interval_list
@@ -306,7 +307,7 @@ then
 			else{
 				print $0 >> "captured.batch-"$1".bed"
 			}
-		}' ${baits}.bed
+		}' ${baits}.merged.bed
 		### Check where to put the phiXref
 		if [ "${chromo}" == "X" ]
 		then
