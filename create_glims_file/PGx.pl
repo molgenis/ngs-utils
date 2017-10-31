@@ -405,8 +405,8 @@ sub _convertDPYD {
 	my $REF = '';
 	my $ALT = '';
 	
-	if ($DPYD1 eq 'Unknown haplotype' || $DPYD2 eq 'Unknown haplotype' || $DPYD3 eq 'Unknown haplotype' ) {
-		$newDPYD=$iPLEXUnexpected;
+	if ($DPYD1 eq 'Unexpected' || $DPYD2 eq 'Unexpected' || $DPYD3 eq 'Unexpected' ) {
+		$newDPYD='Unexpected';
 	} else {
 		
 		my ($GEN1, $GEN2) = split /\s*\/\s*/, $DPYD1;
@@ -459,6 +459,10 @@ sub _convertCYP2D6{
 	my $CYP2D6 = shift;
 	my $taqmanCN = shift;
 	my $newCYP2D6 = '';
+	
+	if ($CYP2D6 eq 'Unexpected') {
+		return 'Unexpected';
+	}
 	
 	# Taqman opzoek hash
 	my %Exon_9 =(
@@ -587,9 +591,9 @@ sub _convertCYP2D6{
 					my $voorspeld = (($Exon_9{$allelOne} + $Exon_9{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}) . ',' . ($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}));
 					
 					if ( $voorspeld eq $taqmanCN)	{
-						my $log_message	= "sample: $sampleID predicted allels eqal: $allelOne/$allelTwo: ";
+						my $log_message	= "sample: $sampleID predicted allels equal: $allelOne/$allelTwo: ";
 						$log_message	.= ($Exon_9{$allelOne} + $Exon_9{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo}).','.($Intron_6_2{$allelOne} + $Intron_6_2{$allelTwo})." Taqman called $taqmanCN";
-						$logger->debug($log_message);	
+						$logger->info($log_message);	
 						$newCYP2D6 .= $allelOne.'/'.$allelTwo . ' OR ';
 					} else {
 						my $log_message	= "sample: $sampleID predicted allels differ: $allelOne/$allelTwo: ";
