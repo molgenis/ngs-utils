@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use Getopt::Std;
 use File::Basename;
-use File::Copy qw(copy);
 use Text::CSV;
 use Spreadsheet::ParseExcel;
 use Log::Log4perl qw(:easy);
@@ -155,11 +154,7 @@ if (!defined($dropsence) && defined($iplex) && defined($UGT1A1) && defined($taqm
 	#voeg extra verrichting toe
 	push(@verrichtingList , @verrichtingCYP2D6);
 	push(@verrichtingList , @verrichtingUGT1A1);
-	
-	&_dos2unix($UGT1A1);
-	my $UGT1A1new = &_check_UGT1A1_controles($UGT1A1);
 	&_createGlimsFile($iplex, $taqman, $UGT1A1, $output ,@verrichtingList);
-	
 	exit(0);
 }
 
@@ -376,13 +371,7 @@ sub _createGlimsFile{
 				}
 			} else {
 				$logger->debug("SKIP: $sampleID\n");
-				
-				if ( $sampleID =~ /a$/){
-					$logger->fatal("ID:$sampleID need to end with A, B or C");
-					exit(1);
-				}
-			}   
-				#close A if loop
+			} # close A if loop
 		}
 	}
 }
@@ -609,15 +598,10 @@ sub _convertCYP2D6{
 
 sub _convertUGT1A1 {
 	my $UGT1A1 = shift;
-	my $UGT1A1new = '';
 	my $sampleID = shift;
-	my $sampleA = $sampleID . 'A';
-	my $sampleB = $sampleID . 'B';
 	my $UGT1A1line = '';
 	my $CorrectionBase = 253; # basis voor afronding.  $CorrectionBase(253) - Controlewaard = afronding§($correctionFactor)
-	my $correctionFactor = 2;
-	my ( $id1, $var1, $var2 ) = 0;
-	my ( $id2, $var3, $var4 ) = 0;
+	my $correctionFactor = '';
 	
 	# De UGT1A1 tandem repeat analyse bevat een vertaalslag van fragmentlengte naar haplotype zoals hieronder weergegeven.
 	# (TA)5: 251 bp (haplotype *36)
@@ -631,59 +615,24 @@ sub _convertUGT1A1 {
 		"255"  => "*28",
 		"257"  => "*37",
 	);
-
-	
-	
-	#my $fh;
-	#open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
-	
-	# pakt de controle sample en berekend correctieFactor.
-	#while (<$fh>) {
-	#	if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(CONTROLE)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-	#		$correctionFactor = $CorrectionBase - &_roundup($var1);
-	#	}
-	#}
-	#close($fh);
 	
 	my $fh;
 	open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
 	
-	#pakt de controle sample en berekend correctieFactor.
-	#my $match1 = "$sampleA\t([0-9.]+)\t([0-9.]+).+$";
-	#my $match2 = "$sampleB\t([0-9.]+)\t([0-9.]+).+$";
-	#print "moi $sampleA";
+	# pakt de controle sample en berekend correctieFactor.
 	while (<$fh>) {
-		if (( $id1, $var1, $var2 ) = $_ =~ m/($sampleA)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			$logger->debug("wat?? $id1, $var1, $var2");
-		}
-		if (( $id2, $var3, $var4 ) = $_ =~ m/($sampleB)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			$logger->debug("$id2, $var3, $var4");
+		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(CONTROLE)\t([0-9.]+)\t([0-9.]+).+$/ ) {
+			$correctionFactor = $CorrectionBase - &_roundup($var1);
 		}
 	}
 	close($fh);
-	
-	$var1 = &_roundup($var1);
-	$var3 = &_roundup($var3); 
-	$var2 = &_roundup($var2);
-	$var4 = &_roundup($var4);
-	$logger->debug("tset:" . $var1 . ' ' . $var3 . ' ' . $var2 .' '. $var4);
-	if (($var1 == $var3) && ($var2 == $var4)){
-		$logger->debug("Equal:" . $var1 . ' ' . $var3 . ' ' . $var2 .' '. $var4);
-	}
-	else{
-		$logger->fatal("nog equal:" . $var1 . ' ' . $var3 . ' ' . $var2 .' '. $var4);
-	}
-	
-	
 	
 	open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
 	
 	# pakt beide UGT1A1 lengtes, rond af, haalt de correctieFactor eraf, en return 2 UGT1A1 allele.
 	while (<$fh>) {
 		if (my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9a-zA-z.]*)\t([0-9.]*)\t([0-9.]*)$/) {
-		
 			$logger->all("TEST:UGT1A1: sampleID: $id, " . &_roundup($var1) . ", " . &_roundup($var2) . ", " . 'correctie factor +'.$correctionFactor);
-		
 			if ($sampleID eq $id) {
 				#check for non existing values.
 				if (! exists $UGT1A1Table{(&_roundup($var2)+$correctionFactor)} || ! exists $UGT1A1Table{(&_roundup($var1)+$correctionFactor)}) {
@@ -806,7 +755,6 @@ sub _ABC_check{
 	my $verrichting = shift;
 	my $iplexFile = shift;
 	
-		
 	chop($sampleID);
 	my $sampleA = $sampleID . 'A';
 	my $sampleB = $sampleID . 'B';
@@ -838,15 +786,13 @@ sub _ABC_check{
 	# parse the rest
 	while (my $row = $csv->getline_hr($iplex_fh)) {
 		if ($row->{'Sample'} =~ m/^$sampleA/) {
-			#hoi hier gaat het fout
-			
-			#$logger->debug("we hebben een $row->{'Sample'} match: $sampleA. Verrichting $verrichting is: $row->{$verrichting}");
+			$logger->debug("we hebben een $row->{'Sample'} match: $sampleA. Verrichting $verrichting is: $row->{$verrichting}");
 			$celA = $row->{$verrichting};
 		} elsif($row->{'Sample'} =~ m/^$sampleB/) {
-			#$logger->debug("we hebben een $row->{'Sample'} match: $sampleB. Verrichting $verrichting is: $row->{$verrichting}");
+			$logger->debug("we hebben een $row->{'Sample'} match: $sampleB. Verrichting $verrichting is: $row->{$verrichting}");
 			$celB = $row->{$verrichting};
 		} elsif($row->{'Sample'} =~ m/^$sampleC/) {
-			#$logger->debug("we hebben een $row->{'Sample'} match: $sampleC. Verrichting $verrichting is: $row->{$verrichting}");
+			$logger->debug("we hebben een $row->{'Sample'} match: $sampleC. Verrichting $verrichting is: $row->{$verrichting}");
 			$celC = $row->{$verrichting};
 		} else {
 			#next;
@@ -906,107 +852,6 @@ sub _convertExcelToCSV {
 	}
 	close($CSV_fh);
 }
-
-sub _check_UGT1A1_controles {
-my $UGT1A1 = shift;
-
-my $NA17129_251 = 251;
-my $NA17129_253 = 253;
-my $NA17118_255 = 255;
-my $NA17118_257 = 257;
-
-my $check = 'FAIL'; 
-
-my $fh;
-	open($fh, '<', $UGT1A1) or die "Can't open UGT1A1 file.";
-	
-	while (<$fh>) {
-	
-		#skip header
-		if ($. == 1) {
-			next;
-		}
-		
-		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(NA17129A)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			if (_roundup($var1) == $NA17129_251 && _roundup($var2) == $NA17129_253){
-				$check = 'PASS'; 
-			}
-			else{
-				$check = 'FAIL';
-			}
-		}
-		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(NA17129B)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			if (_roundup($var1) == $NA17129_251 && _roundup($var2) == $NA17129_253){
-				$check = 'PASS'; 
-			}
-			else{
-				$check = 'FAIL';
-			}
-		}
-		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(NA17118A)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			if (_roundup($var1) == $NA17118_255 && _roundup($var2) == $NA17118_257){
-				$check = 'PASS'; 
-			}
-			else{
-				$check = 'FAIL';
-			}
-		}
-		if ( my ( $id, $var1, $var2 ) = $_ =~ m/^(NA17118B)\t([0-9.]+)\t([0-9.]+).+$/ ) {
-			if (_roundup($var1) == $NA17118_255 && _roundup($var2) == $NA17118_257){
-				$check = 'PASS'; 
-			}
-			else{
-				$check = 'FAIL';
-			}
-		}
-	}
-	close($fh);
-		
-	if ($check eq 'PASS' ){
-		$logger->debug("_check_UGT1A1_controles check status: $check");
-	}
-	elsif($check eq 'FAIL'){
-		$logger->fatal("_check_UGT1A1_controles check status: $check");
-		exit(1);
-	}
-	else{
-	 $logger->fatal("_check_UGT1A1_controles check status: $check");
-	 exit(1);
-	}
-
-}
-	
-	
-sub _dos2unix{
-my $inputFile = shift;
-
-
-
-my $outputDir = dirname($inputFile);
-my $fileName = basename($inputFile,".txt") . ".unix.txt";
-my $outputFile = $outputDir ."/".$fileName;
-
-$logger->debug("copy $inputFile, $outputFile;");
-
-copy $inputFile, $outputFile;
-
-open FILE, $outputFile or next;        # thanks turnstep
-my @lines = <FILE>;
-close FILE;
-
-foreach my $i ( 0..$#lines ) {
-	$lines[$i] =~ s/\R/\012/g;
-}
-
-open FILE,">$outputFile";
-print FILE @lines;
-close FILE;
-
-return $outputFile;
-}
-
-
-
 
 sub _roundup {
 	my $n = shift;
