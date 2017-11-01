@@ -61,6 +61,7 @@ my $dropsenceError = "DNA isolation failed";
 my $iPLEXUnexpected = "DNA onderzoek niet conclusief";
 my $IPLEXEmpty = 'Unknown haplotype'; 
 my $iPLEXManualCheck = "Graag handmatig naar kijken.";
+my $Unexpected = 'Unexpected';
 my $PGX = "PGX";
 
 #
@@ -338,8 +339,8 @@ sub _createGlimsFile{
 						my $DPYD_rs67376798 = &_ABC_check($sampleID,'DPYD (rs67376798)',$iplex);
 						$logger->debug("$sampleID best match voor verrichting: $verrichting zijn $BesteVerrichting , $DPYD_rs56038477 , $DPYD_rs67376798 \n");
 						$sampleID	= $fields[$header{'Sample'}];
+						
 						#get correct DPYD;
-						#$gene		= &_convertDPYD($fields[$header{$verrichting}],$fields[$header{'DPYD (rs56038477)'}],$fields[$header{'DPYD (rs67376798)'}]);
 						$gene		= &_convertDPYD($BesteVerrichting,$DPYD_rs56038477,$DPYD_rs67376798);
 						
 						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
@@ -347,7 +348,6 @@ sub _createGlimsFile{
 					} elsif ($verrichting eq 'UGT1A1') {
 						
 						$sampleID	= $fields[$header{'Sample'}];
-						
 						#get correct UGT1A1;
 						$gene = &_convertUGT1A1($UGT1A1,$sampleShort);
 						
@@ -357,14 +357,14 @@ sub _createGlimsFile{
 						my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
 						$logger->debug("$sampleID best match voor verrichting: $verrichting = $BesteVerrichting \n");
 						$sampleID	= $fields[$header{'Sample'}];
+						
 						#get correct TPMT;
 						$gene = &_convertTPMT($BesteVerrichting,$sampleID);
-						#$gene = &_convertTPMT($fields[$header{$verrichting}],$sampleID);
-						
+												
 						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
 						
 					} else {
-						#print "$sampleID,$verrichting,$iplex  HEELP";
+						
 						my $BesteVerrichting = &_ABC_check($sampleID,$verrichting,$iplex);
 						$logger->debug("$sampleID best match voor verrichting: $verrichting = $BesteVerrichting \n");
 						$sampleID	= $fields[$header{'Sample'}];
@@ -375,7 +375,6 @@ sub _createGlimsFile{
 							$gene = $iPLEXUnexpected;
 						}
 						&_printGLIMS($sampleShort, $verrichting, $gene, $output);
-						
 					}
 				}
 			}
@@ -405,8 +404,9 @@ sub _convertDPYD {
 	my $REF = '';
 	my $ALT = '';
 	
-	if ($DPYD1 eq 'Unexpected' || $DPYD2 eq 'Unexpected' || $DPYD3 eq 'Unexpected' ) {
-		$newDPYD='Unexpected';
+	# if one value is unexpected, return Unexpected for entire gene.
+	if ($DPYD1 eq $Unexpected || $DPYD2 eq $Unexpected || $DPYD3 eq $Unexpected ) {
+		$newDPYD=$Unexpected;
 	} else {
 		
 		my ($GEN1, $GEN2) = split /\s*\/\s*/, $DPYD1;
@@ -460,8 +460,9 @@ sub _convertCYP2D6{
 	my $taqmanCN = shift;
 	my $newCYP2D6 = '';
 	
-	if ($CYP2D6 eq 'Unexpected') {
-		return 'Unexpected';
+	# if CYP2D6 value is Unexpected, we are done here.
+	if ($CYP2D6 eq $Unexpected) {
+		return $Unexpected;
 	}
 	
 	# Taqman opzoek hash
@@ -553,6 +554,7 @@ sub _convertCYP2D6{
 		#"*80" => 0,
 	);
 	
+	# Add an extra alternatve for '*4'
 	my %alternatieven = (
 		"*4" => "*4N",
 	);
@@ -701,8 +703,6 @@ sub _convertUGT1A1 {
 	# pakt beide UGT1A1 lengtes, rond af, haalt de correctieFactor eraf, en return 2 UGT1A1 allele.
 	while (<$fh>) {
 		if (my ( $id, $var1, $var2 ) = $_ =~ m/^([0-9a-zA-z.]*)\t([0-9.]*)\t([0-9.]*)$/) {
-		
-			$logger->debug("TEST:UGT1A1: sampleID: $id, " . &_roundup($var1) . ", " . &_roundup($var2) . ", " . 'correctie factor +'.$correctionFactor);
 		
 			if ($sampleID eq $id) {
 				#check for non existing values.
@@ -986,6 +986,7 @@ my $fh;
 	
 	my $check = '';
 	
+	#Check if all controle samples are correct.. 
 	for $check (keys %checked) {
    		$logger->debug("$check = $checked{$check}\n");
    		$pass++;
@@ -1002,14 +1003,11 @@ my $fh;
 	 $logger->fatal("_check_UGT1A1_controles FAILED. Check UGT1A1 controles, and sampleIDs.");
 	 exit(1);
 	}
-
 }
 	
 # converts dos file (.txt) to unix with new extension (.unix.txt)	
 sub _dos2unix{
 my $inputFile = shift;
-
-
 
 my $outputDir = dirname($inputFile);
 my $fileName = basename($inputFile,".txt") . ".unix.txt";
@@ -1044,7 +1042,6 @@ sub _roundupwhole {
 	my $n = shift;
 	return(($n == int($n)) ? $n : int($n + 1))
 }
-
 
 sub _Usage {
 	print <<EOF;
