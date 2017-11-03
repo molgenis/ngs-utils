@@ -220,8 +220,6 @@ then
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
 		sort -V ${baits}.uniq.per_base.bed.tmp > ${baits}.uniq.per_base.bed
-		#rm ${baits}.uniq.per_base.bed.tmp
-		#rm ${TMP}/${NAME}.per_base.bed
 
 		echo "per base done: ${baits}.uniq.per_base.bed"
 	else
@@ -373,8 +371,7 @@ else
 		echo "PAR DONE"
 		BATCH_ALL=$((BATCHCOUNT + batchCount_X))
 		#move the X chromosome folders
-		lengthR=`less ${phiXRef} | wc -l`
-		echo "lengthR: $lengthR"
+		lengthR=$(less ${phiXRef} | wc -l)
 		lengthRef=$(( ${lengthR} + 2 ))
 		if [ ${lengthOFChrXNP1} -ne ${lengthOFChrXNP2} ]
 		then
@@ -385,11 +382,9 @@ else
 				echo "ba=$ba bi=$bi"
 				if [[ ${i} -lt 10 ]]
 				then
-					echo "$i is minder dan 10"
 					mv  ${batchIntervallistDir}/temp_000${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list 
 					tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
 				else
-					echo "$i is meer dan 10"
 					mv  ${batchIntervallistDir}/temp_00${i}_of_${batchCount_X}/scattered.intervals  ${ba}.interval_list
 					tail -n+${lengthRef} ${ba}.interval_list > ${ba}.bed
 				fi
@@ -483,5 +478,3 @@ then
 		echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
 	fi
 fi
-
-#for f in ${MAP}/*_baits_*; do cp $f ${f/_baits_/_exons_}; done
