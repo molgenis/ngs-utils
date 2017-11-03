@@ -16,7 +16,7 @@ Options:
 	-h   Show this help.
 	-b   Name of the BED file
 	-n   Name of the new BED file
-	-e   Making BED file for exomekit [default=false]
+	-e   Making BED file for exomekit true/false [default=false]
 ===============================================================================================================
 EOH
 	trap - EXIT
@@ -26,7 +26,7 @@ EOH
 
 while getopts "b:d:e:h" opt;
 do
-	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; d)name="${OPTARG}";; e)exome="${OPTARG}";;
+	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; n)name="${OPTARG}";; e)exome="${OPTARG}";;
 	esac
 done
 
@@ -50,8 +50,6 @@ fi
 if [[ -z "${exome:-}" ]]
 then
 	exome="false"
-else
-	exome="true"
 fi
 
 
@@ -87,11 +85,15 @@ cd human_g1k_v37/
 
 if [[ "${exome}" == 'true' ]]
 then
-	echo 'Creating bedfiles for a new exomekit ${name}'
+	echo "Creating bedfiles for a new exomekit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
-else
+elif [[ "${exome}" == 'false' ]]
+then
 	echo "Creating bedfiles for a new kit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
+else
+	echo "please fill in true or false"
+	exit 1
 fi
 
 ##
@@ -105,13 +107,13 @@ rename "captured" "${name}" "captured."*
 
 #perbase
 cd "${umcgDir}/CoveragePerBase/"
-mkdir "${name}"
+mkdir -p "${name}"
 cd "${name}"
 ln -sf "../../${name}"/
 
 #pertarget
 cd "${umcgDir}/CoveragePerTarget/"
-mkdir "${name}"
+mkdir -p "${name}"
 cd "${name}"
 ln -sf "../../${name}"/
 
