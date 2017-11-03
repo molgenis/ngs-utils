@@ -85,7 +85,7 @@ cd human_g1k_v37/
 
 if [[ "${exome}" == 'true' ]]
 then
-	echo 'Creating bedfiles for a new exomekit ${name}'
+	echo "Creating bedfiles for a new exomekit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
 elif [[ "${exome}" == 'false' ]]
 then
