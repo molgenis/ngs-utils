@@ -276,18 +276,18 @@ then
 		batchIntervallistDir=${MAP}
 		chrXNONPARBed=${baits}.batch-Xnp.bed
 		chrXPARBed=${baits}.batch-Xp.bed
-		
+
 		##Lastline is always phiX, we want to know whi
-		LASTLINE=$(tail -n1 ${baits}.bed)
-		if [[ $LASTLINE == *"NC_"* ]]
+		FIRSTLINE=$(head -1 ${baits}.merged.bed)
+		if [[ "${FIRSTLINE}" == *"NC_"* ]]
 		then
-			chromo=$(echo "${LASTLINE}" | awk '{FS=" "}{print $1}')
-			position=$(echo "${LASTLINE}" | awk '{FS=" "}{print $2}')
+			chromo=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $1}')
+			position=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $2}')
 		else
-			chromo=$(tail -n2 ${baits}.bed | head -1 | awk '{FS=" "}{print $1}')
-                        position=$(tail -n2 ${baits}.bed | head -1 | awk '{FS=" "}{print $2}')
-			
+			chromo=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $1}')
+                        position=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $2}')
 		fi
+
 		awk '{
 			if ($1 == "X"){
 				if (($2 == 1) && ($3 == 155270560)){
@@ -308,18 +308,8 @@ then
 				print $0 >> "captured.batch-"$1".bed"
 			}
 		}' ${baits}.merged.bed
-		### Check where to put the phiXref
-		if [ "${chromo}" == "X" ]
-		then
-			if [[ ${position} -gt 60001 && ${position} -lt 2699520 ]] || [[ $position -gt 154931044 && $position -lt 155260560 ]]
-			then
-				echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-Xp.bed
-			else
-				echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-Xnp.bed
-			fi 
-		else
-			echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-${chromo}.bed
-		fi
+
+		echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-${chromo}.bed
 	fi
 else
 	if [ -f ${baits}.batch-1.bed ]
