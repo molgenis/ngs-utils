@@ -683,10 +683,10 @@ sub _convertUGT1A1 {
 		return $iPLEXUnexpected;
 	}
 	
-	$var1 = &_roundup($var1);
-	$var3 = &_roundup($var3); 
-	$var2 = &_roundup($var2);
-	$var4 = &_roundup($var4);
+	$var1 = &_roundupwhole($var1);
+	$var3 = &_roundupwhole($var3); 
+	$var2 = &_roundupwhole($var2);
+	$var4 = &_roundupwhole($var4);
 	if (($var1 == $var3) && ($var2 == $var4)){
 		$sampleID = $sampleA;
 		$logger->debug("Equal:" . $var1 . ' ' . $var3 . ' ' . $var2 .' '. $var4);
@@ -706,17 +706,17 @@ sub _convertUGT1A1 {
 		
 			if ($sampleID eq $id) {
 				#check for non existing values.
-				if (! exists $UGT1A1Table{(&_roundup($var2)+$correctionFactor)} || ! exists $UGT1A1Table{(&_roundup($var1)+$correctionFactor)}) {
+				if (! exists $UGT1A1Table{(&_roundupwhole($var2)+$correctionFactor)} || ! exists $UGT1A1Table{(&_roundupwhole($var1)+$correctionFactor)}) {
 					$UGT1A1line = $iPLEXUnexpected;
-					$logger->warn("$sampleID: $var1 or $var2 does not exist in %UGT1A1Table");
+					$logger->warn("$sampleID: $var1 -> ". &_roundupwhole($var1). " or $var2 -> " . &_roundupwhole($var2) . " does not exist in %UGT1A1Table");
 					#next;
 				}
-				if ($UGT1A1Table{(&_roundup($var2)+$correctionFactor)} eq "*1") {
-					$UGT1A1line = $UGT1A1Table{(&_roundup($var2)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundup($var1)+$correctionFactor)};
-					$logger->debug("UGT1A1: sampleID: $id, " . &_roundup($var2) . ", " . &_roundup($var1) . ", " . 'correctie factor +'.$correctionFactor);
+				if ($UGT1A1Table{(&_roundupwhole($var2)+$correctionFactor)} eq "*1") {
+					$UGT1A1line = $UGT1A1Table{(&_roundupwhole($var2)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundupwhole($var1)+$correctionFactor)};
+					$logger->debug("UGT1A1: sampleID: $id, " . &_roundupwhole($var2) . ", " . &_roundupwhole($var1) . ", " . 'correctie factor +'.$correctionFactor);
 				} else {
-					$UGT1A1line = $UGT1A1Table{(&_roundup($var1)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundup($var2)+$correctionFactor)};	
-					$logger->debug("UGT1A1: sampleID: $id, " . &_roundup($var1) . ", " . &_roundup($var2) . ", " . 'correctie factor +'.$correctionFactor);
+					$UGT1A1line = $UGT1A1Table{(&_roundupwhole($var1)+$correctionFactor)}.'/'.$UGT1A1Table{(&_roundupwhole($var2)+$correctionFactor)};	
+					$logger->debug("UGT1A1: sampleID: $id, " . &_roundupwhole($var1) . ", " . &_roundupwhole($var2) . ", " . 'correctie factor +'.$correctionFactor);
 				}
 			} else {
 				next;
@@ -1032,15 +1032,30 @@ close FILE;
 return $fileName;
 }
 
-
-sub _roundup {
-	my $n = shift;
-	return(($n == int($n)) ? $n : int($n + 0.5))
-}
-
+# roundup to nearest odd number.
 sub _roundupwhole {
 	my $n = shift;
-	return(($n == int($n)) ? $n : int($n + 1))
+	my $num='';
+	my $finalNumber='';
+	
+	$num=(($n == int($n)) ? $n : int($n + 0.5));
+	
+	if (0 == $num % 2) {
+		$logger->debug("$n roundup is even: $num ");
+		
+		my $tmp = $n - $num;
+		if ($tmp >= 0){
+			$finalNumber=$num+1;
+			$logger->debug("$n - $num is positive, +1 to: $finalNumber ");
+		} elsif($tmp <= 0){
+			$finalNumber=$num-1;
+			$logger->debug("$n - $num is begative, -1 to: $finalNumber ");
+		}
+		$logger->info("FINAL: $n roundup/down $finalNumber ");
+		return $finalNumber;
+	} else {
+		return $num;
+	}
 }
 
 sub _Usage {
