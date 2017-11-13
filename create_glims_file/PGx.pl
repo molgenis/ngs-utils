@@ -1033,15 +1033,15 @@ close FILE;
 return $fileName;
 }
 
+# roundup to nearest odd number.
 sub _roundupwhole {
 	my $n = shift;
 	my $num='';
 	my $finalNumber='';
 	
 	$num=(($n == int($n)) ? $n : int($n + 0.5));
-
+	
 	if (0 == $num % 2) {
-		#$num++;
 		$logger->debug("$n roundup is even: $num ");
 		
 		my $tmp = $n - $num;
