@@ -7,7 +7,6 @@ use File::Copy qw(copy);
 use Text::CSV;
 use Spreadsheet::ParseExcel;
 use Log::Log4perl qw(:easy);
-use POSIX 'floor';
 
 my %log_levels = (
 	'ALL'   => $ALL,
