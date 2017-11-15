@@ -7,6 +7,7 @@ use File::Copy qw(copy);
 use Text::CSV;
 use Spreadsheet::ParseExcel;
 use Log::Log4perl qw(:easy);
+use POSIX 'floor';
 
 my %log_levels = (
 	'ALL'   => $ALL,
@@ -259,8 +260,8 @@ sub _checkDropsence {
 # adds a verrichting row to outputfile for given sampleid 
 sub _printGLIMS {
 	my ($sampleID, $verrichting, $result, $output) = @_;
-	my $outputDir = dirname($output);
-	my $fileName = "/input_" . basename($output);
+	my ($file,$outputDir,$ext) = fileparse($output, qr/\.[^.]*/);
+	my $fileName = "/input_" . $file . ".txt";
 	my $output_fh;
 	my $outputFile = $outputDir . $fileName;
 	
