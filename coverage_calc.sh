@@ -22,7 +22,7 @@ ${bold}Arguments${normal}
         Optional:
         -w|--workingdir         default (this dir)
         -r|--reference          Which reference file is used (default: /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta)
-        -b|--base               calculation of coverage per base [type false or true] (default:false)
+        -b|--base               calculation of coverage per base [type false or true] (default:true)
         -t|--target             calculation of coverage per target[type false or true] (default:false)"
 }
 
