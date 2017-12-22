@@ -57,5 +57,5 @@ then
 	${EBROOTNGSMINUTILS}/revertFromBamToFastQ.sh ${@}
 elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
 then
-	sh /home/umcg-mbenjamins/github/ngs-utils/coverage_calc.sh ${@}
+	${EBROOTNGSMINUTILS}/coverage_calc.sh ${@}
 fi
