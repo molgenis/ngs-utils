@@ -15,6 +15,7 @@ Script requires one initial argument:
 	-v|--vcfCompare		Comparing 2 vcf files with eachother, this will output the differences + a vcf stats file (vcf-compare_2.0.sh)
 	-n|--validateNGS	Script to check the known SNPs back in the NGS_DNA_Verification_test (checkValidationNGS_DNA.sh)
 	-r|--revertBamToFastQ	go back from bam to fastq (paired end only)
+	-cc|--calculateCoverage	CoveragePerBase or per Target calculations for a specific targetpanel
 ===============================================================================================================
 EOH
 trap - EXIT
@@ -54,4 +55,7 @@ then
 elif [[ "${1}" == "--revertBamToFastQ" || "${1}" == "-r" ]]
 then
 	${EBROOTNGSMINUTILS}/revertFromBamToFastQ.sh ${@}
+elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
+then
+	sh /home/umcg-mbenjamins/github/ngs-utils/coverage_calc.sh ${@}
 fi
