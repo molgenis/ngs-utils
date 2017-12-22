@@ -17,7 +17,7 @@ ${bold}Arguments${normal}
 
         Required:
         -k|--kit                Kit for which coverage has to be determined
-        -i|--input              bam input file
+        -s|--sample              bam input file
 
         Optional:
         -w|--workingdir         default (this dir)
@@ -31,9 +31,9 @@ ${bold}Arguments${normal}
 # $1 identifies the first argument, and when we use shift we discard the first argument, so $2 becomes $1 and goes again through the case.
 #
 
-while getopts "k:i:w:r:b:t" opt;
+while getopts "k:s:w:r:b:t:" opt;
 do
-	case $opt in k)KIT="${OPTARG}";; i)INPUT="${OPTARG}";; w)WORKDIR="${OPTARG}";; r)REF="${OPTARG}";; b)BASE=${OPTARG};; t)TARGET="${OPTARG}";;
+	case $opt in k)KIT="${OPTARG}";; s)SAMPLE="${OPTARG}";; w)WORKDIR="${OPTARG}";; r)REF="${OPTARG}";; b)BASE=${OPTARG};; t)TARGET="${OPTARG}";;
         esac
 done
 
@@ -43,14 +43,12 @@ if [[ -z "${KIT-}" ]]; then
         usage
         exit 1
 fi
-if [[ -z "${INPUT-}" ]]; then
+if [[ -z "${SAMPLE-}" ]]; then
         usage
         exit 1
 fi
 if [[ -z "${BASE-}" ]]; then
-        BASE="false"
-else
-	BASE='true'
+        BASE="true"
 fi
 if [[ -z "${TARGET-}" ]]; then
         TARGET="false"
@@ -69,11 +67,13 @@ module list
 echo ${BASE}
 coveragePerBaseDir="/apps/data/UMCG/Diagnostics/CoveragePerBase/"
 coveragePerTargetDir="/apps/data/UMCG/Diagnostics/CoveragePerTarget/"
+INPUT=${SAMPLE%%.*}
+bedfile="${KIT}"
+
 
 if [[ "${BASE}" == 'true' ]]
 then
 	### Per base bed files
-	bedfile="${KIT}"
 	if [ -d "${coveragePerBaseDir}/${bedfile}" ]
 	then
 		for i in $(ls -d "${coveragePerBaseDir}/${bedfile}"/*)
@@ -86,7 +86,7 @@ then
 			-T DepthOfCoverage \
 			-o "${INPUT}.${bedfile}.coveragePerBase" \
 			--omitLocusTable \
-			-I "${INPUT}" \
+			-I "${SAMPLE}" \
 			-L "${perBaseDir}/${perBase}.interval_list"
 
 			sed '1d' "${INPUT}.${bedfile}.coveragePerBase" > "${INPUT}.${bedfile}.coveragePerBase_withoutHeader"
@@ -125,7 +125,7 @@ then
 			-R "${REF}" \
 			-T DepthOfCoverage \
 			-o "${INPUT}.${bedfile}.coveragePerTarget" \
-			-I "${INPUT}" \
+			-I "${SAMPLE}" \
 			--omitDepthOutputAtEachBase \
 			-L "${perTargetDir}/${perTarget}.interval_list"
 
