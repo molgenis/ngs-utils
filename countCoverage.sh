@@ -112,7 +112,7 @@ REJECTEDSAMPLES=()
 
 for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
 do
-	sampleName="$(basename "${bla%%.*}")"
+	sampleName="$(basename "${i%%.*}")"
 	SAMPLES+=("${sampleName}")
 	if [ $count == 0 ]
 	then
