@@ -50,8 +50,6 @@ then
 	fi
 	validationFolder=${inputFolder}/validationVcfs/
 fi
-if [ 1 == 0 ]
-then
 for i in $(ls ${validationFolder}/*.vcf)
 do
 	name=$(basename $i ".vcf")
@@ -64,7 +62,7 @@ do
 	--comp $i
 
 done
-fi
+
 echo "Sample  Chr  Pos  Ref  Alt  Found?"
 for i in ${validationFolder}/*.vcf
 do
