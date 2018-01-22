@@ -9,6 +9,7 @@ columns = defaultdict(list)
 dictAvgCoverage=dict()
 dictCount=dict()
 dictMedian=dict()
+dictSD=dict()
 dictU10=dict()
 dictU20=dict()
 dictU50=dict()
@@ -19,6 +20,7 @@ for row in reader:
 	gene=row['Gene']
 	cov=row['AvgCoverage']
 	median=row['Median']
+	sd=row['SD']
 	u10=row['u10']
 	u20=row['u20']
 	u50=row['u50']
@@ -26,6 +28,7 @@ for row in reader:
 	if row['Gene'] not in dictAvgCoverage:
 		dictAvgCoverage[row['Gene']] = 0 
 		dictMedian[row['Gene']] = 0
+		dictSD[row['Gene']] = 0
 		dictU10[row['Gene']] = 0
 		dictU20[row['Gene']] = 0
 		dictU50[row['Gene']] = 0
@@ -33,6 +36,7 @@ for row in reader:
 		dictCount[row['Gene']] = 0
 
 	dictAvgCoverage[row['Gene']] += float(cov)
+	dictSD[row['Gene']] += float(sd)
 	dictMedian[row['Gene']] += float(median)
 	if u10:
 		dictU10[row['Gene']] += float(u10)
@@ -47,9 +51,10 @@ for row in reader:
 
 for gene in dictAvgCoverage:
 	c=dictAvgCoverage[gene]/dictCount[gene]
+	de=dictSD[gene]/dictCount[gene]
 	d=dictMedian[gene]/dictCount[gene]
 	e=dictU10[gene]/dictCount[gene]
 	f=dictU20[gene]/dictCount[gene]
 	g=dictU50[gene]/dictCount[gene]
 	h=dictU100[gene]/dictCount[gene]
-	print gene + "\t"+  str(c) + "\t" + str(dictCount[gene]) + "\t"+ str(d) + "\t"+str(e) + "\t"+str(f) + "\t"+ str(g)+ "\t"+str(h) 
+	print gene + "\t"+  str(c) + "\t" + str(dictCount[gene]) + "\t"+ str(d) +"\t"+ str(de) +"\t"+str(e) + "\t"+str(f) + "\t"+ str(g)+ "\t"+str(h) 

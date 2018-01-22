@@ -107,23 +107,55 @@ mkdir -p ${WORKDIR}/tmp/
 echo "starting to extract all the ${PANEL} projects and retreive the coverage for each sample"
 echo "ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt"
 count=0
+SAMPLES=()
+REJECTEDSAMPLES=()
+
 for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
 do
+	bla=$(basename $i)
+	sampleName=${bla%%.*}
+	SAMPLES+=("${sampleName}")
 	if [ $count == 0 ]
 	then
 		awk '{print $2,$3,$4,$6}' $i > ${TMP}/firstcolumns.txt
 		count=$((count+1))
 	fi
- 
+
 	NAMEFILE=$(basename $i)
 	DIRNAME=$(dirname $i)
 	SAMPLENAME=${NAMEFILE%%.*}
-
 	#awk '{sum+=$5}END {print sum/210414}' $i > $DIRNAME/$SAMPLENAME.averageCoverage.txt
 	awk '{print $5}' $i > ${WORKDIR}/coverage/${SAMPLENAME}.coverage
+	totalcount=$(($(cat ${WORKDIR}/coverage/${SAMPLENAME}.coverage | wc -l)-1))
+	count=0
+	count=$(awk 'BEGIN{sum=0}{if($1 < 20){sum++}} END {print sum}' ${WORKDIR}/coverage/${SAMPLENAME}.coverage)
+
+	if [ $count == 0 ]
+	then
+		percentage=0
+		#echo "${SAMPLENAME}:percentage = $percentage"
+	else
+		percentage=$(echo $((count*100/totalcount)))
+		if [ ${percentage%%.*} -gt 10 ]
+		then
+			echo "${SAMPLENAME}: percentage $percentage ($count/$totalcount) is more than 10 procent, skipped"
+			REJECTEDSAMPLES+=("${SAMPLENAME}")
+
+			continue
+		fi
+	fi
 done
 
+for i in "${REJECTEDSAMPLES[@]}"
+do
+	echo "removed ${WORKDIR}/coverage/${i}.coverage"
+	rm ${WORKDIR}/coverage/${i}.coverage
+done
+
+echo ${SAMPLES[@]} > ${TMP}/headers.txt
+
 echo "${WORKDIR}/coverage/"
+
 total=$(ls ${WORKDIR}/coverage/*.coverage | wc -l)
 
 paste ${WORKDIR}/coverage/*.coverage > ${TMP}/BIG.pasta
@@ -146,6 +178,9 @@ awk -v max=1 '
 END { 
          print  median(count,values); 
 }' ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.median
+echo "## calculate SD ##" 
+## calculate SD
+awk '{ A=0; V=0; for(N=1; N<=NF; N++) A+=$N ; A/=NF ; for(N=1; N<=NF; N++) V+=(($N-A)*($N-A))/(NF-1); print sqrt(V) }' ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.sd
 
 echo "## calculate AVG ##"
 ## CALCULATE AVG
@@ -172,12 +207,14 @@ rm -f ${WORKDIR}/CoverageOverview.txt
 paste ${TMP}/BigupdatedFile.txt ${TMP}/BIG.pasta.median > ${TMP}/BigupdatedFileMedian.txt
 paste ${TMP}/BigupdatedFileMedian.txt ${TMP}/BIG.pasta.avg > ${TMP}/BigupdatedFileAvg.txt 
 
-paste ${TMP}/BigupdatedFileAvg.txt ${TMP}/BIG.pasta.percentageU10 > ${TMP}/BigupdatedFile10.txt  
+paste ${TMP}/BigupdatedFileAvg.txt ${TMP}/BIG.pasta.sd > ${TMP}/BigupdatedFileSD.txt 
+
+paste ${TMP}/BigupdatedFileSD.txt ${TMP}/BIG.pasta.percentageU10 > ${TMP}/BigupdatedFile10.txt  
 paste ${TMP}/BigupdatedFile10.txt ${TMP}/BIG.pasta.percentageU20 > ${TMP}/BigupdatedFile20.txt 
 paste ${TMP}/BigupdatedFile20.txt ${TMP}/BIG.pasta.percentageU50 > ${TMP}/BigupdatedFile50.txt 
 paste ${TMP}/BigupdatedFile50.txt ${TMP}/BIG.pasta.percentageU100 > ${TMP}/BigupdatedFile100.txt 
 
-echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tu10\tu20\tu50\tu100" > ${WORKDIR}/CoverageOverview.txt
+echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tu10\tu20\tu50\tu100" > ${WORKDIR}/CoverageOverview.txt
 tail -n+2 ${TMP}/BigupdatedFile100.txt >> ${WORKDIR}/CoverageOverview.txt 
 head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
 cp ${TMP}/CoverageOverview.txt.tmp ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
@@ -189,7 +226,7 @@ ml ngs-utils
 echo "python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt"
 python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
 
-echo -e "Gene\tAvgCoverage\tNo of Targets\tMedian\tu10x\tu20x\tu50x\tu100x" > ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
+echo -e "Gene\tAvgCoverage\tNo of Targets\tMedian\tSD\tu10x\tu20x\tu50x\tu100x" > ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
 
 sort -V -k1 ${WORKDIR}/CoverageOverview_PerGene.txt >> ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
 echo "done, gene file can be found here: ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt"
