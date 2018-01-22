@@ -11,11 +11,12 @@ Script requires one initial argument:
 
 	-m|--makeSamplesheet	Creating an (external) samplesheet based on a inputfolder containing e.g. FastQ files (makeSamplesheet.sh)
 	-b|--bamout		Recreating the bam file for a certain region where the variant calling is based on (bamout.sh)
-	-c|--countCoverage	Counting coverage (avg,med,sd,percentage 10/20/30/50/100x coverage) per Gene and target based on the panel that is given  (countCoverage.sh)
+	-c|--countCoverage	Counting coverage (avg,med,sd,percentage 10/20/30/50/100x coverage) per Gene and target based on the panel that is given (countCoverage.sh)
 	-v|--vcfCompare		Comparing 2 vcf files with eachother, this will output the differences + a vcf stats file (vcf-compare_2.0.sh)
 	-n|--validateNGS	Script to check the known SNPs back in the NGS_DNA_Verification_test (checkValidationNGS_DNA.sh)
 	-r|--revertBamToFastQ	go back from bam to fastq (paired end only)
 	-cc|--calculateCoverage	CoveragePerBase or per Target calculations for a specific targetpanel
+	-d|--cramToBam		converting cram files to bam(CramConversion.sh)
 ===============================================================================================================
 EOH
 trap - EXIT
@@ -59,3 +60,6 @@ elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
 then
 	${EBROOTNGSMINUTILS}/coverage_calc.sh ${@}
 fi
+elif [[ "${1}" == "--cramToBam" || "${1}" == "-d" ]]
+then
+	${EBROOTNGSMINUTILS}/CramConversion.sh ${@}
