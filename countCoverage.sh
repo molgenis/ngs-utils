@@ -109,41 +109,46 @@ echo "ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt"
 count=0
 SAMPLES=()
 REJECTEDSAMPLES=()
-
-for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
-do
-	sampleName="$(basename "${i%%.*}")"
-	SAMPLES+=("${sampleName}")
-	if [ $count == 0 ]
-	then
-		awk '{print $2,$3,$4,$6}' $i > ${TMP}/firstcolumns.txt
-		count=$((count+1))
-	fi
-
-	NAMEFILE=$(basename $i)
-	DIRNAME=$(dirname $i)
-	SAMPLENAME=${NAMEFILE%%.*}
-	#awk '{sum+=$5}END {print sum/210414}' $i > $DIRNAME/$SAMPLENAME.averageCoverage.txt
-	awk '{print $5}' $i > ${WORKDIR}/coverage/${SAMPLENAME}.coverage
-	totalcount=$(($(cat ${WORKDIR}/coverage/${SAMPLENAME}.coverage | wc -l)-1))
-	count=0
-	count=$(awk 'BEGIN{sum=0}{if($1 < 20){sum++}} END {print sum}' ${WORKDIR}/coverage/${SAMPLENAME}.coverage)
-
-	if [ $count == 0 ]
-	then
-		percentage=0
-		#echo "${SAMPLENAME}:percentage = $percentage"
-	else
-		percentage=$(echo $((count*100/totalcount)))
-		if [ ${percentage%%.*} -gt 10 ]
+if ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt 1> /dev/null 2>&1
+then
+	for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
+	do
+		sampleName="$(basename "${i%%.*}")"
+		SAMPLES+=("${sampleName}")
+		if [ $count == 0 ]
 		then
-			echo "${SAMPLENAME}: percentage $percentage ($count/$totalcount) is more than 10 procent, skipped"
-			REJECTEDSAMPLES+=("${SAMPLENAME}")
-
-			continue
+			awk '{print $2,$3,$4,$6}' $i > ${TMP}/firstcolumns.txt
+			count=$((count+1))
 		fi
-	fi
-done
+
+		NAMEFILE=$(basename $i)
+		DIRNAME=$(dirname $i)
+		SAMPLENAME=${NAMEFILE%%.*}
+		#awk '{sum+=$5}END {print sum/210414}' $i > $DIRNAME/$SAMPLENAME.averageCoverage.txt
+		awk '{print $5}' $i > ${WORKDIR}/coverage/${SAMPLENAME}.coverage
+		totalcount=$(($(cat ${WORKDIR}/coverage/${SAMPLENAME}.coverage | wc -l)-1))
+		count=0
+		count=$(awk 'BEGIN{sum=0}{if($1 < 20){sum++}} END {print sum}' ${WORKDIR}/coverage/${SAMPLENAME}.coverage)
+
+		if [ $count == 0 ]
+		then
+			percentage=0
+			#echo "${SAMPLENAME}:percentage = $percentage"
+		else
+			percentage=$(echo $((count*100/totalcount)))
+			if [ ${percentage%%.*} -gt 10 ]
+			then
+				echo "${SAMPLENAME}: percentage $percentage ($count/$totalcount) is more than 10 procent, skipped"
+				REJECTEDSAMPLES+=("${SAMPLENAME}")
+
+				continue
+			fi
+		fi
+	done
+else
+	echo "No samples found for this capturingkit, EXIT"
+        exit 1
+fi
 
 for i in "${REJECTEDSAMPLES[@]}"
 do
@@ -157,7 +162,7 @@ echo "${WORKDIR}/coverage/"
 
 total=$(ls ${WORKDIR}/coverage/*.coverage | wc -l)
 
-paste ${WORKDIR}/coverage/*.coverage > ${TMP}/BIG.pasta
+paste ${WORKDIR}/coverage/*.coverage > ${TMP}/coverageAllSamples.txt
 
 
 echo "## calculate MEDIAN ##"
@@ -176,21 +181,21 @@ awk -v max=1 '
 } 
 END { 
          print  median(count,values); 
-}' ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.median
+}' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_Median.txt
 echo "## calculate SD ##" 
 ## calculate SD
-awk '{ A=0; V=0; for(N=1; N<=NF; N++) A+=$N ; A/=NF ; for(N=1; N<=NF; N++) V+=(($N-A)*($N-A))/(NF-1); print sqrt(V) }' ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.sd
+awk '{ A=0; V=0; for(N=1; N<=NF; N++) A+=$N ; A/=NF ; for(N=1; N<=NF; N++) V+=(($N-A)*($N-A))/(NF-1); print sqrt(V) }' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_SD.txt
 
 echo "## calculate AVG ##"
 ## CALCULATE AVG
-awk '{ for(i = 1; i <= NF; i++) sum+=$i;print sum/NF;sum=0 }' ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.avg
+awk '{ for(i = 1; i <= NF; i++) sum+=$i;print sum/NF;sum=0 }' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_AVG.txt
 
 echo "## Calculate percentage under 10,20,50 and 100x ##"
 ## Calculate percentage under 10,20,50 and 100x ##
-awk '{ for(i = 1; i <= NF; i++) if ($i < 10 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.percentageU10
-awk '{ for(i = 1; i <= NF; i++) if ($i < 20 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.percentageU20
-awk '{ for(i = 1; i <= NF; i++) if ($i < 50 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.percentageU50
-awk '{ for(i = 1; i <= NF; i++) if ($i < 100 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/BIG.pasta > ${TMP}/BIG.pasta.percentageU100
+awk '{ for(i = 1; i <= NF; i++) if ($i < 10 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan10x.txt
+awk '{ for(i = 1; i <= NF; i++) if ($i < 20 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan20x.txt
+awk '{ for(i = 1; i <= NF; i++) if ($i < 50 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan50x.txt
+awk '{ for(i = 1; i <= NF; i++) if ($i < 100 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan100x.txt
 
 awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4}' ${TMP}/firstcolumns.txt > ${TMP}/first4columns.txt
 
@@ -203,18 +208,9 @@ paste ${TMP}/chromstartstop.txt  ${TMP}/UpdatedGenes.txt > ${TMP}/BigupdatedFile
 echo "pasting median,avg,10x,20x,50x and 100x"
 rm -f ${WORKDIR}/CoverageOverview.txt
 
-paste ${TMP}/BigupdatedFile.txt ${TMP}/BIG.pasta.median > ${TMP}/BigupdatedFileMedian.txt
-paste ${TMP}/BigupdatedFileMedian.txt ${TMP}/BIG.pasta.avg > ${TMP}/BigupdatedFileAvg.txt 
-
-paste ${TMP}/BigupdatedFileAvg.txt ${TMP}/BIG.pasta.sd > ${TMP}/BigupdatedFileSD.txt 
-
-paste ${TMP}/BigupdatedFileSD.txt ${TMP}/BIG.pasta.percentageU10 > ${TMP}/BigupdatedFile10.txt  
-paste ${TMP}/BigupdatedFile10.txt ${TMP}/BIG.pasta.percentageU20 > ${TMP}/BigupdatedFile20.txt 
-paste ${TMP}/BigupdatedFile20.txt ${TMP}/BIG.pasta.percentageU50 > ${TMP}/BigupdatedFile50.txt 
-paste ${TMP}/BigupdatedFile50.txt ${TMP}/BIG.pasta.percentageU100 > ${TMP}/BigupdatedFile100.txt 
-
+paste -d '\t' ${TMP}/BigupdatedFile.txt ${TMP}/coverageAllSamples_Median.txt ${TMP}/coverageAllSamples_AVG.txt ${TMP}/coverageAllSamples_SD.txt ${TMP}/coverageAllSamples_moreThan10x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt
 echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tu10\tu20\tu50\tu100" > ${WORKDIR}/CoverageOverview.txt
-tail -n+2 ${TMP}/BigupdatedFile100.txt >> ${WORKDIR}/CoverageOverview.txt 
+tail -n+2 ${TMP}/pasteAllInfoTogether.txt >> ${WORKDIR}/CoverageOverview.txt 
 head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
 cp ${TMP}/CoverageOverview.txt.tmp ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
 

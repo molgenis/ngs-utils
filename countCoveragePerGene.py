@@ -26,27 +26,27 @@ for row in reader:
 	u50=row['u50']
 	u100=row['u100']
 	if row['Gene'] not in dictAvgCoverage:
-		dictAvgCoverage[row['Gene']] = 0 
-		dictMedian[row['Gene']] = 0
-		dictSD[row['Gene']] = 0
-		dictU10[row['Gene']] = 0
-		dictU20[row['Gene']] = 0
-		dictU50[row['Gene']] = 0
-		dictU100[row['Gene']] = 0
-		dictCount[row['Gene']] = 0
+		dictAvgCoverage[gene] = 0 
+		dictMedian[gene] = 0
+		dictSD[gene] = 0
+		dictU10[gene] = 0
+		dictU20[gene] = 0
+		dictU50[gene] = 0
+		dictU100[gene] = 0
+		dictCount[gene] = 0
 
-	dictAvgCoverage[row['Gene']] += float(cov)
-	dictSD[row['Gene']] += float(sd)
-	dictMedian[row['Gene']] += float(median)
+	dictAvgCoverage[gene] += float(cov)
+	dictSD[gene] += float(sd)
+	dictMedian[gene] += float(median)
 	if u10:
-		dictU10[row['Gene']] += float(u10)
+		dictU10[gene] += float(u10)
 	if u20:
-		dictU20[row['Gene']] += float(u20)		
+		dictU20[gene] += float(u20)		
 	if u50:
-		dictU50[row['Gene']] += float(u50)
+		dictU50[gene] += float(u50)
 	if u100:
-		dictU100[row['Gene']] += float(u100)
-	dictCount[row['Gene']] += 1
+		dictU100[gene] += float(u100)
+	dictCount[gene] += 1
 
 
 for gene in dictAvgCoverage:
