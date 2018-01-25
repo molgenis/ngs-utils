@@ -20,7 +20,7 @@ ${bold}Arguments${normal}
 	Optional:
 	-w|--workdir		working directory (default: /groups/umcg-gaf/tmp04/coverage/{panel})
 	-s|--structure		relative path from permanentDir that contains coveragepertarget files(default: run01/results/coverage/CoveragePerTarget/)
-	-d|--permanentdir	location of the permanantDir (default: /groups/umcg-gd/prm02/projects/)
+	-d|--permanentdir	location of the permanantDir (default: /groups/umcg-gd/prm0*/projects/)
 	-t|--tmp		Give tmpfolder location (default: \${workdir}/tmp)
 
 It will automatically get all files that are in the structure, the following command will be executed:
@@ -91,7 +91,7 @@ if [[ -z "${STRUCTURE-}" ]]; then
         STRUCTURE="run01/results/coverage/CoveragePerTarget/"
 fi
 if [[ -z "${PRMDIR-}" ]]; then
-        PRMDIR="/groups/umcg-gd/prm02/projects/"
+        PRMDIR="/groups/umcg-gd/prm0*/projects/"
 fi
 if [[ -z "${TMP-}" ]]; then
 	TMP=${WORKDIR}/tmp/
