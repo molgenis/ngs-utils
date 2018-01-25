@@ -59,7 +59,6 @@ then
 elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
 then
 	${EBROOTNGSMINUTILS}/coverage_calc.sh ${@}
-fi
 elif [[ "${1}" == "--cramToBam" || "${1}" == "-d" ]]
 then
 	${EBROOTNGSMINUTILS}/CramConversion.sh ${@}
