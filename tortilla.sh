@@ -63,3 +63,4 @@ fi
 elif [[ "${1}" == "--cramToBam" || "${1}" == "-d" ]]
 then
 	${EBROOTNGSMINUTILS}/CramConversion.sh ${@}
+fi
