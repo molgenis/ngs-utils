@@ -27,7 +27,7 @@ ${bold}Arguments${normal}
 }
 
 module load ngs-utils
-PARSED_OPTIONS=$(getopt -n "$0"  -o p:i:r:gw:e: --long "region:bam:reference:gender:workingdir:extended:"  -- "$@")
+PARSED_OPTIONS=$(getopt -n "$0"  -o p:i:r:g:w:e: --long "region:bam:reference:gender:workingdir:extended:"  -- "$@")
 
 #
 # Bad arguments, something has gone wrong with the getopt command.
