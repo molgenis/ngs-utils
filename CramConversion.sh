@@ -39,7 +39,7 @@ if [[ -z "${workDir:-}" ]]; then workDir=$(pwd)/BAM; mkdir -p ${workDir} ; fi ; 
 if [[ -z "${reference:-}" ]]; then reference="/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta"; fi ; echo "reference=${reference}"
 
 module load io_lib/1.14.6-foss-2015b
-
+module load SAMtools
 
 #To convert from CRAM -> BAM do:
 for cramFile in $(ls "${inputFolder}/"*.cram)
@@ -56,4 +56,7 @@ do
 	"${workDir}/${fileWithoutExtension}"
 
 	echo "${fileWithoutExtension} converted to ${workDir}/${fileWithoutExtension}"
+	samtools index ${workDir}/${fileWithoutExtension}
+	echo "${fileWithoutExtension}.bai new index created"
 done
+
