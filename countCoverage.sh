@@ -225,13 +225,12 @@ ml ngs-utils
 
 #python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
 mkdir -p "${TMP}/perGene/"
-awk -v tmpDirectory="${TMP}/perGene/" '{print $0 > tmpDirectory$4".txt"}' ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
+awk -v tmpDirectory="${TMP}/perGene/" '{if (NR>1){print $0 > tmpDirectory$4".txt"}}' ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
 echo "genomeBrowser" > ${TMP}/perGene/allGenes.startStop
 for i in $(ls ${TMP}/perGene/*.txt)
 do
 	geneName="$(basename "${i%.txt}")"
 	echo "working on $geneName"
-
 	head -1 $i | awk -v g="${geneName}" -v link="${firstPartOfLink}" '{print link""$1"%3A"$2}' > ${i}.start
 	tail -1 $i | awk -v link="${secondPartOfLink}" '{print $3""link}' > ${i}.stop
 	paste -d"-" ${i}.start ${i}.stop >> ${TMP}/perGene/allGenes.startStop
