@@ -213,7 +213,7 @@ firstPartOfLink="https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&lastVirtModeTy
 secondPartOfLink="&hgsid=653811211_bIwQegXO9Zbd8eoOt7J1cdi7D9zi"
 
 paste -d '\t' ${TMP}/BigupdatedFile.txt ${TMP}/coverageAllSamples_Median.txt ${TMP}/coverageAllSamples_AVG.txt ${TMP}/coverageAllSamples_SD.txt ${TMP}/coverageAllSamples_moreThan10x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt
-echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tmoreThan10\tmoreThan20\tmoreThan30\tmoreThan50\tmoreThan100\tgenomeBrowser" > ${WORKDIR}/CoverageOverview.txt
+echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tmoreThan10x\tmoreThan20x\tmoreThan30x\tmoreThan50x\tmoreThan100x\tgenomeBrowse" > ${WORKDIR}/CoverageOverview.txt
 tail -n+2 ${TMP}/pasteAllInfoTogether.txt >> ${WORKDIR}/CoverageOverview.txt 
 head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
 awk -v link1="${firstPartOfLink}" -v link2="${secondPartOfLink}" '{OFS="\t"}{OFMT="%.2f"; if (NR==1){print $0}else{print $1,$2,$3,$4,$5/1,$6/1,$7/1,$8/1,$9/1,$10/1,$11/1,$12/1,link1""$1"%3A"$2""link2}}' ${TMP}/CoverageOverview.txt.tmp > ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt

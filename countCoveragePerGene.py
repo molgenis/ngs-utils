@@ -22,11 +22,11 @@ for row in reader:
 	cov=row['AvgCoverage']
 	median=row['Median']
 	sd=row['SD']
-	moreThan10=row['moreThan10']
-	moreThan20=row['moreThan20']
-	moreThan30=row['moreThan30']
-	moreThan50=row['moreThan50']
-	moreThan100=row['moreThan100']
+	moreThan10x=row['moreThan10x']
+	moreThan20x=row['moreThan20x']
+	moreThan30x=row['moreThan30x']
+	moreThan50x=row['moreThan50x']
+	moreThan100x=row['moreThan100x']
 	if row['Gene'] not in dictAvgCoverage:
 		dictAvgCoverage[gene] = 0 
 		dictMedian[gene] = 0
@@ -41,16 +41,16 @@ for row in reader:
 	dictAvgCoverage[gene] += float(cov)
 	dictSD[gene] += float(sd)
 	dictMedian[gene] += float(median)
-	if moreThan10:
-		dictM10[gene] += float(moreThan10)
-	if moreThan20:
-		dictM20[gene] += float(moreThan20)
-	if moreThan30:
-		dictM30[gene] += float(moreThan30)
-	if moreThan50:
-		dictM50[gene] += float(moreThan50)
-	if moreThan100:
-		dictM100[gene] += float(moreThan100)
+	if moreThan10x:
+		dictM10[gene] += float(moreThan10x)
+	if moreThan20x:
+		dictM20[gene] += float(moreThan20x)
+	if moreThan30x:
+		dictM30[gene] += float(moreThan30x)
+	if moreThan50x:
+		dictM50[gene] += float(moreThan50x)
+	if moreThan100x:
+		dictM100[gene] += float(moreThan100x)
 	dictCount[gene] += 1
 
 
