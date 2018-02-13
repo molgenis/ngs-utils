@@ -153,6 +153,7 @@ fi
 for i in "${REJECTEDSAMPLES[@]}"
 do
 	echo "removed ${WORKDIR}/coverage/${i}.coverage"
+	echo "removed ${WORKDIR}/coverage/${i}.coverage" > ${WORKDIR}/rejectedSamples.txt
 	rm ${WORKDIR}/coverage/${i}.coverage
 done
 
