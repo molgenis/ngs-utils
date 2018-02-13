@@ -16,6 +16,7 @@ Options:
 	-h   Show this help.
 	-b   Name of the BED file
 	-n   Name of the new BED file
+	-w   Bedfile directory --> where to write to (default: this directory)
 	-e   Making BED file for exomekit true/false [default=false]
 ===============================================================================================================
 EOH
@@ -24,9 +25,9 @@ EOH
 }
 
 
-while getopts "b:d:e:h" opt;
+while getopts "b:n:e:w:h" opt;
 do
-	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; n)name="${OPTARG}";; e)exome="${OPTARG}";;
+	case $opt in h)showHelp;; b)bedfile="${OPTARG}";; n)name="${OPTARG}";; w)workDir="${OPTARG}";; e)exome="${OPTARG}";;
 	esac
 done
 
@@ -51,6 +52,10 @@ if [[ -z "${exome:-}" ]]
 then
 	exome="false"
 fi
+if [[ -z "${workdir:-}" ]]
+then
+	workdir=$(pwd)
+fi
 
 
 if [ -d "/apps/data/Agilent/${name}" ]
@@ -63,22 +68,20 @@ then
 	exit 1
 fi
 
-thisDir=$(pwd)
 umcgDir=/apps/data/UMCG/Diagnostics/
 
-mkdir -p "${name}/human_g1k_v37/"
+mkdir -p "${workdir}/${name}/human_g1k_v37/"
 echo "created ${name}/human_g1k_v37/"
-cp "${bedfile}" "${name}"/
-echo "copied ${bedfile} ${name}/"
+cp "${bedfile}" "${workdir}/${name}"/
+echo "copied ${bedfile} ${workdir}/${name}/"
 ## navigate to folder
-cd "${name}"
+cd ${workdir}/"${name}"
 
 
 cp "${bedfile}" "human_g1k_v37/captured.bed"
 echo "copied ${bedfile} to human_g1k_v37/captured.bed"
 
 module load ngs-utils
-
 cd human_g1k_v37/
 
 ## Run the prepare step
@@ -97,7 +100,7 @@ else
 fi
 
 ##
-cd "${thisDir}"
+cd "${workdir}"
 echo "copied ${name} to ${umcgDir}"
 cp -r "${name}" ${umcgDir}
 
