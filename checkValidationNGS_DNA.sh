@@ -50,7 +50,7 @@ then
 	fi
 	validationFolder=${inputFolder}/validationVcfs/
 fi
-for i in ${validationFolder}/*.vcf
+for i in $(ls ${validationFolder}/*.vcf)
 do
 	name=$(basename $i ".vcf")
 
@@ -63,6 +63,7 @@ do
 
 done
 
+echo "Sample  Chr  Pos  Ref  Alt  Found?"
 for i in ${validationFolder}/*.vcf
 do
 	name=$(basename $i ".vcf")
@@ -71,14 +72,15 @@ do
 	referenceCallMale=$(grep -P "\t0:" ${i} | wc -l)
 
 	check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' ${outputFolder}/output.${name}.eval.grp)
+
 	if [ "${check}" == "correct" ]
 	then
-		echo "$name found back"
+		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}' ${i}
 	elif [[ ${referenceCall} -ne 0 || ${referenceCallMale} -ne 0 ]]
 	then
-		echo "${name} found back, referenceCall"
-	else   
-		echo "${name} is not 100% concordant!"
+		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}' ${i}
+	else
+		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' ${i}
 		exit 1
 	fi
 done
