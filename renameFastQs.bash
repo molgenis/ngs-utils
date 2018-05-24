@@ -116,7 +116,7 @@ function _RenameFastQ() {
 	then
 		echo "DEBUG:    Found _firstReadID ............ = ${_firstReadID}"
 	fi
-	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*XX):([1-8]):[0-9]*:[0-9]*:[0-9]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
+	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
 	if [[ "${_firstReadID}" =~ ${_regex} ]]
 	then
 		local _sequencer="${BASH_REMATCH[1]}"
@@ -126,8 +126,7 @@ function _RenameFastQ() {
 		local _sequenceReadOfPair="${BASH_REMATCH[5]}"
 		#
 		# Note: we do require the ID of the first read to contain a DNA barcode at the end,
-		# but we don't parse barcodes here. Due to sequencing errors the barcode may deviate slightly.
-		# Instead we parse the barcodes from the first reads and determine the most abundant one later on.
+		# but we don't parse barcodes here. See below for why...
 		#
 		
 		#
@@ -150,11 +149,20 @@ function _RenameFastQ() {
 			echo "DEBUG:    Found _sequenceReadOfPair ..... = ${_sequenceReadOfPair}"
 		fi
 	else
-		echo "FATAL: Failed to required meta-data values from ID of first read of ${_fastqPath}"
+		echo "FATAL: Failed to parse required meta-data values from ID of first read of ${_fastqPath}"
 		exit 1
 	fi
 	
-	local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -4000 | awk 'NR % 4 == 1' | awk -F ':' '{print $10}' | sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
+	#
+	# Due to sequencing errors the barcode may deviate slightly, so looking only at the first one won't fly.
+	# In addition the start and end of a FastQ file tends to be enriched for sequencing errors / low quality.
+	# Therefore we:
+	#   A. use a combination of head and tail commands to skip the first 10,000 reads (40,000 lines)
+	#      and get data from in the middle of the FastQ file.
+	#      (assuming the yield was high enough; otherwise you get the last 1000 reads).
+	#   B. Next we parse the barcodes from the read ID lines, sort, count and determine the most abundant barcode.
+	#
+	local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 44000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ':' '{print $10}' | sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
 	local _barcodeRegex='^([ATCG][ATCG+]*)$'
 	if [[ "${_mostAbundandBarcode}" =~ ${_barcodeRegex} ]]
 	then
@@ -169,11 +177,11 @@ function _RenameFastQ() {
 		fi
 	elif [[ "${_mostAbundandBarcode}" =~ N ]]
 	then
-		echo "ERROR: Most abundant barcode(s) in max first 1000 reads contains Ns: ${_barcodes}"
+		echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_barcodes}"
 		echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
 		return
 	else
-		echo "ERROR: Failed to determine the most abundant barcode(s) from the max first 1000 reads."
+		echo "ERROR: Failed to determine the most abundant barcode(s) from max 1000 reads from middle of FastQ."
 		echo "FATAL: Failed to process FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
 		exit 1
 	fi
