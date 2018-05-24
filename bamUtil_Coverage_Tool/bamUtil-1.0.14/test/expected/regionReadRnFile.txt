@@ -1,1 +1,0 @@
-Wrote results/regionReadRnFile.sam with 2 records.

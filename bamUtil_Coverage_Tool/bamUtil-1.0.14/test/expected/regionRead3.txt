@@ -1,1 +1,0 @@
-Wrote results/regionRead3.sam with 0 records.

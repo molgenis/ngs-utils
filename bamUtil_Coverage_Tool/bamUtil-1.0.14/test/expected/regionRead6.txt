@@ -1,1 +1,0 @@
-Wrote results/regionRead6.sam with 1 records.
