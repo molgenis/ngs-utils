@@ -22,11 +22,6 @@ LANG='en_US.UTF-8'
 LC_NUMERIC="${LANG}"
 
 #
-# Trap all exit signals: HUP(1), INT(2), QUIT(3), TERM(15), ERR
-#
-#trap '_reportError' '$LINENO' '$?' HUP INT QUIT TERM EXIT ERR
-#trapSig 'trapHandler' '${LINENO}' '${FUNCNAME:-main}' '$?' HUP INT QUIT TERM EXIT ERR
-#
 ##
 ### Functions.
 ##
