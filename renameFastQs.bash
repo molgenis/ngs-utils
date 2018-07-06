@@ -22,11 +22,6 @@ LANG='en_US.UTF-8'
 LC_NUMERIC="${LANG}"
 
 #
-# Trap all exit signals: HUP(1), INT(2), QUIT(3), TERM(15), ERR
-#
-trap '_reportError $LINENO' HUP INT QUIT TERM EXIT ERR
-
-#
 ##
 ### Functions.
 ##
@@ -48,24 +43,37 @@ function _Usage() {
 	echo
 }
 
-function _reportError() {
-	local _problematicLine="${1}"
-	local _exitStatus="${2:-$?}"
-	local _errorMessage="Unknown error."
-	_errorMessage="${3:-${_errorMessage}}"
-	#
-	# Notify on STDOUT.
-	#
-	echo "
-$(hostname) - ${SCRIPT_NAME}:${_problematicLine}: FATAL: exit code = ${_exitStatus}
-$(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_errorMessage}
-"
-	#
-	# Reset trap and exit.
-	#
-	trap - EXIT
-	exit ${_exitStatus}
+#
+# Custom signal trapping functions (one for each signal) required to format log lines depending on signal.
+#
+function trapSig() {
+	local _trap_function="${1}"
+	local _line="${2}"
+	local _function="${3}"
+	local _status="${4}"
+	shift 4
+	for _sig; do
+		trap "${_trap_function} ${_sig} ${_line} ${_function} ${_status}" "${_sig}"
+	done
 }
+
+function trapHandler() {
+	local _signal="${1}"
+	local _problematicLine="${2}"
+	local _function="${3}"
+	local _exitStatus="${4}"
+	local _errorMessage="Unknown error."
+	echo "
+	$(hostname) - ${SCRIPT_NAME}:${_problematicLine}: FATAL: exit code = ${_exitStatus}
+	$(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_errorMessage}
+"
+}
+
+#
+# Trap all exit signals: HUP(1), INT(2), QUIT(3), TERM(15), ERR
+#
+trapSig 'trapHandler' '${LINENO}' '${FUNCNAME:-main}' '$?' HUP INT QUIT TERM EXIT ERR
+
 
 function _RenameFastQ() {
 	local _fastqPath="${1}"
