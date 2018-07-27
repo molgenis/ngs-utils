@@ -1,9 +1,6 @@
-
-
-
 import csv, os, argparse
 
-parser = argparse.ArgumentParser(description='imput file with all project names which can me removed from prm storage')
+parser = argparse.ArgumentParser(description='input file with all project names which can be removed from prm storage')
 parser.add_argument('--inn', help='file with projects which can be removed')
 parser.add_argument('--out', help='sh script with rm file_to_be_removed.fq')
 parser.add_argument('--prm', help='choose between prm02 or prm03')
@@ -25,16 +22,14 @@ with open(args.inn) as inputfile:
         projects_to_remove_list.append(i[0]) #projects_to_remove_list.append(i[0]+'.csv')
 
 
-# #takes information from sample sheet in project/run01/jobs/ folder
+##takes information from sample sheet in project/run01/jobs/ folder
 list_discarded = []
    
 with open(args.out, 'w') as writefile:
     for project in projects_to_remove_list:
-        #print(project)
         projectpath = '/groups/umcg-gaf/'+args.prm+'/projects/'+project+'/'
         dirsproject = os.listdir(projectpath)
         for files in dirsproject:
-            #print (files)
             if os.path.isfile(str('/groups/umcg-gaf/'+args.prm+'/projects/'+project+'/'+files+'/results/'+project+'.csv')):
                 with open('/groups/umcg-gaf/'+args.prm+'/projects/'+project+'/'+files+'/results/'+project+'.csv', 'r') as samplesheet:
                     print(samplesheet)
