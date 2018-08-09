@@ -88,29 +88,9 @@ function _RenameFastQ() {
 	local _fastqFile="$(basename "${_fastqPath}")"
 	
 	#
-	# Do NOT parse filenames: get the essential stuff from the sequence read IDs instead
+	#  Get essential meta-data from the sequence read IDs in the FastQ file.
+	#  (Do NOT rely on parsing FastQ filenames!)
 	#
-	#local _regex='^([A-Z0-9]*XX)_(103373-[0-9][0-9]*-[0-9][0-9]*)_([ATCG][ATCG]*-[ATCG][ATCG]*)_L00([1-8])_R([12]).fastq.gz$'
-	#if [[ "${_fastqFile}" =~ ${_regex} ]]
-	#then
-	#	local _flowcell="${BASH_REMATCH[1]}"
-	#	local _customerBatchSampleCombi="${BASH_REMATCH[2]}"
-	#	local _barcodes="${BASH_REMATCH[3]}"
-	#	local _lane="${BASH_REMATCH[4]}"
-	#	local _sequenceReadOfPair="${BASH_REMATCH[5]}"
-	#	if [[ "${enableVerboseLogging}" -eq 1 ]]
-	#	then
-	#		echo "DEBUG:    Found _flowcell ............... = ${_flowcell}"
-	#		echo "DEBUG:    Found _customerBatchSampleCombi = ${_customerBatchSampleCombi}"
-	#		echo "DEBUG:    Found _barcodes ............... = ${_barcodes}"
-	#		echo "DEBUG:    Found _lane ................... = ${_lane}"
-	#		echo "DEBUG:    Found _sequenceReadOfPair ..... = ${_sequenceReadOfPair}"
-	#	fi
-	#else
-	#	echo "FATAL: Failed to parse filename for ${_fastq}"
-	#	exit 1
-	#fi
-	
 	local _firstReadID=$(zcat "${_fastqPath}" | head -1)
 	if [[ "${enableVerboseLogging}" -eq 1 ]]
 	then
@@ -177,13 +157,15 @@ function _RenameFastQ() {
 		fi
 	elif [[ "${_mostAbundandBarcode}" =~ N ]]
 	then
-		echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_barcodes}"
+		qualityControl='failed'
+		echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
 		echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
 		return
 	else
+		qualityControl='failed'
 		echo "ERROR: Failed to determine the most abundant barcode(s) from max 1000 reads from middle of FastQ."
-		echo "FATAL: Failed to process FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
-		exit 1
+		echo "ERROR: Failed to parse barcodes from read IDs of FastQ file ${_fastqFile}."
+		return
 	fi
 	
 	local _fastqChecksum=$(cat "${_fastqDir}/"*.md5 | grep "${_fastqFile}" | awk '{print $1}')
@@ -225,7 +207,7 @@ function _RenameFastQ() {
 enableVerboseLogging=0 # Disabled by default.
 while getopts "s:f:hv" opt
 do
-	case $opt in
+	case ${opt} in
 		h)
 			_Usage
 			#
@@ -277,20 +259,26 @@ if [[ "${sequencingStartDate}" =~ ${ssd_regex} ]]
 then
 	echo "INFO: Using sequencingStartDate ${sequencingStartDate}"
 else
-    _reportError ${LINENO} 1 "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
+	_reportError ${LINENO} 1 "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
 fi
 
 #
 # Process FastQ files.
 #
+qualityControl='unknown'
 for FastQ in $(ls -1 ${fastqFilePattern})
 do
 	_RenameFastQ "${FastQ}" "${sequencingStartDate}"
 done
 
 #
-# Reset trap and exit.
+# Reset trap and exit with 0 or 1 depending on wether QC was Ok or failed.
 #
-echo "INFO: Finished successfully!"
-trap - EXIT
-exit 0
+if [[ "${qualityControl}" == 'failed' ]]
+then
+	_reportError ${LINENO} 1 "One or more FastQ files failed QC and was not renamed!."
+else
+	echo "INFO: Finished successfully!"
+	trap - EXIT
+	exit 0
+fi
