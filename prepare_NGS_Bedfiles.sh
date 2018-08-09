@@ -171,7 +171,7 @@ fi
 
 if [ $a == 0 ]
 then
-	echo -e 'NC_001422.1\t1\t5386\tphiX174' >> ${baits}.bed
+	echo -e 'NC_001422.1\t0\t5386\tphiX174' >> ${baits}.bed
 else
 	echo "phiX already inside bed file" 
 fi
@@ -212,35 +212,15 @@ fi
 
 if [ "${COVPERBASE}" == "true" ]
 then
-	if [ ! -f ${baits}.uniq.per_base.bed ]
+	if [ ! -f ${baits}.uniq.per_base.intervals ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		create_per_base_bed.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
-		wc -l ${TMP}/${NAME}.per_base.bed
+		create_per_base_intervals.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
+		wc -l ${TMP}/${NAME}.per_base.intervals
 
-		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.bed | uniq > ${baits}.uniq.per_base.bed.tmp
-		sort -V ${baits}.uniq.per_base.bed.tmp > ${baits}.uniq.per_base.bed
-
-		echo "per base done: ${baits}.uniq.per_base.bed"
-	else
-		echo "${baits}.uniq.per_base.bed already exists, skipped!"
+		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.intervals | uniq > ${baits}.uniq.per_base.intervals.tmp
+		sort -V ${baits}.uniq.per_base.intervals.tmp > ${baits}.uniq.per_base.interval_list
 	fi
-
-	#make interval_list coverage per base
-	cat ${phiXRef} > ${baits}.uniq.per_base.interval_list
-	cat ${baits}.uniq.per_base.bed >> ${baits}.uniq.per_base.interval_list 
-	echo "${baits}.uniq.per_base.interval_list created"
-
-	awk '{ if ($0 !~ /^@/){
-		minus=($3 -1)
-		print $1"\t"$2"\t"minus"\t+\t"$4
-	}
-	else{
-		print $0
-	}}' ${baits}.uniq.per_base.interval_list > ${baits}.uniq.per_base.interval_list.tmp
-
-	mv ${baits}.uniq.per_base.interval_list.tmp ${baits}.uniq.per_base.interval_list
-
 fi
 
 #
@@ -289,11 +269,11 @@ then
 		awk '{
 			if ($1 == "X"){
 				if (($2 == 1) && ($3 == 155270560)){
-					print "X\t60001\t2699520\t+\tWGS" > "'${chrXPARBed}'" 
-					print "X\t154931044\t155260560\t+\tWGS" > "'${chrXPARBed}'" 
-					print "X\t1\t60000\t+\tWGS" > "'${chrXNONPARBed}'"
-					print "X\t2699521\t154931043\t+\tWGS" >> "'${chrXNONPARBed}'"
-				}else if (($2 >= 60001  && $3 <= 2699520 ) || ($2 >= 154931044 && $3 <= 155260560 )){
+					print "X\t60000\t2699520\t+\tWGS" > "'${chrXPARBed}'" 
+					print "X\t154931043\t155260560\t+\tWGS" > "'${chrXPARBed}'" 
+					print "X\t0\t60000\t+\tWGS" > "'${chrXNONPARBed}'"
+					print "X\t2699520\t154931043\t+\tWGS" >> "'${chrXNONPARBed}'"
+				}else if (($2 >= 60000  && $3 <= 2699520 ) || ($2 >= 154931043 && $3 <= 155260560 )){
 					print $0 >> "'${chrXPARBed}'"
 				}else{
 					print $0 >> "'${chrXNONPARBed}'"
@@ -307,7 +287,7 @@ then
 			}
 		}' ${baits}.merged.bed
 
-		echo -e "NC_001422.1\t1\t5386\tphiX174" >> captured.batch-${chromo}.bed
+		echo -e "NC_001422.1\t0\t5386\tphiX174" >> captured.batch-${chromo}.bed
 	fi
 else
 	if [ -f ${baits}.batch-1.bed ]
@@ -442,10 +422,11 @@ else
 		##### Because bed is 0-based and intervallist 1-based, do start minus 1
 		for i in $(ls ${baits}.batch*.bed)
 		do
+			echo "${i}"
 			awk '{
 			if ($0 !~ /^@/){
-				minus=($2 - 1);
-				print $1"\t"minus"\t"$3"\t"$4"\t"$5
+				minus=($2 -2);
+				print $1"\t"minus"\t"$3"\t"$5
 			}
 			else
 				print $0
@@ -467,7 +448,7 @@ then
 	then
 		if [ ! -f ${MAP}/captured.femaleY.bed ]
 		then
-			echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+			echo -e 'Y\t1\t2\tFake' > ${MAP}/captured.femaleY.bed
 		fi
 	fi
 fi
@@ -475,6 +456,6 @@ if [ -f ${baits}.batch-Y.bed ]
 then
 	if [ ! -f ${MAP}/captured.femaleY.bed ]
 	then
-		echo -e 'Y\t1\t2\t+\tFake' > ${MAP}/captured.femaleY.bed
+		echo -e 'Y\t1\t2\tFake' > ${MAP}/captured.femaleY.bed
 	fi
 fi

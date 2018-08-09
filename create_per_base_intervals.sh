@@ -69,5 +69,5 @@ echo "INPUTNAME:$INPUT"
 echo "OUTPUTFOLDER:$OUTPUTFOLDER"
 echo "NAME:$NAME"
 
-sort -V -k1 -k2 -k3 $OUTPUTFOLDER/$NAME.per_base.bed | uniq -u > $OUTPUTFOLDER/$NAME.uniq.per_base.bed
-rm $OUTPUTFOLDER/$NAME.per_base.bed
+sort -V -k1 -k2 -k3 $OUTPUTFOLDER/$NAME.per_base.intervals | uniq -u > $OUTPUTFOLDER/$NAME.uniq.per_base.intervals
+rm $OUTPUTFOLDER/$NAME.per_base.intervals

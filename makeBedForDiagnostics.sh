@@ -39,7 +39,6 @@ then
         exit 1
 fi
 
-
 if [[ -z "${name:-}" ]]
 then
 	echo -e '\nERROR: Must specify a Name for the new Bed file!\n'

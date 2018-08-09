@@ -48,9 +48,9 @@ while (my $lines=<INPUT>){
 		my $gene = $array[3];
                 my $region = ($stop-$start);
                 #Iterate over region and create bins
-		open (OUTPUT, ">>", "$outputfolder/$output.per_base.bed" ) or die $!;
+		open (OUTPUT, ">>", "$outputfolder/$output.per_base.intervals" ) or die $!;
                 for (my $i=($start+1); $i<=$stop; $i=($i+$binSize)){
-                    print OUTPUT "$chr\t" . $i . "\t" . ($i+1) . "\t$gene\n";
+                    print OUTPUT "$chr\t" . $i . "\t" . $i . "\t$gene\n";
                 }
                 close(OUTPUT);
 
