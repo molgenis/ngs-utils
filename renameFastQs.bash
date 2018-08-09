@@ -46,7 +46,7 @@ function _Usage() {
 #
 # Custom signal trapping functions (one for each signal) required to format log lines depending on signal.
 #
-function trapSig() {
+function _trapSig() {
 	local _trap_function="${1}"
 	local _line="${2}"
 	local _function="${3}"
@@ -57,22 +57,39 @@ function trapSig() {
 	done
 }
 
-function trapHandler() {
+function _trapHandler() {
 	local _signal="${1}"
 	local _problematicLine="${2}"
 	local _function="${3}"
 	local _exitStatus="${4}"
-	local _errorMessage="Unknown error."
-	echo "
-	$(hostname) - ${SCRIPT_NAME}:${_problematicLine}: FATAL: exit code = ${_exitStatus}
-	$(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_errorMessage}
-"
+	local _errorMessage="Unknown error in function ${_function}."
+	_reportFatalError "${_problematicLine}" "${_exitStatus}" "${_errorMessage}"
 }
+
+function _reportFatalError() {
+	local _problematicLine="${1}"
+	local _exitStatus="${2:-$?}"
+	local _errorMessage="Unknown error."
+	_errorMessage="${3:-${_errorMessage}}"
+	#
+	# Notify on STDOUT.
+	#
+	echo "
+$(hostname) - ${SCRIPT_NAME}:${_problematicLine}: FATAL: exit code = ${_exitStatus}
+$(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_errorMessage}
+"
+	#
+	# Reset trap and exit.
+	#
+	trap - EXIT
+	exit 1
+}
+
 
 #
 # Trap all exit signals: HUP(1), INT(2), QUIT(3), TERM(15), ERR
 #
-trapSig 'trapHandler' '${LINENO}' '${FUNCNAME:-main}' '$?' HUP INT QUIT TERM EXIT ERR
+_trapSig '_trapHandler' '${LINENO}' '${FUNCNAME:-main}' '$?' HUP INT QUIT TERM EXIT ERR
 
 function _RenameFastQ() {
 	local _fastqPath="${1}"
@@ -121,8 +138,7 @@ function _RenameFastQ() {
 		#
 		if [[ "${#_run}" -lt 3 ]]
 		then
-			echo "FATAL: run number detected in ID of first read is too short (< 3): ${_run}"
-			exit 1
+			_reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 3): '"${_run}."
 		elif [[ "${#_run}" -eq 3 ]]
 		then
 			_run="0${_run}"
@@ -136,8 +152,7 @@ function _RenameFastQ() {
 			echo "DEBUG:    Found _sequenceReadOfPair ..... = ${_sequenceReadOfPair}"
 		fi
 	else
-		echo "FATAL: Failed to parse required meta-data values from ID of first read of ${_fastqPath}"
-		exit 1
+		_reportFatalError ${LINENO} '1' "Failed to parse required meta-data values from ID of first read of ${_fastqPath}".
 	fi
 	
 	#
@@ -170,8 +185,8 @@ function _RenameFastQ() {
 		return
 	else
 		qualityControl='failed'
-		echo "ERROR: Failed to determine the most abundant barcode(s) from max 1000 reads from middle of FastQ."
-		echo "ERROR: Failed to parse barcodes from read IDs of FastQ file ${_fastqFile}."
+		echo "ERROR: Failed to determine the most abundant barcodes from max 1000 reads from middle of FastQ."
+		echo "ERROR: Failed to parse barcode(s) from read IDs of FastQ file ${_fastqFile}."
 		return
 	fi
 	
@@ -189,9 +204,7 @@ function _RenameFastQ() {
 	#
 	if [[ -e "${_newFastqDir}/${_newFastqFile}" ]]
 	then
-		echo "FATAL: ${_newFastqDir}/${_newFastqFile} already exists."
-		echo "FATAL: will NOT move ${_fastqPath} -> ${_newFastqDir}/${_newFastqFile}."
-		exit 1
+		_reportFatalError ${LINENO} '1' "${_newFastqDir}/${_newFastqFile} already exists; will NOT move ${_fastqPath} -> ${_newFastqDir}/${_newFastqFile}."
 	fi
 	
 	#
@@ -233,10 +246,10 @@ do
 			enableVerboseLogging=1
 			;;
 		\?)
-			_reportError ${LINENO} '1' "Invalid option -${OPTARG}. Try \"$(basename $0) -h\" for help."
+			_reportFatalError "${LINENO}" '1' "Invalid option -${OPTARG}. Try \"$(basename $0) -h\" for help."
 			;;
 		:)
-			_reportError ${LINENO} '1' "Option -${OPTARG} requires an argument. Try \"$(basename $0) -h\" for help."
+			_reportFatalError "${LINENO}" '1' "Option -${OPTARG} requires an argument. Try \"$(basename $0) -h\" for help."
 			;;
 	esac
 done
@@ -247,7 +260,7 @@ done
 shift $(($OPTIND - 1))
 if [[ ! -z ${1:-} ]]
 then
-	_reportError ${LINENO} '1' "Invalid argument \"$1\". Try \"$(basename $0) -h\" for help."
+	_reportFatalError "${LINENO}" '1' "Invalid argument \"$1\". Try \"$(basename $0) -h\" for help."
 fi
 
 #
@@ -255,7 +268,7 @@ fi
 #
 if [[ -z "${sequencingStartDate:-}" || -z "${fastqFilePattern:-}" ]]
 then
-	 _reportError ${LINENO} 1 "One ore more required arguments is missing. Try \"$(basename $0) -h\" for help."
+	 _reportFatalError "${LINENO}" '1' "One ore more required arguments is missing. Try \"$(basename $0) -h\" for help."
 fi
 
 #
@@ -266,7 +279,7 @@ if [[ "${sequencingStartDate}" =~ ${ssd_regex} ]]
 then
 	echo "INFO: Using sequencingStartDate ${sequencingStartDate}"
 else
-	_reportError ${LINENO} 1 "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
+	_reportFatalError "${LINENO}" '1' "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
 fi
 
 #
@@ -283,7 +296,7 @@ done
 #
 if [[ "${qualityControl}" == 'failed' ]]
 then
-	_reportError ${LINENO} 1 "One or more FastQ files failed QC and was not renamed!."
+	_reportFatalError "${LINENO}" '1' "One or more FastQ files failed QC and was not renamed!."
 else
 	echo "INFO: Finished successfully!"
 	trap - EXIT
