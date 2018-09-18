@@ -107,17 +107,28 @@ cd "${umcgDir}/${name}/human_g1k_v37/"
 echo "renaming captured into ${name}"
 rename "captured" "${name}" "captured."*
 
+
+
 #perbase
 cd "${umcgDir}/CoveragePerBase/"
 mkdir -p "${name}"
-cd "${name}"
-ln -sf "../../${name}"/
+
+
+if [[ "${exome}" == 'false' ]]
+then
+	cd "${name}"
+	ln -sf "../../${name}"/
+fi
 
 #pertarget
 cd "${umcgDir}/CoveragePerTarget/"
 mkdir -p "${name}"
-cd "${name}"
-ln -sf "../../${name}"/
+
+if [[ "${exome}" == 'false' ]]
+then
+	cd "${name}"
+	ln -sf "../../${name}"/
+fi
 
 echo "FINISHED"
 
