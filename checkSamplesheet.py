@@ -55,7 +55,7 @@ for number, row in enumerate(reader,1):
 			if row[columnName] == "":
 				if columnName in ('capturingKit','barcode','barcodeType'):
 					if alreadyErrored == "false":
-						listOfErrors.append("The variable " + sleutel + " on line " + str(number) +  " is empty! Please fill in None (this to be sure that is not missing)")
+						listOfErrors.append("The variable " + sleutel + " on line " + str(number) +  " is empty! Please fill in None (this to be sure that it is not missing)")
 						stopRun="true"
 						alreadyErrored="true"
 				else:

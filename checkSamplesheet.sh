@@ -25,25 +25,24 @@ do
 	#
 	# Parse content with Python sanity check script.
 	#
-	"${sampleSheetsDir}"/checkSampleSheet_v2.py --input "${sampleSheet}" --logfile "${sampleSheet}.logger"
+	"${sampleSheetsDir}"/"${SCRIPT_NAME}".py --input "${sampleSheet}" --logfile "${sampleSheet}.log"
 	filename=$(basename "${sampleSheet}")
-	check=$(cat "${sampleSheet}.logger")
+	check=$(cat "${sampleSheet}.log")
 	if [[ "${check}" == "OK" ]]
 	then
 		echo "INFO: Samplesheet is OK, moving ${sampleSheet} to ${sampleSheetsDir}..."
 		mv "${sampleSheet}" "${sampleSheetsDir}"
-		rm -f "${sampleSheet}.logger.mailed"
-		rm -f "${sampleSheet}.logger"
-		rm -f "${sampleSheet}.logger.text"
+		rm -f "${sampleSheet}.log.mailed"
+		rm -f "${sampleSheet}.log"
 	else
-		echo "ERROR: Samplesheet ${filename} is not correct, see logger."
-		if [[ -e "${sampleSheet}.logger.mailed" ]]
+		echo "ERROR: Samplesheet ${filename} is not correct, see log."
+		if [[ -e "${sampleSheet}.log.mailed" ]]
 		then
 			echo "INFO: Notification was already sent."
 		else
 			echo "INFO: Trying to send email notification ..."
 			#
-			# Get list of users that should always receive mail
+			# Get email addresses for list of users that should always receive mail.
 			#
 			declare mailAddress=''
 			if [[ -e "${baseDir}/logs/${SCRIPT_NAME}.mailinglist" ]]
@@ -53,25 +52,30 @@ do
 				echo -e "ERROR: ${baseDir}/logs/${SCRIPT_NAME}.mailinglist is missing on $(hostname -s)\n" \
 					| mail -s "Samplesheet is wrong, but we cannot send email to the relevant users."
 			fi
+			#
+			# Get email address for owner of the samplesheet.
+			#
 			fileOwner=$(stat -c "%U" "${sampleSheet}" | tr -d '\n')
 			mailAddressOwner="$(getent passwd "${fileOwner}" | cut -d ':' -s -f 5)"
 			if [[ -z "${mailAddressOwner:-}" ]]
 			then
-				echo -e "WARN: We do not have an email address of this user: ${fileOwner}\n" \
+				echo -e "WARN: We do not have an email address for this user: ${fileOwner}\n" \
 					| mail -s "Samplesheet is wrong on $(hostname -s), but we cannot email the owner." "${mailAddress:-}"
 			else
-				
+				mailAddress="${mailAddress:-} ${mailAddressOwner:-}
 			fi
-			mailAddress="${mailAddress:-} ${mailAddressOwner:-}
-			
-			echo -e "Dear ${fileOwner},\n" > "${sampleSheet}.logger.text"
-			cat "${sampleSheet}.logger"   >> "${sampleSheet}.logger.text"
-			echo -e "\n\nCheers from GCC" >> "${sampleSheet}.logger.text"
-			
-			cat "${sampleSheet}.logger.text" \
-				| mail -s "Samplesheet is wrong on $(hostname -s)" "${mailAddress:-}"
-			touch "${sampleSheet}.logger.mailed"
-			rm -f "${sampleSheet}.logger.text"
+			#
+			# Prepare message content.
+			#
+			header="Dear ${fileOwner},"
+			body="${SCRIPT_NAME} detected an error when parsing ${sampleSheet} on $(hostname -s): $(<"${sampleSheet}.log")"
+			footer='Cheers from the GCC.'
+			#
+			# Send email to notify users.
+			#
+			printf '%s\n\n%s\n\n%s\n' "${header}" "${body}" "${footer}" \
+			| mail -s "Samplesheet is wrong on $(hostname -s)" "${mailAddress:-}"
+			touch "${sampleSheet}.log.mailed"
 		fi
 	fi
 done
