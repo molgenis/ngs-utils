@@ -1,6 +1,8 @@
+#!/usr/bin/env python
+
 import argparse
 import os
-import csv     # imports the csv module
+import csv
 import sys
 from collections import defaultdict
 from os.path import basename
@@ -15,6 +17,9 @@ print("inputfile:" + args.input)
 reader = csv.DictReader(f)  # creates the reader object
 sampleName=(basename(os.path.splitext(args.input)[0]))
 
+#
+# Parse meta-data from the filename. 
+#
 splittedFileName = sampleName.split('_')
 sequencestartdate = splittedFileName[0]
 sequencer= splittedFileName[1]
@@ -32,30 +37,35 @@ alreadyErrored="false"
 hasRows = False
 listOfErrors=[]
 
-for number, row in enumerate(reader,1):   # iterates the rows of the file in orders
-        hasRows = True
-	## check if the required columns are there
-        for columnName in ('externalSampleID','project','sequencer','sequencingStartDate','flowcell','run','flowcell','lane','seqType','prepKit','capturingKit','barcode','barcodeType'):
-	        if columnName not in row.keys():
-                        if alreadyErrored == "false":
+#
+# Iterate over the rows of the file.
+#
+for number, row in enumerate(reader,1):
+	hasRows = True
+	#
+	# Check if the required columns are present.
+	#
+	for columnName in ('externalSampleID','project','sequencer','sequencingStartDate','flowcell','run','flowcell','lane','seqType','prepKit','capturingKit','barcode','barcodeType'):
+		if columnName not in row.keys():
+			if alreadyErrored == "false":
 				listOfErrors.extend("One required column is missing (or has a trailing space): " + columnName)
-                                print("One required column is missing (or has a trailing space): " + columnName)
-                                alreadyErrored="true"
-                else:
-                     	if row[columnName] == "":
-                                if columnName in ('capturingKit','barcode','barcodeType'):
-                                        if alreadyErrored == "false":
-                                                listOfErrors.append("The variable " + sleutel + " on line " + str(number) +  " is empty! Please fill in None (this to be sure that is not missing)")
+				print("One required column is missing (or has a trailing space): " + columnName)
+				alreadyErrored="true"
+		else:
+			if row[columnName] == "":
+				if columnName in ('capturingKit','barcode','barcodeType'):
+					if alreadyErrored == "false":
+						listOfErrors.append("The variable " + sleutel + " on line " + str(number) +  " is empty! Please fill in None (this to be sure that is not missing)")
 						stopRun="true"
-                                                alreadyErrored="true"
-
-                                else:
-                                     	if alreadyErrored == "false":
-                                                listOfErrors.append("The variable " + columnName + " on line " + str(number) +  " is empty!")
+						alreadyErrored="true"
+				else:
+					if alreadyErrored == "false":
+						listOfErrors.append("The variable " + columnName + " on line " + str(number) +  " is empty!")
 						stopRun="true"
-                                                alreadyErrored="true"
-
-
+						alreadyErrored="true"
+	#
+	# Check if the data inside the file matches the expected filename.
+	#
 	if row['sequencer'] != sequencer and 'sequencer' in row.keys():
 		stopRun="true"
 		listOfErrors.append("the sequencer in the samplesheet is not matching the sequencer in the filename on line: " + str(number + 1))
@@ -85,4 +95,4 @@ else:
 	w.write("OK")
 
 w.close()
-f.close()      # closing
+f.close()
