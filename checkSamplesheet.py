@@ -51,7 +51,7 @@ for number, row in enumerate(reader,1):
 		if columnName not in row.keys():
 			sanityCheckOk=False
 			if not alreadyErrored:
-				listOfErrors.extend('ERROR: Required column is missing (or has a trailing space): ' + columnName)
+				listOfErrors.append('ERROR: Required column is missing (or has a trailing space): ' + columnName + '.')
 				alreadyErrored=True
 		else:
 			if row[columnName] == "":

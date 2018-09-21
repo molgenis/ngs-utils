@@ -2,15 +2,23 @@
 
 set -eu
 
-declare baseDir='/groups/umcg-gd/scr01/'
-declare sampleSheetsDir="${baseDir}"'Samplesheets/'
-
 SCRIPT_NAME="$(basename ${0})"
 SCRIPT_NAME="${SCRIPT_NAME%.*sh}"
+INSTALLATION_DIR="$(cd -P "$(dirname "${0}")/.." && pwd)/"
+declare sampleSheetsDir="${INSTALLATION_DIR}"'Samplesheets/'
 
-echo "INFO: processing samplesheets from ${sampleSheetsDir}/new/..."
+echo "INFO: Processing samplesheets from ${sampleSheetsDir}/new/..."
 
-for sampleSheet in $(ls -1 "${sampleSheetsDir}/new/"*'.csv')
+declare -a sampleSheets=($(find "${sampleSheetsDir}/new/" -name '*.csv'))
+if [[ "${#sampleSheets[@]:-0}" -eq '0' ]]
+then
+	echo "WARN: No samplesheets found in ${sampleSheetsDir}/new/."
+	exit 0
+else
+	echo "DEBUG: samplesheets found: ${sampleSheets[@]}."
+fi
+
+for sampleSheet in "${sampleSheets[@]}"
 do
 	#
 	# Create a copy of the original, so we preserve the original owner 
@@ -53,11 +61,11 @@ do
 			# Get email addresses for list of users that should always receive mail.
 			#
 			declare mailAddress=''
-			if [[ -e "${baseDir}/logs/${SCRIPT_NAME}.mailinglist" ]]
+			if [[ -e "${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist" ]]
 			then
-				mailAddress="$(cat "${baseDir}/logs/${SCRIPT_NAME}.mailinglist" | tr '\n' ' ')"
+				mailAddress="$(cat "${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist" | tr '\n' ' ')"
 			else
-				printf '%s\n' "ERROR: ${baseDir}/logs/${SCRIPT_NAME}.mailinglist is missing on $(hostname -s)." \
+				printf '%s\n' "ERROR: ${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist is missing on $(hostname -s)." \
 					| mail -s "Samplesheet is wrong, but we cannot send email to the relevant users." 'helpdesk.gcc.groningen@gmail.com'
 			fi
 			#
