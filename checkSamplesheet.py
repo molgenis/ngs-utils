@@ -4,36 +4,38 @@ import argparse
 import os
 import csv
 import sys
+import re
 from collections import defaultdict
 from os.path import basename
-parser = argparse.ArgumentParser(description='Process some integers.')
+parser = argparse.ArgumentParser(description='Process commandline opts.')
 parser.add_argument("--input")
-parser.add_argument("--logfile")
+parser.add_argument("--log")
 args = parser.parse_args()
 
 columns = defaultdict(list)
-f = open(args.input, 'r') # opens the csv file
-print("inputfile:" + args.input)
-reader = csv.DictReader(f)  # creates the reader object
-sampleName=(basename(os.path.splitext(args.input)[0]))
+f = open(args.input, 'r') # opens the samplesheet file.
+print("INFO: input = " + args.input)
+reader = csv.DictReader(f)  # creates the reader object.
+inputFileName=(basename(args.input))
+inputFileNameBase = re.sub('\..*$', '', inputFileName)
 
 #
 # Parse meta-data from the filename. 
 #
-splittedFileName = sampleName.split('_')
-sequencestartdate = splittedFileName[0]
-sequencer= splittedFileName[1]
-runid = splittedFileName[2]
-flowcell = splittedFileName[3]
+inputFileNameComponents = inputFileNameBase.split('_')
+sequencingStartDate = inputFileNameComponents[0]
+sequencer= inputFileNameComponents[1]
+run = inputFileNameComponents[2]
+flowcell = inputFileNameComponents[3]
 
-if len(splittedFileName) > 4:
-	for i in range(4,len(splittedFileName)):
-		flowcell+="_"+ str(splittedFileName[i])
+if len(inputFileNameComponents) > 4:
+	for i in range(4,len(inputFileNameComponents)):
+		flowcell+="_"+ str(inputFileNameComponents[i])
 
-w = open(args.logfile, 'w')
-print("logfile:" + args.logfile)
-stopRun="false"
-alreadyErrored="false"
+w = open(args.log, 'w')
+print("INFO: log   = " + args.log)
+sanityCheckOk=True
+alreadyErrored=False
 hasRows = False
 listOfErrors=[]
 
@@ -47,52 +49,47 @@ for number, row in enumerate(reader,1):
 	#
 	for columnName in ('externalSampleID','project','sequencer','sequencingStartDate','flowcell','run','flowcell','lane','seqType','prepKit','capturingKit','barcode','barcodeType'):
 		if columnName not in row.keys():
-			if alreadyErrored == "false":
-				listOfErrors.extend("One required column is missing (or has a trailing space): " + columnName)
-				print("One required column is missing (or has a trailing space): " + columnName)
-				alreadyErrored="true"
+			sanityCheckOk=False
+			if not alreadyErrored:
+				listOfErrors.extend('ERROR: Required column is missing (or has a trailing space): ' + columnName)
+				alreadyErrored=True
 		else:
 			if row[columnName] == "":
+				sanityCheckOk=False
 				if columnName in ('capturingKit','barcode','barcodeType'):
-					if alreadyErrored == "false":
-						listOfErrors.append("The variable " + sleutel + " on line " + str(number) +  " is empty! Please fill in None (this to be sure that it is not missing)")
-						stopRun="true"
-						alreadyErrored="true"
+					listOfErrors.append('ERROR on line ' + str(number) + ': Variable ' + columnName + ' is empty! Please fill in "None" (to make sure it is not missing).')
 				else:
-					if alreadyErrored == "false":
-						listOfErrors.append("The variable " + columnName + " on line " + str(number) +  " is empty!")
-						stopRun="true"
-						alreadyErrored="true"
+					listOfErrors.append('ERROR on line ' + str(number) + ': Variable ' + columnName + ' is empty!')
 	#
 	# Check if the data inside the file matches the expected filename.
 	#
 	if row['sequencer'] != sequencer and 'sequencer' in row.keys():
-		stopRun="true"
-		listOfErrors.append("the sequencer in the samplesheet is not matching the sequencer in the filename on line: " + str(number + 1))
-		print("the sequencer in the samplesheet is not matching the sequencer in the filename on line: " + str(number + 1))
-	if row['sequencingStartDate'] != sequencestartdate and 'sequencingStartDate' in row.keys():
-		stopRun="true"
-		listOfErrors.append("the sequencingStartDate in the samplesheet is not matching the sequencingStartDate in the filename on line: " + str(number + 1))
-		print("the sequencingStartDate in the samplesheet is not matching the sequencingStartDate in the filename on line: " + str(number + 1))
-	if row['run'] != runid  and 'run' in row.keys():
-		stopRun="true"
-		listOfErrors.append("the run in the samplesheet is not matching the run in the filename on line: " + str(number + 1))
-		print("the run in the samplesheet is not matching the run in the filename on line: " + str(number + 1))
+		sanityCheckOk=False
+		listOfErrors.append('ERROR on line ' + str(number) + ': sequencer value in samplesheet (' + row['sequencer'] + ') does not match sequencer in filename (' + sequencer + ').')
+	if row['sequencingStartDate'] != sequencingStartDate and 'sequencingStartDate' in row.keys():
+		sanityCheckOk=False
+		listOfErrors.append('ERROR on line ' + str(number) + ': sequencingStartDate value in samplesheet (' + row['sequencingStartDate'] + ') does not match sequencingStartDate in filename (' + sequencingStartDate + ').')
+	if row['run'] != run  and 'run' in row.keys():
+		sanityCheckOk=False
+		listOfErrors.append('ERROR on line ' + str(number) + ': run value in samplesheet (' + row['run'] + ') does not match run in filename (' + run + ').')
 	if row['flowcell'] != flowcell and 'flowcell' in row.keys():
-		stopRun="true"
-		listOfErrors.append("the flowcell in the samplesheet is not matching the flowcell in the filename on line: " + str(number + 1))
-		print("the flowcell in the samplesheet is not matching the flowcell in the filename on line: " + str(number + 1))
+		sanityCheckOk=False
+		listOfErrors.append('ERROR on line ' + str(number) + ': flowcell value in samplesheet ' + row['flowcell'] + ' does not match flowcell in filename (' + flowcell + ').')
 
+f.close()
 
 if not hasRows:
-	print("The complete file is empty?! in ")
-	listOfErrors.append("The complete file is empty?!")
+	sanityCheckOk=False
+	print("File is empty?!")
+	listOfErrors.append("File is empty?!")
 
-if stopRun == "true":
-	w.write('\n'.join(listOfErrors))
-	sys.exit(1)
-else:
+if sanityCheckOk:
 	w.write("OK")
+	w.close()
+	sys.exit(0)
+else:
+	print('\n'.join(listOfErrors))
+	w.write('\n'.join(listOfErrors))
+	w.close()
+	sys.exit(1)
 
-w.close()
-f.close()
