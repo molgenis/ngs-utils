@@ -215,7 +215,7 @@ then
 	if [ ! -f ${baits}.uniq.per_base.intervals ]
 	then
 		echo "starting to create_per_base_intervals, this may take a while"
-		perl ~/github/ngs-utils/create_per_base_intervals.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
+		create_per_base_intervals.pl -input ${baits}.merged.bed -output ${NAME} -outputfolder $TMP
 		wc -l ${TMP}/${NAME}.per_base.intervals
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.intervals | uniq > ${baits}.uniq.per_base.intervals.tmp
