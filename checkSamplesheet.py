@@ -61,9 +61,7 @@ for number, row in enumerate(reader,1):
 				else:
 					listOfErrors.append('ERROR on line ' + str(number) + ': Variable ' + columnName + ' is empty!')
 
-	if sanityCheckOk:
-		w.write("OK")
-	else:
+	if not sanityCheckOk:
 		print('\n'.join(listOfErrors))
 		w.write('\n'.join(listOfErrors))
 		w.close()
