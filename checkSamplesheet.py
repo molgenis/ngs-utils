@@ -60,6 +60,12 @@ for number, row in enumerate(reader,1):
 					listOfErrors.append('ERROR on line ' + str(number) + ': Variable ' + columnName + ' is empty! Please fill in "None" (to make sure it is not missing).')
 				else:
 					listOfErrors.append('ERROR on line ' + str(number) + ': Variable ' + columnName + ' is empty!')
+
+	if not sanityCheckOk:
+		print('\n'.join(listOfErrors))
+		w.write('\n'.join(listOfErrors))
+		w.close()
+		sys.exit(1)
 	#
 	# Check if the data inside the file matches the expected filename.
 	#
