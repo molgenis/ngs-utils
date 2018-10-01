@@ -27,7 +27,6 @@ EOH
 #
 # Get commandline arguments.
 #
-log4Bash 'DEBUG' "${LINENO}" "${FUNCNAME:-main}" '0' "Parsing commandline arguments..."
 declare group=''
 while getopts "s:h" opt
 do
@@ -38,12 +37,6 @@ do
 		s)
 			SCR_DIR="${OPTARG}"
 			;;
-		\?)
-			log4Bash "${LINENO}" "${FUNCNAME:-main}" '1' "Invalid option -${OPTARG}. Try $(basename $0) -h for help."
-			;;
-		:)
-			log4Bash "${LINENO}" "${FUNCNAME:-main}" '1' "Option -${OPTARG} requires an argument. Try $(basename $0) -h for help."
-			;;
 	esac
 done
 
@@ -52,7 +45,7 @@ done
 #
 if [[ -z "${SCR_DIR:-}" ]]
 then
-	log4Bash 'FATAL' "${LINENO}" "${FUNCNAME:-main}" '1' 'Must specify a SCR_DIR (e.g. /groups/umcg-gd/scr01/).'
+	echo 'Must specify a SCR_DIR (e.g. /groups/umcg-gd/scr01/).'
 fi
 
 sampleSheetsDir="${SCR_DIR}/Samplesheets"
@@ -89,7 +82,7 @@ do
 	#
 	check='failed' # default.
 	fileName=$(basename "${sampleSheet}")
-	if "${sampleSheetsDir}"/"${SCRIPT_NAME}".py --input "${sampleSheet}.converted" --log "${sampleSheet}.converted.log"
+	if "${EBROOTNGSMINUTILS}"/"${SCRIPT_NAME}".py --input "${sampleSheet}.converted" --log "${sampleSheet}.converted.log"
 	then
 		check=$(cat "${sampleSheet}.converted.log")
 	fi
