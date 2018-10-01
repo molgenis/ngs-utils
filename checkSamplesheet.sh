@@ -16,7 +16,7 @@ Usage:
 	$(basename $0) OPTIONS
 Options:
 	-h   Show this help.
-	-g   Group.
+	-s   Scratch directory.
 ======================================================================================================================
 EOH
 	trap - EXIT
