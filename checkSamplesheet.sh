@@ -4,9 +4,58 @@ set -eu
 
 SCRIPT_NAME="$(basename ${0})"
 SCRIPT_NAME="${SCRIPT_NAME%.*sh}"
-INSTALLATION_DIR="$(cd -P "$(dirname "${0}")/.." && pwd)/"
-declare sampleSheetsDir="${INSTALLATION_DIR}"'Samplesheets/'
 
+function showHelp() {
+	#
+	# Display commandline help on STDOUT.
+	#
+	cat <<EOH
+======================================================================================================================
+Script to check whether the samplesheet is good
+Usage:
+	$(basename $0) OPTIONS
+Options:
+	-h   Show this help.
+	-s   Scratch directory.
+======================================================================================================================
+EOH
+	trap - EXIT
+	exit 0
+}
+
+
+#
+# Get commandline arguments.
+#
+log4Bash 'DEBUG' "${LINENO}" "${FUNCNAME:-main}" '0' "Parsing commandline arguments..."
+declare group=''
+while getopts "s:h" opt
+do
+	case $opt in
+		h)
+			showHelp
+			;;
+		s)
+			SCR_DIR="${OPTARG}"
+			;;
+		\?)
+			log4Bash "${LINENO}" "${FUNCNAME:-main}" '1' "Invalid option -${OPTARG}. Try $(basename $0) -h for help."
+			;;
+		:)
+			log4Bash "${LINENO}" "${FUNCNAME:-main}" '1' "Option -${OPTARG} requires an argument. Try $(basename $0) -h for help."
+			;;
+	esac
+done
+
+#
+# Check commandline options.
+#
+if [[ -z "${SCR_DIR:-}" ]]
+then
+	log4Bash 'FATAL' "${LINENO}" "${FUNCNAME:-main}" '1' 'Must specify a SCR_DIR (e.g. /groups/umcg-gd/scr01/).'
+fi
+
+sampleSheetsDir="${SCR_DIR}/Samplesheets"
 echo "INFO: Processing samplesheets from ${sampleSheetsDir}/new/..."
 
 declare -a sampleSheets=($(find "${sampleSheetsDir}/new/" -name '*.csv'))
@@ -61,11 +110,11 @@ do
 			# Get email addresses for list of users that should always receive mail.
 			#
 			declare mailAddress=''
-			if [[ -e "${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist" ]]
+			if [[ -e "${SCR_DIR}/logs/${SCRIPT_NAME}.mailinglist" ]]
 			then
-				mailAddress="$(cat "${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist" | tr '\n' ' ')"
+				mailAddress="$(cat "${SCR_DIR}/logs/${SCRIPT_NAME}.mailinglist" | tr '\n' ' ')"
 			else
-				printf '%s\n' "ERROR: ${INSTALLATION_DIR}/logs/${SCRIPT_NAME}.mailinglist is missing on $(hostname -s)." \
+				printf '%s\n' "ERROR: ${SCR_DIR}/logs/${SCRIPT_NAME}.mailinglist is missing on $(hostname -s)." \
 					| mail -s "Samplesheet is wrong, but we cannot send email to the relevant users." 'helpdesk.gcc.groningen@gmail.com'
 			fi
 			#
