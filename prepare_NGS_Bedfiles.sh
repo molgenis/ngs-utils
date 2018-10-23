@@ -219,7 +219,8 @@ then
 		wc -l ${TMP}/${NAME}.per_base.intervals
 
 		sort -V -k1 -k2 -k3 ${TMP}/${NAME}.per_base.intervals | uniq > ${baits}.uniq.per_base.intervals.tmp
-		sort -V ${baits}.uniq.per_base.intervals.tmp > ${baits}.uniq.per_base.interval_list
+		head -n 86 ${baits}.interval_list > ${baits}.uniq.per_base.interval_list
+		sort -V ${baits}.uniq.per_base.intervals.tmp >> ${baits}.uniq.per_base.interval_list
 	fi
 fi
 
