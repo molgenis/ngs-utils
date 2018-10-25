@@ -274,7 +274,7 @@ fi
 #
 # Check if sequencingStartDate is in the expected format.
 #
-ssd_regex='^[1-9][0-9][0-1][1-9][0-3][0-9]$'
+ssd_regex='^[1-9][0-9][0-1][0-9][0-3][0-9]$'
 if [[ "${sequencingStartDate}" =~ ${ssd_regex} ]]
 then
 	echo "INFO: Using sequencingStartDate ${sequencingStartDate}"
