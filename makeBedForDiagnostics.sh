@@ -89,10 +89,12 @@ if [[ "${exome}" == 'true' ]]
 then
 	echo "Creating bedfiles for a new exomekit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
+#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured
 elif [[ "${exome}" == 'false' ]]
 then
 	echo "Creating bedfiles for a new kit ${name}"
 	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
+#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
 else
 	echo "please fill in true or false"
 	exit 1

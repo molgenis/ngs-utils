@@ -94,51 +94,51 @@ if [[ -z "${PRMDIR-}" ]]; then
         PRMDIR="/groups/umcg-gd/prm0*/projects/"
 fi
 if [[ -z "${TMP-}" ]]; then
-	TMP=${WORKDIR}/tmp/
-	mkdir -p ${TMP}	
+	TMP="${WORKDIR}/tmp/"
+	mkdir -p "${TMP}"
 	echo "makedir ${TMP}"
 fi
-echo "starting"
+echo "starting, first cleaning up old run in ${WORKDIR}"
 
-rm -rf ${WORKDIR}
-mkdir -p ${WORKDIR}/coverage/
-mkdir -p ${WORKDIR}/tmp/
+rm -rf "${WORKDIR}"
+mkdir -p "${WORKDIR}/coverage/"
+mkdir -p "${WORKDIR}/tmp/"
 
 echo "starting to extract all the ${PANEL} projects and retreive the coverage for each sample"
 echo "ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt"
 count=0
 SAMPLES=()
 REJECTEDSAMPLES=()
-if ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt 1> /dev/null 2>&1
+
+if find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 -exec ls -la  {} \;
 then
-	for i in $(ls ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt)
+	for i in $(find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 )
 	do
 		sampleName="$(basename "${i%%.*}")"
 		SAMPLES+=("${sampleName}")
-		if [ $count == 0 ]
+		if [ "${count}" == 0 ]
 		then
-			awk '{print $2,$3,$4,$6}' $i > ${TMP}/firstcolumns.txt
+			awk '{print $2,$3,$4,$6}' "${i}" > "${TMP}/firstcolumns.txt"
 			count=$((count+1))
 		fi
 
-		NAMEFILE=$(basename $i)
-		DIRNAME=$(dirname $i)
+		NAMEFILE=$(basename "${i}")
+		DIRNAME=$(dirname "${i}")
 		SAMPLENAME=${NAMEFILE%%.*}
 		#awk '{sum+=$5}END {print sum/210414}' $i > $DIRNAME/$SAMPLENAME.averageCoverage.txt
-		awk '{print $5}' $i > ${WORKDIR}/coverage/${SAMPLENAME}.coverage
-		totalcount=$(($(cat ${WORKDIR}/coverage/${SAMPLENAME}.coverage | wc -l)-1))
+		awk '{print $5}' "${i}" > "${WORKDIR}/coverage/${SAMPLENAME}.coverage"
+		totalcount=$(($(cat "${WORKDIR}/coverage/${SAMPLENAME}.coverage" | wc -l)-1))
 		count=0
-		count=$(awk 'BEGIN{sum=0}{if($1 < 20){sum++}} END {print sum}' ${WORKDIR}/coverage/${SAMPLENAME}.coverage)
+		count=$(awk 'BEGIN{sum=0}{if($1 < 20){sum++}} END {print sum}' "${WORKDIR}/coverage/${SAMPLENAME}.coverage")
 
-		if [ $count == 0 ]
+		if [ "${count}" == 0 ]
 		then
 			percentage=0
-			#echo "${SAMPLENAME}:percentage = $percentage"
 		else
 			percentage=$(echo $((count*100/totalcount)))
 			if [ ${percentage%%.*} -gt 10 ]
 			then
-				echo "${SAMPLENAME}: percentage $percentage ($count/$totalcount) is more than 10 procent, skipped"
+				echo "${SAMPLENAME}: percentage $percentage (${count}/${totalcount}) is more than 10 procent, skipped"
 				REJECTEDSAMPLES+=("${SAMPLENAME}")
 
 				continue
@@ -150,20 +150,23 @@ else
         exit 1
 fi
 
-for i in "${REJECTEDSAMPLES[@]}"
-do
-	echo "removed ${WORKDIR}/coverage/${i}.coverage"
-	echo "removed ${WORKDIR}/coverage/${i}.coverage" > ${WORKDIR}/rejectedSamples.txt
-	rm ${WORKDIR}/coverage/${i}.coverage
-done
+if [[ ${#REJECTEDSAMPLES[@]} -ne 0 ]]
+then
+	for i in "${REJECTEDSAMPLES[@]}"
+	do
+		echo "removed ${WORKDIR}/coverage/${i}.coverage"
+		echo "removed ${WORKDIR}/coverage/${i}.coverage" > "${WORKDIR}/rejectedSamples.txt"
+		rm -f "${WORKDIR}/coverage/${i}.coverage"
+	done
+fi
 
-echo ${SAMPLES[@]} > ${TMP}/headers.txt
+echo ${SAMPLES[@]} > ${TMP}/headers.txt"
 
 echo "${WORKDIR}/coverage/"
 
-total=$(ls ${WORKDIR}/coverage/*.coverage | wc -l)
+total=$(ls "${WORKDIR}/coverage/"*".coverage" | wc -l)
 
-paste ${WORKDIR}/coverage/*.coverage > ${TMP}/coverageAllSamples.txt
+paste "${WORKDIR}/coverage/"*".coverage" > "${TMP}/coverageAllSamples.txt"
 
 
 echo "## calculate MEDIAN ##"
@@ -182,68 +185,74 @@ awk -v max=1 '
 } 
 END { 
          print  median(count,values); 
-}' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_Median.txt
+}' "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_Median.txt"
 echo "## calculate SD ##" 
 ## calculate SD
-awk '{ A=0; V=0; for(N=1; N<=NF; N++) A+=$N ; A/=NF ; for(N=1; N<=NF; N++) V+=(($N-A)*($N-A))/(NF-1); print sqrt(V) }' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_SD.txt
+awk '{ A=0; V=0; for(N=1; N<=NF; N++) A+=$N ; A/=NF ; for(N=1; N<=NF; N++) V+=(($N-A)*($N-A))/(NF-1); print sqrt(V) }' "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_SD.txt"
 
 echo "## calculate AVG ##"
 ## CALCULATE AVG
-awk '{ for(i = 1; i <= NF; i++) sum+=$i;print sum/NF;sum=0 }' ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_AVG.txt
+awk '{ for(i = 1; i <= NF; i++) sum+=$i;print sum/NF;sum=0 }' "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_AVG.txt"
 
 echo "## Calculate percentage under 10,20,30,50 and 100x ##"
 ## Calculate percentage under 10,20,50 and 100x ##
-awk '{ for(i = 1; i <= NF; i++) if ($i < 10 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan10x.txt
-awk '{ for(i = 1; i <= NF; i++) if ($i < 20 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan20x.txt
-awk '{ for(i = 1; i <= NF; i++) if ($i < 30 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan30x.txt
-awk '{ for(i = 1; i <= NF; i++) if ($i < 50 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan50x.txt
-awk '{ for(i = 1; i <= NF; i++) if ($i < 100 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan100x.txt
+awk '{ for(i = 1; i <= NF; i++) if ($i < 10 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_moreThan10x.txt"
+awk '{ for(i = 1; i <= NF; i++) if ($i < 20 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_moreThan20x.txt"
+awk '{ for(i = 1; i <= NF; i++) if ($i < 30 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_moreThan30x.txt"
+awk '{ for(i = 1; i <= NF; i++) if ($i < 50 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_moreThan50x.txt"
+awk '{ for(i = 1; i <= NF; i++) if ($i < 100 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  "${TMP}/coverageAllSamples.txt" > "${TMP}/coverageAllSamples_moreThan100x.txt"
 
-awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4}' ${TMP}/firstcolumns.txt > ${TMP}/first4columns.txt
+awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4}' "/apps/data/Agilent/${PANEL}/human_g1k_v37/captured.merged.bed" > "${TMP}/first4columns.txt"
 
-echo "## update column gene with only	one annotation possible"
+echo "## update column gene with only one annotation possible"
 ## update column gene with only one annotation possible
-awk '{print $4}' ${TMP}/first4columns.txt | awk '{FS=",|:"}{print $1}' > ${TMP}/UpdatedGenes.txt
-awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' ${TMP}/first4columns.txt > ${TMP}/chromstartstop.txt
-paste ${TMP}/chromstartstop.txt  ${TMP}/UpdatedGenes.txt > ${TMP}/BigupdatedFile.txt
+
 
 echo "pasting median,avg,10x,20x,30x,50x and 100x"
-rm -f ${WORKDIR}/CoverageOverview.txt
+rm -f "${WORKDIR}/CoverageOverview.txt"
 
 firstPartOfLink="https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position="
 secondPartOfLink="&hgsid=653811211_bIwQegXO9Zbd8eoOt7J1cdi7D9zi"
 
-paste -d '\t' ${TMP}/BigupdatedFile.txt ${TMP}/coverageAllSamples_Median.txt ${TMP}/coverageAllSamples_AVG.txt ${TMP}/coverageAllSamples_SD.txt ${TMP}/coverageAllSamples_moreThan10x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt
-echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tmoreThan10x\tmoreThan20x\tmoreThan30x\tmoreThan50x\tmoreThan100x\tgenomeBrowse" > ${WORKDIR}/CoverageOverview.txt
-tail -n+2 ${TMP}/pasteAllInfoTogether.txt >> ${WORKDIR}/CoverageOverview.txt 
-head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
+paste -d '\t' "${TMP}/first4columns.txt" "${TMP}/coverageAllSamples_Median.txt" "${TMP}/coverageAllSamples_AVG.txt" "${TMP}/coverageAllSamples_SD.txt" "${TMP}/coverageAllSamples_moreThan10x.txt" "${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt"
+echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tmoreThan10x\tmoreThan20x\tmoreThan30x\tmoreThan50x\tmoreThan100x\tgenomeBrowse" > "${WORKDIR}/CoverageOverview.txt"
+tail -n+2 "${TMP}/pasteAllInfoTogether.txt" >> "${WORKDIR}/CoverageOverview.txt"
+head -n -1 "${WORKDIR}/CoverageOverview.txt" > "${TMP}/CoverageOverview.txt.tmp"
 awk -v link1="${firstPartOfLink}" -v link2="${secondPartOfLink}" '{OFS="\t"}{OFMT="%.2f"; if (NR==1){print $0}else{print $1,$2,$3,$4,$5/1,$6/1,$7/1,$8/1,$9/1,$10/1,$11/1,$12/1,link1""$1"%3A"$2""link2}}' ${TMP}/CoverageOverview.txt.tmp > ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
 
 echo "DONE, final file is ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt"
+
+echo "splitting on comma"
+awk '{OFS="\t"}{n=split($4,A,","); for (i in A){print $1,$2,$3,A[i],$5,$6,$7,$8,$9,$10,$11,$12,$13}}' "${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt" > ${TMP}/CoverageOverview_basedOn_${total}_Samples_splittedComma.txt
+echo "splitting on semi colon"
+awk '{OFS="\t"}{n=split($4,A,":"); for (i in A){print $1,$2,$3,A[i],$5,$6,$7,$8,$9,$10,$11,$12,$13}}' "${TMP}/CoverageOverview_basedOn_${total}_Samples_splittedComma.txt" > "${TMP}/CoverageOverview_basedOn_${total}_Samples_splittedCommaAndSemiColon.txt"
+
+cp "${TMP}/CoverageOverview_basedOn_${total}_Samples_splittedCommaAndSemiColon.txt" "${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt"
+
 echo "now creating per Gene calculations"
 ml ngs-utils
 
 
-#python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
 mkdir -p "${TMP}/perGene/"
-awk -v tmpDirectory="${TMP}/perGene/" '{if (NR>1){print $0 > tmpDirectory$4".txt"}}' ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt
-echo "genomeBrowser" > ${TMP}/perGene/allGenes.startStop
+echo "writing all the targets to the genes file, this will take some time"
+awk -v tmpDirectory="${TMP}/perGene/" '{if (NR>1){print $0 > tmpDirectory$4".txt"}}' "${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt"
+echo "genomeBrowser > ${TMP}/perGene/allGenes.startStop"
 for i in $(ls ${TMP}/perGene/*.txt)
 do
 	geneName="$(basename "${i%.txt}")"
 	echo "working on $geneName"
-	head -1 $i | awk -v g="${geneName}" -v link="${firstPartOfLink}" '{print link""$1"%3A"$2}' > ${i}.start
-	tail -1 $i | awk -v link="${secondPartOfLink}" '{print $3""link}' > ${i}.stop
-	paste -d"-" ${i}.start ${i}.stop >> ${TMP}/perGene/allGenes.startStop
+	head -1 "${i}" | awk -v g="${geneName}" -v link="${firstPartOfLink}" '{print link""$1"%3A"$2}' > "${i}.start"
+	tail -1 "${i}" | awk -v link="${secondPartOfLink}" '{print $3""link}' > "${i}.stop"
+	paste -d"-" "${i}.start" "${i}.stop" >> "${TMP}/perGene/allGenes.startStop"
 done
 
-echo "python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt"
-python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_Samples.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
+echo "python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt"
+python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
 
 awk '{OFS="\t"}{OFMT="%.2f"; print $1,$2/1,$3,$4/1,$5/1,$6/1,$7/1,$8/1,$9/1,$10/1}' ${WORKDIR}/CoverageOverview_PerGene.txt > ${WORKDIR}/CoverageOverview_PerGene.txt.tmp
 
 echo -e "Gene\tAvgCoverage\tNo_of_Targets\tMedian\tSD\tmoreThan10x\tmoreThan20x\tmoreThan30x\tmoreThan50x\tmoreThan100x" > ${TMP}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt.tmp
 
-sort -V -k1 ${WORKDIR}/CoverageOverview_PerGene.txt.tmp >> ${TMP}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt.tmp
-paste -d"\t" ${TMP}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt.tmp ${TMP}/perGene/allGenes.startStop > ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt
+sort -V -k1 "${WORKDIR}/CoverageOverview_PerGene.txt.tmp" >> "${TMP}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt.tmp"
+paste -d"\t" "${TMP}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt.tmp" "${TMP}/perGene/allGenes.startStop" > "${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt"
 echo "done, gene file can be found here: ${WORKDIR}/CoverageOverview_PerGene_basedOn_${total}_Samples.txt"

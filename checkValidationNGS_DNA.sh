@@ -37,50 +37,48 @@ if [[ -z "${validationFolder:-}" ]]; then validationFolder="/groups/umcg-gd/prm0
 
 ml GATK 
 
-
 if [ $(hostname) != "calculon" ]
 then
-	mkdir -p ${inputFolder}/validationVcfs/
+	mkdir -p "${inputFolder}/validationVcfs/"
 	echo "copying validationVcfs"
-	if [ -f ${inputFolder}/validationVcfs/DNA087244.vcf ]
+	if [ -f "${inputFolder}/validationVcfs/DNA087244.vcf" ]
 	then
 		echo "already copied, skipped"
 	else
-		scp calculon.hpc.rug.nl:/groups/umcg-gd/prm02/projects/NGS_DNA_Verification_test_ZF/validationVcfs/* ${inputFolder}/validationVcfs/
+		scp calculon.hpc.rug.nl:${validationFolder}/* "${inputFolder}/validationVcfs/"
 	fi
-	validationFolder=${inputFolder}/validationVcfs/
+	validationFolder="${inputFolder}/validationVcfs/"
 fi
-for i in $(ls ${validationFolder}/*.vcf)
+for i in $(ls ${validationFolder}/*.vcf.gz)
 do
-	name=$(basename $i ".vcf")
+	name=$(basename $i ".vcf.gz")
 
 	java -jar ${EBROOTGATK}/GenomeAnalysisTK.jar \
 	-T VariantEval \
 	-R /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta \
-	-o ${outputFolder}/output.${name}.eval.grp \
-	--eval ${inputFolder}/*${name}*.${inputType} \
-	--comp $i
+	-o "${outputFolder}/output.${name}.eval.grp" \
+	--eval "${inputFolder}/"*"${name}"*".${inputType}" \
+	--comp "${i}"
 
 done
-
 echo "Sample  Chr  Pos  Ref  Alt  Found?"
-for i in ${validationFolder}/*.vcf
+for i in $(ls "${validationFolder}/"*".vcf.gz")
 do
-	name=$(basename $i ".vcf")
+	name=$(basename "${i}" ".vcf.gz")
 
-	referenceCall=$(grep "0/0" ${i} | wc -l)
-	referenceCallMale=$(grep -P "\t0:" ${i} | wc -l)
+	referenceCall=$(grep "0/0" "${i}" | wc -l)
+	referenceCallMale=$(grep -P "\t0:" "${i}" | wc -l)
 
-	check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' ${outputFolder}/output.${name}.eval.grp)
+	check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${outputFolder}/output.${name}.eval.grp")
 
 	if [ "${check}" == "correct" ]
 	then
-		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}' ${i}
-	elif [[ ${referenceCall} -ne 0 || ${referenceCallMale} -ne 0 ]]
+		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}'
+	elif [[ "${referenceCall}" -ne 0 || "${referenceCallMale}" -ne 0 ]]
 	then
-		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}' ${i}
+		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}'
 	else
-		awk -v sample=${name} 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' ${i}
+		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' 
 		exit 1
 	fi
 done
