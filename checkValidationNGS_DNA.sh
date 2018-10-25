@@ -37,8 +37,6 @@ if [[ -z "${validationFolder:-}" ]]; then validationFolder="/groups/umcg-gd/prm0
 
 ml GATK 
 
-if [ 1 == 0 ]
-then
 if [ $(hostname) != "calculon" ]
 then
 	mkdir -p "${inputFolder}/validationVcfs/"
@@ -63,7 +61,6 @@ do
 	--comp "${i}"
 
 done
-fi
 echo "Sample  Chr  Pos  Ref  Alt  Found?"
 for i in $(ls ${validationFolder}/*.vcf.gz)
 do
@@ -79,7 +76,7 @@ do
 		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}'
 	elif [[ "${referenceCall}" -ne 0 || "${referenceCallMale}" -ne 0 ]]
 	then
-		zcat ${i} | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}'
+		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}'
 	else
 		zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' 
 		exit 1

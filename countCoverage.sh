@@ -134,7 +134,6 @@ then
 		if [ $count == 0 ]
 		then
 			percentage=0
-			#echo "${SAMPLENAME}:percentage = $percentage"
 		else
 			percentage=$(echo $((count*100/totalcount)))
 			if [ ${percentage%%.*} -gt 10 ]
@@ -204,14 +203,10 @@ awk '{ for(i = 1; i <= NF; i++) if ($i < 50 )counter+=1;print 100-((counter/NF))
 awk '{ for(i = 1; i <= NF; i++) if ($i < 100 )counter+=1;print 100-((counter/NF))*100;counter=0 }'  ${TMP}/coverageAllSamples.txt > ${TMP}/coverageAllSamples_moreThan100x.txt
 
 awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4}' /apps/data/Agilent/${PANEL}/human_g1k_v37/captured.merged.bed > ${TMP}/first4columns.txt
-#awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$4}' ${TMP}/firstcolumns.txt > ${TMP}/first4columns.txt
 
 echo "## update column gene with only	one annotation possible"
 ## update column gene with only one annotation possible
 
-#####awk '{print $4}' ${TMP}/first4columns.txt | awk '{FS=",|:"}{print $1}' > ${TMP}/UpdatedGenes.txt
-######awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' ${TMP}/first4columns.txt > ${TMP}/chromstartstop.txt
-#######paste ${TMP}/chromstartstop.txt  ${TMP}/UpdatedGenes.txt > ${TMP}/BigupdatedFile.txt
 
 echo "pasting median,avg,10x,20x,30x,50x and 100x"
 rm -f ${WORKDIR}/CoverageOverview.txt
@@ -220,7 +215,6 @@ firstPartOfLink="https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&lastVirtModeTy
 secondPartOfLink="&hgsid=653811211_bIwQegXO9Zbd8eoOt7J1cdi7D9zi"
 
 paste -d '\t' ${TMP}/first4columns.txt ${TMP}/coverageAllSamples_Median.txt ${TMP}/coverageAllSamples_AVG.txt ${TMP}/coverageAllSamples_SD.txt ${TMP}/coverageAllSamples_moreThan10x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt
-#paste -d '\t' ${TMP}/BigupdatedFile.txt ${TMP}/coverageAllSamples_Median.txt ${TMP}/coverageAllSamples_AVG.txt ${TMP}/coverageAllSamples_SD.txt ${TMP}/coverageAllSamples_moreThan10x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan20x.txt ${TMP}/coverageAllSamples_moreThan50x.txt ${TMP}/coverageAllSamples_moreThan100x.txt > ${TMP}/pasteAllInfoTogether.txt
 echo -e "Chr\tStart\tStop\tGene\tMedian\tAvgCoverage\tSD\tmoreThan10x\tmoreThan20x\tmoreThan30x\tmoreThan50x\tmoreThan100x\tgenomeBrowse" > ${WORKDIR}/CoverageOverview.txt
 tail -n+2 ${TMP}/pasteAllInfoTogether.txt >> ${WORKDIR}/CoverageOverview.txt 
 head -n -1 ${WORKDIR}/CoverageOverview.txt > ${TMP}/CoverageOverview.txt.tmp
@@ -239,7 +233,6 @@ echo "now creating per Gene calculations"
 ml ngs-utils
 
 
-#python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview.txt > ${WORKDIR}/CoverageOverview_PerGene.txt
 mkdir -p "${TMP}/perGene/"
 echo "writing all the targets to the genes file, this will take some time"
 awk -v tmpDirectory="${TMP}/perGene/" '{if (NR>1){print $0 > tmpDirectory$4".txt"}}' "${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt"
