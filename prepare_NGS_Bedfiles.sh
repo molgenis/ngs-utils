@@ -161,20 +161,6 @@ module load ngs-utils
 module load BEDTools
 
 
-if [ -f ${baits}.bed ]
-then
-	echo "print phiX count"
-	a=$(grep phiX174 ${baits}.bed | wc -l)
-else
-	a=0
-fi
-
-if [ $a == 0 ]
-then
-	echo -e 'NC_001422.1\t0\t5386\tphiX174' >> ${baits}.bed
-else
-	echo "phiX already inside bed file" 
-fi
 
 sort -V ${baits}.bed > ${baits}.bed.sorted
 mv ${baits}.bed.sorted ${baits}.bed
@@ -257,15 +243,15 @@ then
 		chrXPARBed=${baits}.batch-Xp.bed
 
 		##Lastline is always phiX, we want to know whi
-		FIRSTLINE=$(head -1 ${baits}.merged.bed)
-		if [[ "${FIRSTLINE}" == *"NC_"* ]]
-		then
-			chromo=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $1}')
-			position=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $2}')
-		else
-			chromo=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $1}')
-                        position=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $2}')
-		fi
+#		FIRSTLINE=$(head -1 ${baits}.merged.bed)
+#		if [[ "${FIRSTLINE}" == *"NC_"* ]]
+#		then
+#			chromo=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $1}')
+#			position=$(echo "${FIRSTLINE}" | awk '{FS=" "}{print $2}')
+#		else
+#			chromo=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $1}')
+ #                       position=$(head -2 ${baits}.merged.bed | tail -1 | awk '{FS=" "}{print $2}')
+#		fi
 
 		awk '{
 			if ($1 == "X"){
@@ -279,16 +265,16 @@ then
 				}else{
 					print $0 >> "'${chrXNONPARBed}'"
 				}
-			}else if ($1 == "NC_001422.1"){
-				print "it is containing phiX"
-				#do nothing, will added later
+#			}else if ($1 == "NC_001422.1"){
+#				print "it is containing phiX"
+#				#do nothing, will added later
 			}
 			else{
 				print $0 >> "captured.batch-"$1".bed"
 			}
 		}' ${baits}.merged.bed
 
-		echo -e "NC_001422.1\t0\t5386\tphiX174" >> captured.batch-${chromo}.bed
+#		echo -e "NC_001422.1\t0\t5386\tphiX174" >> captured.batch-${chromo}.bed
 	fi
 else
 	if [ -f ${baits}.batch-1.bed ]
@@ -460,3 +446,28 @@ then
 		echo -e 'Y\t1\t2\tFake' > ${MAP}/captured.femaleY.bed
 	fi
 fi
+
+if [ -f ${baits}.bed ]
+then
+	echo "print phiX count"
+	a=$(grep phiX174 ${baits}.bed | wc -l)
+else
+	a=0
+fi
+
+if [ $a == 0 ]
+then
+	echo -e 'NC_001422.1\t0\t5386\tphiX174' >> ${baits}.bed
+	echo -e 'NC_001422.1\t0\t5386\tphiX174' >> ${baits}.merged.bed
+	echo -e 'NC_001422.1\t0\t5386\tphiX174' > ${baits}.batch-NC_001422.1.bed
+
+else
+	if [ ! -f  ${baits}.batch-NC_001422.1.merged.bed ]
+	then
+		echo -e 'NC_001422.1\t0\t5386\tphiX174' > ${baits}.batch-NC_001422.1.bed
+	fi
+	echo "phiX already inside bed file" 
+fi
+
+
+bedtools intersect -a ${baits}.merged.bed -b /apps/data/GSAarray/GSA_sorted.bed | uniq > GSA_SNPS.bed
