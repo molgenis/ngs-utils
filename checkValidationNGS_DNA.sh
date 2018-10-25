@@ -47,7 +47,7 @@ then
 	else
 		scp calculon.hpc.rug.nl:${validationFolder}/* "${inputFolder}/validationVcfs/"
 	fi
-	validationFolder=${inputFolder}/validationVcfs/
+	validationFolder="${inputFolder}/validationVcfs/"
 fi
 for i in $(ls ${validationFolder}/*.vcf.gz)
 do
@@ -57,17 +57,17 @@ do
 	-T VariantEval \
 	-R /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta \
 	-o "${outputFolder}/output.${name}.eval.grp" \
-	--eval ${inputFolder}/*${name}*.${inputType} \
+	--eval "${inputFolder}/"*"${name}"*".${inputType}" \
 	--comp "${i}"
 
 done
 echo "Sample  Chr  Pos  Ref  Alt  Found?"
-for i in $(ls ${validationFolder}/*.vcf.gz)
+for i in $(ls "${validationFolder}/"*".vcf.gz")
 do
 	name=$(basename "${i}" ".vcf.gz")
 
 	referenceCall=$(grep "0/0" "${i}" | wc -l)
-	referenceCallMale=$(grep -P "\t0:" ${i} | wc -l)
+	referenceCallMale=$(grep -P "\t0:" "${i}" | wc -l)
 
 	check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${outputFolder}/output.${name}.eval.grp")
 
