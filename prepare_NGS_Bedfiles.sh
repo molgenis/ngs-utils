@@ -206,6 +206,7 @@ then
 		sort -V -k1 -k2 -k3 "${TMP}/${NAME}.per_base.intervals" | uniq > "${baits}.uniq.per_base.intervals.tmp"
 		head -n 86 "${baits}.interval_list" > "${baits}.uniq.per_base.interval_list"
 		sort -V "${baits}.uniq.per_base.intervals.tmp" >> "${baits}.uniq.per_base.interval_list"
+		tail -n+87 "${baits}.uniq.per_base.interval_list" |  awk '{print $1"\t"$2"\t"($3+1)"\t"$5}' > "${baits}.uniq.per_base.bed"
 	fi
 fi
 
@@ -323,7 +324,7 @@ else
 		BATCH_ALL=$((BATCHCOUNT + batchCount_X))
 		#move the X chromosome folders
 		lengthR=$(less "${phiXRef}" | wc -l)
-		lengthRef=$(( "${lengthR}" + 2 ))
+		lengthRef=$(( ${lengthR} + 2 ))
 		if [ "${lengthOFChrXNP1}" -ne "${lengthOFChrXNP2}" ]
 		then
 			for i in $(seq 1 ${batchCount_X})
@@ -455,3 +456,4 @@ fi
 
 
 bedtools intersect -a ${baits}.merged.bed -b /apps/data/GSAarray/GSA_sorted.bed | uniq > GSA_SNPS.bed
+
