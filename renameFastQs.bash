@@ -110,7 +110,7 @@ function _RenameFastQ() {
 	#
 	local _fastqDir="$(dirname "${_fastqPath}")"
 	local _fastqFile="$(basename "${_fastqPath}")"
-	
+
 	#
 	#  Get essential meta-data from the sequence read IDs in the FastQ file.
 	#  (Do NOT rely on parsing FastQ filenames!)
@@ -132,17 +132,24 @@ function _RenameFastQ() {
 		# Note: we do require the ID of the first read to contain a DNA barcode at the end,
 		# but we don't parse barcodes here. See below for why...
 		#
-		
+
 		#
-		# Sanity check for run number and add leading zero when 3 < run number < 4.
+		# Sanity check for run number and add leading zero when 1 < run number < 4.
 		#
-		if [[ "${#_run}" -lt 3 ]]
-		then
-			_reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 3): '"${_run}."
-		elif [[ "${#_run}" -eq 3 ]]
-		then
-			_run="0${_run}"
-		fi
+                if [[ "${#_run}" -lt 1 ]]
+                then
+                        _reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 1): '"${_run}."
+                elif [[ "${#_run}" -eq 1 ]]
+                then
+                        _run="000${_run}"
+                elif [[ "${#_run}" -eq 2 ]]
+                then
+			_run="00${_run}"
+                elif [[ "${#_run}" -eq 3 ]]
+                then
+                        _run="0${_run}"
+                fi
+
 		if [[ "${enableVerboseLogging}" -eq 1 ]]
 		then
 			echo "DEBUG:    Found _sequencer .............. = ${_sequencer}"
@@ -154,7 +161,7 @@ function _RenameFastQ() {
 	else
 		_reportFatalError ${LINENO} '1' "Failed to parse required meta-data values from ID of first read of ${_fastqPath}".
 	fi
-	
+
 	#
 	# Due to sequencing errors the barcode may deviate slightly, so looking only at the first one won't fly.
 	# In addition the start and end of a FastQ file tends to be enriched for sequencing errors / low quality.
@@ -189,16 +196,16 @@ function _RenameFastQ() {
 		echo "ERROR: Failed to parse barcode(s) from read IDs of FastQ file ${_fastqFile}."
 		return
 	fi
-	
+
 	local _fastqChecksum=$(cat "${_fastqDir}/"*.md5 | grep "${_fastqFile}" | awk '{print $1}')
 	local _newFastqDir="${_fastqDir}/${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}"
 	local _newFastqFile="${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}_L${_lane}_${_barcodes}_${_sequenceReadOfPair}.fq.gz"
-	
+
 	#
 	# Create sequence run subdir if it did not already exist.
 	#
 	mkdir -p "${_newFastqDir}"
-	
+
 	#
 	# Check if new FastQ file path does not already exist to prevent overwriting a sample with another one.
 	#
@@ -206,7 +213,7 @@ function _RenameFastQ() {
 	then
 		_reportFatalError ${LINENO} '1' "${_newFastqDir}/${_newFastqFile} already exists; will NOT move ${_fastqPath} -> ${_newFastqDir}/${_newFastqFile}."
 	fi
-	
+
 	#
 	# Move and rename FastQ + MD5 checksum on the fly.
 	#
@@ -268,7 +275,7 @@ fi
 #
 if [[ -z "${sequencingStartDate:-}" || -z "${fastqFilePattern:-}" ]]
 then
-	 _reportFatalError "${LINENO}" '1' "One ore more required arguments is missing. Try \"$(basename $0) -h\" for help."
+	_reportFatalError "${LINENO}" '1' "One ore more required arguments is missing. Try \"$(basename $0) -h\" for help."
 fi
 
 #
