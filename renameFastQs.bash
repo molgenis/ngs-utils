@@ -134,11 +134,11 @@ function _RenameFastQ() {
 		#
 
 		#
-		# Sanity check for run number and add leading zero when 3 < run number < 4.
+		# Sanity check for run number and add leading zero when 1 < run number < 4.
 		#
                 if [[ "${#_run}" -lt 1 ]]
                 then
-                        _reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 3): '"${_run}."
+                        _reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 1): '"${_run}."
                 elif [[ "${#_run}" -eq 1 ]]
                 then
                         _run="000${_run}"
