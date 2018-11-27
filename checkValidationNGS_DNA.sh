@@ -51,7 +51,7 @@ then
 	fi
 	validationFolder="${inputFolder}/validationVcfs/"
 fi
-for i in $(ls ${validationFolder}/*.${inputType})
+for i in $(ls "${validationFolder}/"*".${inputType}")
 do
 	name=$(basename $i ".${inputType}")
 
@@ -59,7 +59,7 @@ do
 	-T VariantEval \
 	-R /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta \
 	-o "${outputFolder}/output.${name}.eval.grp" \
-	--eval "${inputFolder}/*${name}*.${inputType}" \
+	--eval "${inputFolder}/"*"${name}"*".${inputType}" \
 	--comp "${i}"
 
 done
@@ -91,7 +91,7 @@ do
 			awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}' "${i}"
 		elif [[ "${referenceCall}" -ne 0 || "${referenceCallMale}" -ne 0 ]]
 		then
-			zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}' "${i}"
+			awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK,REF CALL"}}' "${i}"
 		else
 			awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' "${i}"
 			exit 1
