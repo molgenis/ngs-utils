@@ -40,6 +40,8 @@ function _Usage() {
 	echo "    -f 'FastQ_filename_regex'  Regex pattern to find the FastQ files that must be renamed."
 	echo "                               Note: the pattern must be single quoted to prevent expansion by the shell."
 	echo "                               E.g. -f 'HTVTYBBXX_103373-003*'"
+	echo "    -n                         Allow Ns in the DNA barcodes (optional)."
+	echo "                               By default FastQ file with Ns in the DNA barcodes will be skipped and not renamed."
 	echo
 }
 
@@ -183,10 +185,16 @@ function _RenameFastQ() {
 		fi
 	elif [[ "${_mostAbundandBarcode}" =~ N ]]
 	then
-		qualityControl='failed'
-		echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
-		echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
-		return
+		if [[ "${allowN}" -eq '1' ]]
+		then
+			echo "WARN: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
+			echo "WARN: Will continue processing FastQ ${_fastqFile} despite poor sequencing quality of barcode(s), because commandline option -n was specified."
+		else
+			qualityControl='failed'
+			echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
+			echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
+			return
+		fi
 	else
 		qualityControl='failed'
 		echo "ERROR: Failed to determine the most abundant barcodes from max 1000 reads from middle of FastQ."
@@ -228,7 +236,8 @@ function _RenameFastQ() {
 # Get commandline arguments.
 #
 enableVerboseLogging=0 # Disabled by default.
-while getopts "s:f:hv" opt
+allowN=0 # Do not allow Ns in the DNA barcodes by default.
+while getopts "s:f:hnv" opt
 do
 	case ${opt} in
 		h)
@@ -244,6 +253,9 @@ do
 			;;
 		f)
 			fastqFilePattern="${OPTARG}"
+			;;
+		n)
+			allowN=1
 			;;
 		v)
 			enableVerboseLogging=1
