@@ -40,6 +40,8 @@ function _Usage() {
 	echo "    -f 'FastQ_filename_regex'  Regex pattern to find the FastQ files that must be renamed."
 	echo "                               Note: the pattern must be single quoted to prevent expansion by the shell."
 	echo "                               E.g. -f 'HTVTYBBXX_103373-003*'"
+	echo "    -n                         Allow Ns in the DNA barcodes (optional)."
+	echo "                               By default FastQ file with Ns in the DNA barcodes will be skipped and not renamed."
 	echo
 }
 
@@ -110,7 +112,6 @@ function _RenameFastQ() {
 	#
 	local _fastqDir="$(dirname "${_fastqPath}")"
 	local _fastqFile="$(basename "${_fastqPath}")"
-
 	#
 	#  Get essential meta-data from the sequence read IDs in the FastQ file.
 	#  (Do NOT rely on parsing FastQ filenames!)
@@ -132,24 +133,23 @@ function _RenameFastQ() {
 		# Note: we do require the ID of the first read to contain a DNA barcode at the end,
 		# but we don't parse barcodes here. See below for why...
 		#
-
 		#
-		# Sanity check for run number and add leading zero when 1 < run number < 4.
+		# Sanity check for run number and add leading zero when run number < 4.
 		#
-                if [[ "${#_run}" -lt 1 ]]
-                then
-                        _reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 1): '"${_run}."
-                elif [[ "${#_run}" -eq 1 ]]
-                then
-                        _run="000${_run}"
-                elif [[ "${#_run}" -eq 2 ]]
-                then
+		if [[ "${#_run}" -lt 1 ]]
+		then
+			_reportFatalError ${LINENO} '1' 'Run number detected in ID of first read is too short (< 1): '"${_run:-}."
+		elif [[ "${#_run}" -eq 1 ]]
+		then
+			_run="000${_run}"
+		elif [[ "${#_run}" -eq 2 ]]
+		then
 			_run="00${_run}"
-                elif [[ "${#_run}" -eq 3 ]]
-                then
-                        _run="0${_run}"
-                fi
-
+		elif [[ "${#_run}" -eq 3 ]]
+		then
+		_run="0${_run}"
+		fi
+		#
 		if [[ "${enableVerboseLogging}" -eq 1 ]]
 		then
 			echo "DEBUG:    Found _sequencer .............. = ${_sequencer}"
@@ -161,7 +161,6 @@ function _RenameFastQ() {
 	else
 		_reportFatalError ${LINENO} '1' "Failed to parse required meta-data values from ID of first read of ${_fastqPath}".
 	fi
-
 	#
 	# Due to sequencing errors the barcode may deviate slightly, so looking only at the first one won't fly.
 	# In addition the start and end of a FastQ file tends to be enriched for sequencing errors / low quality.
@@ -186,34 +185,39 @@ function _RenameFastQ() {
 		fi
 	elif [[ "${_mostAbundandBarcode}" =~ N ]]
 	then
-		qualityControl='failed'
-		echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
-		echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
-		return
+		if [[ "${allowN}" -eq '1' ]]
+		then
+			echo "WARN: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
+			echo "WARN: Will continue processing FastQ ${_fastqFile} despite poor sequencing quality of barcode(s), because commandline option -n was specified."
+		else
+			qualityControl='failed'
+			echo "ERROR: Most abundant barcode(s) in max 1000 reads from middle of FastQ contains Ns: ${_mostAbundandBarcode}."
+			echo "ERROR: Skipping discarded FastQ ${_fastqFile} due to poor sequencing quality of barcode(s)."
+			return
+		fi
 	else
 		qualityControl='failed'
 		echo "ERROR: Failed to determine the most abundant barcodes from max 1000 reads from middle of FastQ."
 		echo "ERROR: Failed to parse barcode(s) from read IDs of FastQ file ${_fastqFile}."
 		return
 	fi
-
+	#
+	# Get checksum
+	#
 	local _fastqChecksum=$(cat "${_fastqDir}/"*.md5 | grep "${_fastqFile}" | awk '{print $1}')
-	local _newFastqDir="${_fastqDir}/${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}"
-	local _newFastqFile="${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}_L${_lane}_${_barcodes}_${_sequenceReadOfPair}.fq.gz"
-
 	#
 	# Create sequence run subdir if it did not already exist.
 	#
+	local _newFastqDir="${_fastqDir}/${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}"
 	mkdir -p "${_newFastqDir}"
-
 	#
 	# Check if new FastQ file path does not already exist to prevent overwriting a sample with another one.
 	#
+	local _newFastqFile="${_sequencingStartDate}_${_sequencer}_${_run}_${_flowcell}_L${_lane}_${_barcodes}_${_sequenceReadOfPair}.fq.gz"
 	if [[ -e "${_newFastqDir}/${_newFastqFile}" ]]
 	then
 		_reportFatalError ${LINENO} '1' "${_newFastqDir}/${_newFastqFile} already exists; will NOT move ${_fastqPath} -> ${_newFastqDir}/${_newFastqFile}."
 	fi
-
 	#
 	# Move and rename FastQ + MD5 checksum on the fly.
 	#
@@ -232,7 +236,8 @@ function _RenameFastQ() {
 # Get commandline arguments.
 #
 enableVerboseLogging=0 # Disabled by default.
-while getopts "s:f:hv" opt
+allowN=0 # Do not allow Ns in the DNA barcodes by default.
+while getopts "s:f:hnv" opt
 do
 	case ${opt} in
 		h)
@@ -248,6 +253,9 @@ do
 			;;
 		f)
 			fastqFilePattern="${OPTARG}"
+			;;
+		n)
+			allowN=1
 			;;
 		v)
 			enableVerboseLogging=1
