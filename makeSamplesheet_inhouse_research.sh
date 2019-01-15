@@ -31,9 +31,9 @@ Options:
         -k  prepKit (default:Exceptional Prep kit. Important for RNA: lexogen, TruSeq, RiboZero)
         -g  species (default:homo_sapiens|GRCh37, if other species, supply like 'homo_sapiens|GRCh37')
         -s  sampleType (DNA/RNA, default:RNA)
-        -t  seqType (default:PE. otheriwse specify SR)
-        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externaSampleID. NO HEADER!)
-        -n  SampleNumber (Numer of samples in the pool, only neseccary if no informationFile is provided)
+        -t  seqType (default:PE. otherwise specify SR)
+        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
+        -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
         
 Output will be written in workDir with the name: {projectName}.csv
 ===============================================================================================================
@@ -59,7 +59,7 @@ do
                  r)run="${OPTARG}";; 
                  f)flowcell="${OPTARG}";; 
                  b)barcodeType="${OPTARG}";; 
-                 n)SampleNumber="${OPTARG}";;
+                 n)sampleNumber="${OPTARG}";;
                  i)informationFile="${OPTARG}";;
     esac
 done
@@ -121,11 +121,11 @@ if [[ -z "${flowcell:-}" ]]; then
 fi
 
 if [[ -z "${barcodeType:-}" ]]; then
-    seqType="RPI"
+    barcodeType="RPI"
 fi
 
-if [[ -z "${SampleNumber:-}" ]]; then
-    SampleNumer=""
+if [[ -z "${sampleNumber:-}" ]]; then
+    sampleNumber=""
 fi
 
 if [[ -z "${informationFile:-}" ]]; then
@@ -138,51 +138,51 @@ printf "externalSampleID,barcode,project,capturingKit,sampleType,seqType,prepKit
 
 if [ "${informationFile}" == "None" ]; then
     for ((l=1;l<="${lane}";l++))
-        do
+    do
         for ((i=1;i<="${SampleNumber}";i++))
-            do
-            printf "${projectName}_sample${i}" >> "${workDir}/${projectName}.csv"  ##Dummy external sample ID
-            printf ",DummyBarcode${i}" >> "${workDir}/${projectName}.csv" ## Dummy barcode
-            printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
-            printf ",${capturingKit}" >> "${workDir}/${projectName}.csv" ## capturingKit
-            printf ",${sampleType}" >> "${workDir}/${projectName}.csv" ## sampleType
-            printf ",${seqType}" >> "${workDir}/${projectName}.csv" ## seqType
-            printf ",${prepKit}" >> "${workDir}/${projectName}.csv" ## prepKit
-            printf ",${species}" >> "${workDir}/${projectName}.csv" ## species
-            printf "," >> "${workDir}/${projectName}.csv"  ## Gender
-            printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
-            printf ",${l}" >> "${workDir}/${projectName}.csv" ##lane
-            printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
-            printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
-            printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
-            printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
-            done
+        do
+        printf "${projectName}_sample${i}" >> "${workDir}/${projectName}.csv"  ##Dummy external sample ID
+        printf ",DummyBarcode${i}" >> "${workDir}/${projectName}.csv" ## Dummy barcode
+        printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
+        printf ",${capturingKit}" >> "${workDir}/${projectName}.csv" ## capturingKit
+        printf ",${sampleType}" >> "${workDir}/${projectName}.csv" ## sampleType
+        printf ",${seqType}" >> "${workDir}/${projectName}.csv" ## seqType
+        printf ",${prepKit}" >> "${workDir}/${projectName}.csv" ## prepKit
+        printf ",${species}" >> "${workDir}/${projectName}.csv" ## species
+        printf "," >> "${workDir}/${projectName}.csv"  ## Gender
+        printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
+        printf ",${l}" >> "${workDir}/${projectName}.csv" ##lane
+        printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
+        printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
+        printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
+        printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
         done
+    done
         
 else    
     for ((l=1;l<="${lane}";l++))
-        do
+    do
         while read line
-            do
-            barcode=$(echo "${line}" | cut -d , -f1)
-            externaSampleID=$(echo "${line}" | cut -d , -f2)
-            printf "${externaSampleID}" >> "${workDir}/${projectName}.csv"  ##external sample ID
-            printf ",${barcode}" >> "${workDir}/${projectName}.csv" ## barcode
-            printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
-            printf ",${capturingKit}" >> "${workDir}/${projectName}.csv" ## capturingKit
-            printf ",${sampleType}" >> "${workDir}/${projectName}.csv" ## sampleType
-            printf ",${seqType}" >> "${workDir}/${projectName}.csv" ## seqType
-            printf ",${prepKit}" >> "${workDir}/${projectName}.csv" ## prepKit
-            printf ",${species}" >> "${workDir}/${projectName}.csv" ## species
-            printf "," >> "${workDir}/${projectName}.csv"  ## Gender
-            printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
-            printf ",${l}" >> "${workDir}/${projectName}.csv" ##lane
-            printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
-            printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
-            printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
-            printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
-            done < "${informationFile}"
-        done
+        do
+        barcode=$(echo "${line}" | cut -d , -f1)
+        externalSampleID=$(echo "${line}" | cut -d , -f2)
+        printf "${externalSampleID}" >> "${workDir}/${projectName}.csv"  ##external sample ID
+        printf ",${barcode}" >> "${workDir}/${projectName}.csv" ## barcode
+        printf ",${projectName}" >> "${workDir}/${projectName}.csv" ## project
+        printf ",${capturingKit}" >> "${workDir}/${projectName}.csv" ## capturingKit
+        printf ",${sampleType}" >> "${workDir}/${projectName}.csv" ## sampleType
+        printf ",${seqType}" >> "${workDir}/${projectName}.csv" ## seqType
+        printf ",${prepKit}" >> "${workDir}/${projectName}.csv" ## prepKit
+        printf ",${species}" >> "${workDir}/${projectName}.csv" ## species
+        printf "," >> "${workDir}/${projectName}.csv"  ## Gender
+        printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
+        printf ",${l}" >> "${workDir}/${projectName}.csv" ##lane
+        printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
+        printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
+        printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
+        printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
+        done < "${informationFile}"
+    done
 fi
 
 
