@@ -20,14 +20,11 @@ Options:
         -p  projectName
         -d  sequencingStartDate (YYMMDD)
         -o  externalSampleDirectory
-        -f  FastQ_filename_regex  Regex pattern to find the FastQ files that must be renamed.
-            Note: the pattern must be single quoted to prevent expansion by the shell.
-            E.g. -f 'HTVTYBBXX_103373-003*'
+        -c  capturingKit (default:None, name of capturingKit (e.g. Agilent\/ONCO_v3)
 
         Optional:
         -w  workDir (default is this directory)
         -b  barcodeType (default: RPI. AGI,LEX, NEB enz.)
-        -c  capturingKit (default:None, name of capturingKit (e.g. Agilent\/ONCO_v3)
         -k  prepKit (default:Exceptional Prep kit. Important for RNA: lexogen, TruSeq, RiboZero)
         -g  species (default:homo_sapiens|GRCh37, if other species, supply single quoted 'homo_sapiens|GRCh37')
         -s  sampleType (default:RNA, DNA/RNA)
@@ -43,7 +40,7 @@ EOH
     exit 0
 }
 sequencingStartdate=
-while getopts "w:s:k:t:g:p:c:d:f:b:m:o:h" opt;
+while getopts "w:s:k:t:g:p:c:d:b:m:o:h" opt;
 do
 
     case $opt in h)showHelp;; 
@@ -55,7 +52,6 @@ do
                  p)projectName="${OPTARG}";; 
                  c)capturingKit="${OPTARG}";; 
                  d)sequencingStartDate="${OPTARG}";; 
-                 f)FastQ_filename_regex="${OPTARG}";; 
                  b)barcodeType="${OPTARG}";; 
                  m)pairedMateNameOne="${OPTARG}";;
                  o)externalSampleDirectory="${OPTARG}";
@@ -66,12 +62,13 @@ done
 
 if [[ -z "${sampleType:-}" ]]
 then
-    sampleType="RNA"
+    sampleType="DNA"
 fi
 
 if [[ -z "${capturingKit:-}" ]]
 then
-    capturingKit="None"
+    echo -e '\nERROR: Must specify a capturing kit (e.g. Agilent\/ONCO_v3)\n'
+    exit 1
 fi
 
 if [[ -z "${projectName:-}" ]]
@@ -118,10 +115,6 @@ else
     externalSampleDirectoryPath=$(pwd)/"${externalSampleDirectory}"
 fi
 
-if [[ -z "${fastqFilePattern:-}" ]]
-then
-    echo -e "ERROR: must specify fastQfilePattern"
-fi
 
 #
 # Check if sequencingStartDate is in the expected format.
