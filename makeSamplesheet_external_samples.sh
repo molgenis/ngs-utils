@@ -39,7 +39,7 @@ EOH
     trap - EXIT
     exit 0
 }
-sequencingStartdate=
+
 while getopts "w:s:k:t:g:p:c:d:b:m:o:h" opt;
 do
 
@@ -115,16 +115,24 @@ else
     externalSampleDirectoryPath=$(pwd)/"${externalSampleDirectory}"
 fi
 
+if [[ -z "${sequencingStartDate:-}" ]]
+then
+    echo -e '\n ERROR: must specify sequencingStartDate'
+    exit 1
+fi
 
 #
 # Check if sequencingStartDate is in the expected format.
 #
 ssd_regex='^[1-9][0-9][0-1][0-9][0-3][0-9]$'
+
+
 if [[ "${sequencingStartDate}" =~ ${ssd_regex} ]]
 then
     echo "INFO: Using sequencingStartDate ${sequencingStartDate}"
 else
-    _reportFatalError "${LINENO}" '1' "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
+    echo "Line :${LINENO}" "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
+    exit 1
 fi
 
 
