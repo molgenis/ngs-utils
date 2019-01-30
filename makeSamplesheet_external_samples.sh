@@ -131,7 +131,7 @@ if [[ "${sequencingStartDate}" =~ ${ssd_regex} ]]
 then
     echo "INFO: Using sequencingStartDate ${sequencingStartDate}"
 else
-    echo "Line :${LINENO}" "sequencingStartDate in unsupported format. Must be YYMMDD, but got ${sequencingStartDate}."
+    echo "Line :${LINENO}" "sequencingStartDate in unsupported format. Must be YYMMDD, but is ${sequencingStartDate}."
     exit 1
 fi
 
