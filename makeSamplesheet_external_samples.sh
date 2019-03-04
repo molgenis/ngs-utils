@@ -69,7 +69,7 @@ fi
 if [[ -z "${capturingKit:-}" ]]
 then
     
-    echo -e '\nERROR: Must specify a capturing kit (e.g. Agilent\/ONCO_v3)\n'
+    echo -e '\nERROR: Must specify a capturing kit (e.g. Agilent\\/ONCO_v3)\n'
     showHelp
     exit 1
 fi
