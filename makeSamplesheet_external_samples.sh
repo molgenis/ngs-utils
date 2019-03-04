@@ -3,6 +3,7 @@
 set -e
 set -u
 
+SCRIPT_NAME=$(basename $0)
 
 function showHelp() {
     #
@@ -20,7 +21,7 @@ Options:
         -p  projectName
         -d  sequencingStartDate (YYMMDD)
         -o  externalSampleDirectory
-        -c  capturingKit (default:None, name of capturingKit (e.g. Agilent\/ONCO_v3)
+        -c  capturingKit (default:None, name of capturingKit (e.g. Agilent\\/ONCO_v3)
 
         Optional:
         -w  workDir (default is this directory)
@@ -67,13 +68,16 @@ fi
 
 if [[ -z "${capturingKit:-}" ]]
 then
+    
     echo -e '\nERROR: Must specify a capturing kit (e.g. Agilent\/ONCO_v3)\n'
+    showHelp
     exit 1
 fi
 
 if [[ -z "${projectName:-}" ]]
 then
     echo -e '\nERROR: Must specify a projectName\n'
+    showHelp
     exit 1
 fi
 
@@ -110,6 +114,7 @@ fi
 if [[ -z "${externalSampleDirectory:-}" ]]
 then
     echo -e '\n ERROR: must specify externalSampleDirectory'
+    showHelp
     exit 1
 else 
     externalSampleDirectoryPath=$(pwd)/"${externalSampleDirectory}"
@@ -118,6 +123,7 @@ fi
 if [[ -z "${sequencingStartDate:-}" ]]
 then
     echo -e '\n ERROR: must specify sequencingStartDate'
+    showHelp
     exit 1
 fi
 
@@ -142,6 +148,24 @@ fi
 ##
 #
 
+function _reportFatalError() {
+        local _problematicLine="${1}"
+        local _exitStatus="${2:-$?}"
+        local _errorMessage="Unknown error."
+        _errorMessage="${3:-${_errorMessage}}"
+        #
+        # Notify on STDOUT.
+        #
+        echo "
+$(hostname) - ${SCRIPT_NAME}:${_problematicLine}: FATAL: exit code = ${_exitStatus}
+$(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_errorMessage}
+"
+        #
+        # Reset trap and exit.
+        #
+        trap - EXIT
+        exit 1
+}
 
 function _makeSampleInfo() {
     local _fastqPath="${1}"
