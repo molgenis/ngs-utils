@@ -273,15 +273,8 @@ sub _ProcessExperiment {
 	
 	push (@sequence_types, $seqType);
 	
-	#
-	# Check if obligatory fields are not empty.
-	#
-	foreach my $required_value (@_) {
-		if ($required_value eq '') {
-			$logger->fatal('Cannot process this GAF sample sheet as one or more of the obligatory fields are empty!');
-			exit(1);
-		}
-	}
+
+### From March 2019 it is not required to check obligatory fields anymore, since the samplesheet checker already checks for the required columns
 	
 	#
 	# Check if barcodeType is one for which we know how to handle it. 
