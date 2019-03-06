@@ -32,7 +32,7 @@ Options:
         -g  species (default:homo_sapiens|GRCh37, if other species, supply like 'homo_sapiens|GRCh37')
         -s  sampleType (DNA/RNA, default:RNA)
         -t  seqType (default:PE. otherwise specify SR)
-        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSample NO HEADER!)
+        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID NO HEADER!)
         -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
         
 Output will be written in workDir with the name: {projectName}.csv
