@@ -32,7 +32,7 @@ Options:
         -g  species (default:homo_sapiens|GRCh37, if other species, supply like 'homo_sapiens|GRCh37')
         -s  sampleType (DNA/RNA, default:RNA)
         -t  seqType (default:PE. otherwise specify SR)
-        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
+        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID NO HEADER!)
         -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
         
 Output will be written in workDir with the name: {projectName}.csv
@@ -76,11 +76,13 @@ fi
 
 if [[ -z "${projectName:-}" ]]; then
     echo -e '\nERROR: Must specify a projectName\n'
+    showHelp
     exit 1
 fi
 
 if [[ -z "${sequencingStartDate:-}" ]]; then
     echo -e '\n ERROR: must specify sequencingStartDate YYMMDD'
+    showHelp
     exit 1
 fi
 
@@ -102,21 +104,25 @@ fi
 
 if [[ -z "${sequencer:-}" ]]; then
     echo -e '\n ERROR: must specify sequencer used'
+    showHelp
     exit 1
 fi
 
 if [[ -z "${run:-}" ]]; then
     echo -e '\n ERROR: must specify run number, like 0123'
+    showHelp
     exit 1
 fi
 
 if [[ -z "${lane:-}" ]]; then
     echo -e '\n ERROR: must specify numbers of lanes used'
+    showHelp
     exit 1
 fi
 
 if [[ -z "${flowcell:-}" ]]; then
     echo -e '\n ERROR: must specify flowcell number'
+    showHelp
     exit 1
 fi
 
@@ -139,7 +145,7 @@ printf "externalSampleID,barcode,project,capturingKit,sampleType,seqType,prepKit
 if [ "${informationFile}" == "None" ]; then
     for ((l=1;l<="${lane}";l++))
     do
-        for ((i=1;i<="${SampleNumber}";i++))
+        for ((i=1;i<="${sampleNumber}";i++))
         do
         printf "${projectName}_sample${i}" >> "${workDir}/${projectName}.csv"  ##Dummy external sample ID
         printf ",DummyBarcode${i}" >> "${workDir}/${projectName}.csv" ## Dummy barcode
