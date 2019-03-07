@@ -117,7 +117,7 @@ then
     showHelp
     exit 1
 else 
-    externalSampleDirectoryPath=$(pwd)/"${externalSampleDirectory}"
+    externalSampleDirectoryPath="${externalSampleDirectory}"
 fi
 
 if [[ -z "${sequencingStartDate:-}" ]]
@@ -263,7 +263,7 @@ function _makeSampleInfo() {
         return
     fi
     
-    local _newFastqFileInfo=",${_sequencingStartDate},${_sequencer},${_run},${_flowcell},L${_lane},${_barcodes}\n"
+    local _newFastqFileInfo=",${_sequencingStartDate},${_sequencer},${_run},${_flowcell},L${_lane},${_barcodes},"
     echo "INFO: new FastQ file information: ${_sequencingStartDate},${_sequencer},${_run},${_flowcell},L${_lane},${_barcodes}"
     printf "${_newFastqFileInfo}" >> "${workDir}/${projectName}.csv"
     }
@@ -273,7 +273,7 @@ function _makeSampleInfo() {
 # Make header for your sample sheet 
 #
 
-printf "externalSampleID,externalFastQ_1,externalFastQ_2,project,capturingKit,sampleType,seqType,prepKit,species,Gender,arrayFile,sequencingStartDate,sequencer,run,flowcell,lane,barcode\n" > "${workDir}/${projectName}.csv"
+printf "externalSampleID,externalFastQ_1,externalFastQ_2,project,capturingKit,sampleType,seqType,prepKit,species,Gender,arrayFile,sequencingStartDate,sequencer,run,flowcell,lane,barcode,barcodeType\n" > "${workDir}/${projectName}.csv"
 
 #
 # Process FastQ files, and add other necessary information
@@ -303,6 +303,7 @@ do
         printf "," >> "${workDir}/${projectName}.csv"  ## Gender
         printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
         _makeSampleInfo "${FastQ}" "${sequencingStartDate}" ## SequencingStartDate,sequencer,run,flowcell,lane,barcode
+        printf "${barcodeType}\n" >> "${workDir}/${projectName}.csv" ## barcodeType
     elif [[ "${seqType}" == "SR" ]]
     then
         fileName=${FastQ%%.*}
@@ -320,6 +321,7 @@ do
         printf "," >> "${workDir}/${projectName}.csv"  ## Gender
         printf "," >> "${workDir}/${projectName}.csv" ## arrayFile
         _makeSampleInfo "${FastQ}" "${sequencingStartDate}" ## SequencingStartDate,sequencer,run,flowcell,lane,barcode
+        printf "${barcodeType}\n" >> "${workDir}/${projectName}.csv" ## barcodeType
     fi
 done
 

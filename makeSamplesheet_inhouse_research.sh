@@ -17,7 +17,7 @@ Options:
         --h  Show this help.
 
         Required:
-        -p  projectName
+        -p  projectName (For new runs, use the sequencing run name.)
         -d  sequencingStartDate (YYMMDD)
         -r  run (run number contains 4 numbers: 0123)
         -f  flowcell (example: NextSeq, AHLJ5YAFXX or MiSeq, 000000000-BPJ2D_projectName)
@@ -32,7 +32,7 @@ Options:
         -g  species (default:homo_sapiens|GRCh37, if other species, supply like 'homo_sapiens|GRCh37')
         -s  sampleType (DNA/RNA, default:RNA)
         -t  seqType (default:PE. otherwise specify SR)
-        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID NO HEADER!)
+        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
         -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
         
 Output will be written in workDir with the name: {projectName}.csv
@@ -139,7 +139,7 @@ if [[ -z "${informationFile:-}" ]]; then
 fi
 
 
-printf "externalSampleID,barcode,project,capturingKit,sampleType,seqType,prepKit,species,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell\n" > "${workDir}/${projectName}.csv"
+printf "externalSampleID,barcode,project,capturingKit,sampleType,seqType,prepKit,species,Gender,arrayFile,lane,sequencingStartDate,sequencer,run,flowcell,barcodeType\n" > "${workDir}/${projectName}.csv"
 
 
 if [ "${informationFile}" == "None" ]; then
@@ -161,7 +161,8 @@ if [ "${informationFile}" == "None" ]; then
         printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
         printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
         printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
-        printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
+        printf ",${flowcell}" >> "${workDir}/${projectName}.csv" ## flowcell
+        printf ",${barcodeType}\n" >> "${workDir}/${projectName}.csv"
         done
     done
         
@@ -186,7 +187,8 @@ else
         printf ",${sequencingStartDate}" >> "${workDir}/${projectName}.csv" ##sequencingstartdate
         printf ",${sequencer}" >> "${workDir}/${projectName}.csv" ##sequencer
         printf ",${run}" >> "${workDir}/${projectName}.csv" ##run
-        printf ",${flowcell}\n" >> "${workDir}/${projectName}.csv" ## flowcell
+        printf ",${flowcell}" >> "${workDir}/${projectName}.csv" ## flowcell
+        printf ",${barcodeType}\n" >> "${workDir}/${projectName}.csv"
         done < "${informationFile}"
     done
 fi
