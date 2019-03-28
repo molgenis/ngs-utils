@@ -8,7 +8,6 @@ columns = defaultdict(list)
 
 dictAvgCoverage=dict()
 dictCount=dict()
-dictMedian=dict()
 dictSD=dict()
 dictM10=dict()
 dictM20=dict()
@@ -20,7 +19,6 @@ reader = csv.DictReader(open(sys.argv[1], "rb"), delimiter="\t")
 for row in reader:
 	gene=row['Gene']
 	cov=row['AvgCoverage']
-	median=row['Median']
 	sd=row['SD']
 	moreThan10x=row['moreThan10x']
 	moreThan20x=row['moreThan20x']
@@ -29,7 +27,6 @@ for row in reader:
 	moreThan100x=row['moreThan100x']
 	if row['Gene'] not in dictAvgCoverage:
 		dictAvgCoverage[gene] = 0 
-		dictMedian[gene] = 0
 		dictSD[gene] = 0
 		dictM10[gene] = 0
 		dictM20[gene] = 0
@@ -40,7 +37,6 @@ for row in reader:
 
 	dictAvgCoverage[gene] += float(cov)
 	dictSD[gene] += float(sd)
-	dictMedian[gene] += float(median)
 	if moreThan10x:
 		dictM10[gene] += float(moreThan10x)
 	if moreThan20x:
@@ -57,10 +53,9 @@ for row in reader:
 for gene in dictAvgCoverage:
 	c=dictAvgCoverage[gene]/dictCount[gene]
 	de=dictSD[gene]/dictCount[gene]
-	d=dictMedian[gene]/dictCount[gene]
 	e=dictM10[gene]/dictCount[gene]
 	f=dictM20[gene]/dictCount[gene]
 	g=dictM30[gene]/dictCount[gene]
 	h=dictM50[gene]/dictCount[gene]
 	i=dictM100[gene]/dictCount[gene]
-	print gene + "\t"+  str(c) + "\t" + str(dictCount[gene]) + "\t"+ str(d) +"\t"+ str(de) +"\t"+str(e) + "\t"+str(f) + "\t"+ str(g)+ "\t"+str(h) + "\t"+str(i)
+	print gene + "\t"+  str(c) + "\t" + str(dictCount[gene]) + "\t"+ str(de) +"\t"+str(e) + "\t"+str(f) + "\t"+ str(g)+ "\t"+str(h) + "\t"+str(i)
