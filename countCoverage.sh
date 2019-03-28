@@ -108,10 +108,10 @@ count=0
 SAMPLES=()
 REJECTEDSAMPLES=()
 #if find /groups/umcg-gd/tmp06/testCoverage/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 -exec ls -la  {} \;
-if find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -12 -exec ls -la  {} \;
+if find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 -exec ls -la  {} \;
 then
 	#for i in $(find /groups/umcg-gd/tmp06/testCoverage/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 )
-	for i in $(find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -12 )
+	for i in $(find ${PRMDIR}/*${PANEL}/${STRUCTURE}/*${PANEL}*.coveragePerTarget.txt -type f -mtime -120 )
 	do
 		sampleName="$(basename "${i%%.*}")"
 		SAMPLES+=("${sampleName}")
@@ -264,8 +264,8 @@ do
 done
 total=$(ls "${WORKDIR}/coverage/"*".coverage" | wc -l)
 echo "python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt"
-#python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
-python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
+python ${EBROOTNGSMINUTILS}/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
+#python ~/github/ngs-utils/countCoveragePerGene.py ${WORKDIR}/CoverageOverview_basedOn_${total}_SamplesFinal.txt  > ${WORKDIR}/CoverageOverview_PerGene.txt
 
 awk '{OFS="\t"}{OFMT="%.2f"; print $1,$2/1,$3,$4/1,$6/1,$7/1,$8/1,$9/1,$10/1}' ${WORKDIR}/CoverageOverview_PerGene.txt > ${WORKDIR}/CoverageOverview_PerGene.txt.tmp
 
