@@ -11,8 +11,8 @@ Script requires one initial argument:
 
     -m|--makeSamplesheetSimple          Create an simple sample sheet, output with DummyStartdate, DummySequencer, DummyRun (makeSamplesheet.sh)
     -w|--makeSamplesheetWithFastQ       Creating a samplesheet for (external) samples based on a inputfolder containing e.g. FastQ files 
-                                        Information is recived from the FastQ file. (makeSamplesheet_externalSamplesWithFastQ.sh)
-    -n|--makeSamplesheetNoFastQ         Creating an samplesheet for inhouse sequencing runs, no FastQ files information is needed. (makeSamplesheet_InhouseNoFastQinfo.sh)
+                                        Information is received from the FastQ file. (makeSamplesheet_externalSamplesWithFastQ.sh)
+    -n|--makeSamplesheetNoFastQ         Creating a samplesheet for inhouse sequencing runs, no FastQ files information is needed. (makeSamplesheet_InhouseNoFastQinfo.sh)
 ===============================================================================================================
 EOH
 trap - EXIT
@@ -42,4 +42,4 @@ then
 	${EBROOTNGSMINUTILS}/makeSamplesheet_InhouseNoFastQinfo.sh ${@}
 fi
 
-fi
+

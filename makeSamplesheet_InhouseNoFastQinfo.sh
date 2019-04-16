@@ -25,7 +25,7 @@ Options:
         -l  lane (number of lanes used, 1 for MiSeq, 4 for NextSeq)
         
         -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
-            if no informationFile is provided, -n samplesNumber is required
+            if no informationFile is provided, -n sampleNumber is required
         -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
         
         Optional:
