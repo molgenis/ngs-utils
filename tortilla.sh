@@ -9,15 +9,14 @@ cat <<EOH
 
 Script requires one initial argument:
 
-	-m|--makeSamplesheet        Creating an samplesheet for inhouse sequencing runs, no FastQ files are made jet. (makeSamplesheet_inhouse_research.sh)
-	-s|--makeSamplesheetExternal    Creating an (external) samplesheet based on a inputfolder containing e.g. FastQ files (makeSamplesheet_external_samples.sh)
-	-b|--bamout		Recreating the bam file for a certain region where the variant calling is based on (bamout.sh)
-	-c|--countCoverage	Counting coverage (avg,med,sd,percentage 10/20/30/50/100x coverage) per Gene and target based on the panel that is given (countCoverage.sh)
-	-v|--vcfCompare		Comparing 2 vcf files with eachother, this will output the differences + a vcf stats file (vcf-compare_2.0.sh)
-	-n|--validateNGS	Script to check the known SNPs back in the NGS_DNA_Verification_test (checkValidationNGS_DNA.sh)
-	-r|--revertBamToFastQ	go back from bam to fastq (paired end only)
-	-cc|--calculateCoverage	CoveragePerBase or per Target calculations for a specific targetpanel
-	-d|--cramToBam		converting cram files to bam(CramConversion.sh)
+    -m|--makeSamplesheet        Go to tortilla_makeSamplesheet, for different make samplesheet options. (tortilla_makeSamplesheet.sh)
+    -b|--bamout                 Recreating the bam file for a certain region where the variant calling is based on (bamout.sh)
+    -c|--countCoverage          Counting coverage (avg,med,sd,percentage 10/20/30/50/100x coverage) per Gene and target based on the panel that is given (countCoverage.sh)
+    -v|--vcfCompare             Comparing 2 vcf files with eachother, this will output the differences + a vcf stats file (vcf-compare_2.0.sh)
+    -n|--validateNGS            Script to check the known SNPs back in the NGS_DNA_Verification_test (checkValidationNGS_DNA.sh)
+    -r|--revertBamToFastQ       go back from bam to fastq (paired end only)
+    -cc|--calculateCoverage     CoveragePerBase or per Target calculations for a specific targetpanel
+    -d|--cramToBam              Converting cram files to bam(CramConversion.sh)
 ===============================================================================================================
 EOH
 trap - EXIT
@@ -34,12 +33,7 @@ fi
 if [[ "${1}" == "--makeSamplesheet" || "${1}" == "-m" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/makeSamplesheet_inhouse_research.sh ${@}
-
-elif [[ "${1}" == "--makeSamplesheetExternal" || "${1}" == "-s" ]]
-then
-	shift
-	${EBROOTNGSMINUTILS}/makeSamplesheet_external_samples.sh ${@}
+	${EBROOTNGSMINUTILS}/tortilla_makeSamplesheet.sh ${@}
 
 elif [[ "${1}" == "--bamout" || "${1}" == "-b" ]]
 then

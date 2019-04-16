@@ -24,6 +24,10 @@ Options:
         -q  sequencer (NextSeq:NB501043/NB501093 or MiSeq:M01785/M01997)
         -l  lane (number of lanes used, 1 for MiSeq, 4 for NextSeq)
         
+        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
+            if no informationFile is provided, -n sampleNumber is required
+        -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
+        
         Optional:
         -w  workDir (default is this directory)
         -b  barcodeType (default: RPI. AGI,LEX, NEB enz.)
@@ -32,8 +36,7 @@ Options:
         -g  species (default:homo_sapiens|GRCh37, if other species, supply like 'homo_sapiens|GRCh37')
         -s  sampleType (DNA/RNA, default:RNA)
         -t  seqType (default:PE. otherwise specify SR)
-        -i  informationFile (default:None. Comma separated txt file, 1st column barcode, 2nd colum externalSampleID. NO HEADER!)
-        -n  sampleNumber (Number of samples in the pool, only necessary if no informationFile is provided)
+
         
 Output will be written in workDir with the name: {projectName}.csv
 ===============================================================================================================
@@ -130,12 +133,13 @@ if [[ -z "${barcodeType:-}" ]]; then
     barcodeType="RPI"
 fi
 
-if [[ -z "${sampleNumber:-}" ]]; then
-    sampleNumber=""
-fi
-
 if [[ -z "${informationFile:-}" ]]; then
     informationFile="None"
+    if [[ -z "${sampleNumber:-}" ]]; then
+        echo -e '\n ERROR: must specify number of samples used'
+        showHelp        
+        exit 1
+    fi
 fi
 
 
