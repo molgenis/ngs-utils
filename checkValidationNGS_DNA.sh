@@ -16,7 +16,7 @@ Options:
 	-i   inputFolder
 	-t   inputType (vcf or vcf.gz) (default= vcf.gz)
 	-o   outputFolder (default:\${inputFolder}/output/)
-	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm02/projects/NGS_DNA_Verification_test_ZF/validationVcfs/)
+	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm06/projects/validationVcfs/)
 ===============================================================================================================
 EOH
 	trap - EXIT
@@ -109,7 +109,7 @@ done
 if [[ -z "${inputFolder:-}" ]]; then showHelp ; echo "inputFolder is not specified" ; fi ; echo "inputFolder=${inputFolder}"
 if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${inputFolder}/output/" ; outputFolder="${inputFolder}/output/" ; fi ; echo "outputFolder=${outputFolder}"
 if [[ -z "${inputType:-}" ]]; then inputType="vcf.gz" ; fi ; echo "inputType=${inputType}"
-if [[ -z "${validationFolderPrm:-}" ]]; then validationFolderPrm="/groups/umcg-gd/prm03/projects/validationVcfs/" ; fi ; echo "validationFolderPrm=${validationFolderPrm}"
+if [[ -z "${validationFolderPrm:-}" ]]; then validationFolderPrm="/groups/umcg-gd/prm06/projects/validationVcfs/" ; fi ; echo "validationFolderPrm=${validationFolderPrm}"
 
 ml GATK 
 
