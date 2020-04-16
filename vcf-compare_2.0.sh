@@ -8,7 +8,7 @@ set -u  # Exit if any uninitialised variable is used.
 
 usage() {
     echo '##################################################################################################'
-    echo ' This tool compares 2 VCF files and shows only the different rows based on the following columns:'
+    echo ' This tool compares 2 VCF files (or GZIPPED vcf) and shows only the different rows based on the following columns:'
     echo '   CHROM, POS, REF, ALT and SampleID:GT'
     echo
     echo ' Usage:'
@@ -24,7 +24,6 @@ usage() {
 declare VCF1=""
 declare VCF2=""
 declare OUT=""
-
 #
 # Take the parameters given on the commandline and assign them to variables.
 #
@@ -73,25 +72,49 @@ printf "vcf1:${VCF1}\nvcf2:${VCF2}"> "${OUT}/runparameters.txt"
 #
 # select filenames from given path and check if they are unique.
 #
-vcf01="$(basename ${VCF1})"
-vcf02="$(basename ${VCF2})"
-if [ ${vcf01} == ${vcf02} ]; then
-	usage
-	echo
-	echo "ERROR: ${vcf01} is equal to ${vcf02}."
-	echo "       Make sure the filenames are unique!"
-	echo
+
+checkformatVCF1=${VCF1##*.}
+checkformatVCF2=${VCF2##*.}
+
+if [ "${checkformatVCF1}" != "${checkformatVCF2}" ]
+then
+	echo "formats are not the same ($checkformatVCF1 vs $checkformatVCF2)"
 	exit 1
 fi
+
+if [ "${checkformatVCF1}" == "gz" ]
+then
+	inputVcf1=${VCF1%.*}
+	gzip -c -d $VCF1 > ${inputVcf1}
+
+	inputVcf2=${VCF2%.*}
+	gzip -c -d $VCF2 > ${inputVcf2}
+elif [ "${checkformatVCF1}" == "vcf" ]
+then
+	inputVcf1=$VCF1
+	inputVcf2=$VCF2
+else
+	echo "not a correct format, please use vcf or vcf.gz"
+	exit 1
+fi
+
+vcf01="$(basename ${inputVcf1})"
+vcf02="$(basename ${inputVcf2})"
+if [ "${vcf01}" == "${vcf02}" ]; then
+	echo "files are identical, vcf02 gets a suffix"
+	t="${vcf02}.2"
+	vcf02=${t}
+fi
+
 ##Remove header
-grep -v '^#' $VCF1 > ${SCRATCH}/${vcf01}.removedHeader.txt
+grep -v '^#' ${inputVcf1} > ${SCRATCH}/${vcf01}.removedHeader.txt
 ## Get only necessary columns
 awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${SCRATCH}/${vcf01}.removedHeader.txt > ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt
 ##get only genotype call
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf01}.stripped.txt
 
 
-awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' $VCF2 > ${SCRATCH}/${vcf02}.stripped.txt
+awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${inputVcf2} > ${SCRATCH}/${vcf02}.stripped.txt
 grep -v '^#' ${SCRATCH}/${vcf02}.stripped.txt > ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf02}.stripped.txt
 
@@ -133,6 +156,7 @@ done<${SCRATCH}/${vcf02}.stripped.txt
 printf "" > ${SCRATCH}/differences.txt
 printf "" > ${SCRATCH}/diff.txt
 
+echo "comparing vcf1 with vcf2"
 for i in "${!arrVCF1[@]}"
 do
 	if [ "${arrVCF2[$i]+abc}" ] && printf "$i ${arrVCF1[$i]}\n" >> ${SCRATCH}/truePos.txt
@@ -147,6 +171,9 @@ do
 		printf "$i\t${arrVCF1[$i]}\n" >> ${SCRATCH}/notInVcf2.txt
 	fi
 done
+
+echo "comparing vcf2 with vcf1"
+
 for i in "${!arrVCF2[@]}"
 do
         if [ "${arrVCF1[$i]+abc}" ]
@@ -161,52 +188,89 @@ do
         fi
 done
 
+bold=`tput bold`
+normal=`tput sgr0`
+underline=`tput smul`
 
 sort -n -k1 ${SCRATCH}/diff.txt > ${SCRATCH}/differences.txt
 perl -pi -e 's|-|\t|' ${SCRATCH}/differences.txt
 printf "" > ${OUT}/vcfStats.txt
 
-falseNegative=$(cat ${SCRATCH}/notInVcf2.txt | wc -l)
-falsePositive=$(cat ${SCRATCH}/notInVcf1.txt | wc -l)
-alarm=$(cat ${SCRATCH}/inconsistent.txt | wc -l)
+alarm=0
+falseNegative=0
+falsePositive=0
+
+##NOT IN VCF2
+if [ -f ${SCRATCH}/notInVcf2.txt ]
+then
+	falseNegative=$(cat ${SCRATCH}/notInVcf2.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/notInVcf2.txt > ${SCRATCH}/notInVcf2.txt.sorted
+	printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf2.txt
+	cat ${SCRATCH}/notInVcf2.txt.sorted >> ${OUT}/notInVcf2.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/notInVcf2.txt
+fi
+
+##NOT IN VCF1
+if [ -f ${SCRATCH}/notInVcf1.txt ]
+then
+	falsePositive=$(cat ${SCRATCH}/notInVcf1.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/notInVcf1.txt > ${SCRATCH}/notInVcf1.txt.sorted
+	printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf1.txt
+	cat ${SCRATCH}/notInVcf1.txt.sorted >> ${OUT}/notInVcf1.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/notInVcf1.txt
+fi
+
+## INCONSISTENT
+if [ -f ${SCRATCH}/inconsistent.txt ]
+then
+	alarm=$(cat ${SCRATCH}/inconsistent.txt | wc -l)
+	sort -V -k1 ${SCRATCH}/inconsistent.txt > ${SCRATCH}/inconsistent.txt.sorted
+	printf "${bold}$underline\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n$normal" > ${OUT}/inconsistent.txt
+	printf "${bold}chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n${normal}" >> ${OUT}/inconsistent.txt
+	cat ${SCRATCH}/inconsistent.txt.sorted >> ${OUT}/inconsistent.txt
+	perl -pi -e 's|-|\t|g' ${OUT}/inconsistent.txt
+	
+fi
+
+##TRUE POS
 truePos=$(cat ${SCRATCH}/truePos.txt | wc -l)
-
-sort -V -k1 ${SCRATCH}/notInVcf2.txt > ${SCRATCH}/notInVcf2.txt.sorted
-sort -V -k1 ${SCRATCH}/notInVcf1.txt > ${SCRATCH}/notInVcf1.txt.sorted
-sort -V -k1 ${SCRATCH}/inconsistent.txt > ${SCRATCH}/inconsistent.txt.sorted
 sort -V -k1 ${SCRATCH}/truePos.txt > ${SCRATCH}/truePos.txt.sorted
-
-bold=`tput bold`
-normal=`tput sgr0`
-underline=`tput smul`
-printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf2.txt
-printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/notInVcf1.txt
-printf "${bold}$underline\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n$normal" > ${OUT}/inconsistent.txt
-
-printf "${bold}chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n${normal}" >> ${OUT}/inconsistent.txt
 printf "chr\tpos\tref\talt\tgen\n" > ${OUT}/truePos.txt
-
-cat ${SCRATCH}/notInVcf2.txt.sorted >> ${OUT}/notInVcf2.txt
-cat ${SCRATCH}/notInVcf1.txt.sorted >> ${OUT}/notInVcf1.txt
-cat ${SCRATCH}/inconsistent.txt.sorted >> ${OUT}/inconsistent.txt
 cat ${SCRATCH}/truePos.txt.sorted >> ${OUT}/truePos.txt
 
-perl -pi -e 's|-|\t|g' ${OUT}/notInVcf2.txt
-perl -pi -e 's|-|\t|g' ${OUT}/notInVcf1.txt
-perl -pi -e 's|-|\t|g' ${OUT}/inconsistent.txt
 perl -pi -e 's|-|\t|g' ${OUT}/truePos.txt
 
+
 total=$((truePos + alarm + falsePositive + falseNegative))
-
-tpr=$(awk "BEGIN {printf \"%.2f\n\", ((${truePos}/$total)*100)}")
-fpr=$(awk "BEGIN {printf \"%.2f\n\", ((${falsePositive}/$total)*100)}")
-fnr=$(awk "BEGIN {printf \"%.2f\n\", ((${falseNegative}/$total)*100)}")
-alarmRate=$(awk "BEGIN {printf \"%.2f\n\", ((${alarm}/$total)*100)}")
-
 printf "TotalNumber:${total}\n" >> ${OUT}/vcfStats.txt
+##TRUE POS
+tpr=$(awk "BEGIN {printf \"%.2f\n\", ((${truePos}/$total)*100)}")
 printf "TP:$truePos, TP rate: ${tpr}%%\n" >> ${OUT}/vcfStats.txt
-printf "FP:$falsePositive, FP rate: ${fpr}%%\n" >> ${OUT}/vcfStats.txt
-printf "FN:$falseNegative, FN rate: ${fnr}%%\n" >> ${OUT}/vcfStats.txt
-printf "Inconsistent:$alarm, InconsistentRate: ${alarmRate}%%\n" >> ${OUT}/vcfStats.txt
+
+if [ ${falseNegative} -ne 0 ]
+then
+	fnr=$(awk "BEGIN {printf \"%.2f\n\", ((${falseNegative}/$total)*100)}")
+	printf "FN:$falseNegative, FN rate: ${fnr}%%\n" >> ${OUT}/vcfStats.txt	
+else
+	printf "FP:$falseNegative, FN rate: 0%%\n" >> ${OUT}/vcfStats.txt
+
+fi
+if [ ${falsePositive} -ne 0 ]
+then	
+	fpr=$(awk "BEGIN {printf \"%.2f\n\", ((${falsePositive}/$total)*100)}")
+	printf "FP:$falsePositive, FP rate: ${fpr}%%\n" >> ${OUT}/vcfStats.txt
+else
+	printf "FP:$falsePositive, FP rate: 0%%\n" >> ${OUT}/vcfStats.txt
+fi
+if [ ${alarm} -ne 0 ]
+then
+	alarmRate=$(awk "BEGIN {printf \"%.2f\n\", ((${alarm}/$total)*100)}")
+	printf "Inconsistent:$alarm, InconsistentRate: ${alarmRate}%%\n" >> ${OUT}/vcfStats.txt
+else
+	printf "Inconsistent:$alarm, InconsistentRate: 0%%\n" >> ${OUT}/vcfStats.txt
+fi
+
+printf "done..\nComparison can be found: $OUT \n"
+
 
 exit 0

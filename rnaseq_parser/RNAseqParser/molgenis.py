@@ -1,6 +1,6 @@
-import requests;
-import json;
-import warnings;
+import requests
+import json
+import urllib
 
 try:
     from urllib.parse import quote_plus
@@ -16,6 +16,7 @@ class Session():
     >>> session.login('user', 'password')
     >>> session.get('Person')
     '''
+    
     def __init__(self, url):
         '''Constructs a new Session.
         Args:
@@ -36,8 +37,8 @@ class Session():
         '''
         self.session.cookies.clear()
         response = self.session.post(self.url + "v1/login", 
-            data=json.dumps({"username":username, "password":password}), 
-            headers={"Content-Type":"application/json"})
+                                    data=json.dumps({"username":username, "password":password}), 
+                                    headers={"Content-Type":"application/json"})
         if response.status_code == 200:
             self.token = response.json()["token"]
         response.raise_for_status();
@@ -46,7 +47,7 @@ class Session():
     def logout(self):
         '''Logs out the current session token.'''
         response = self.session.post(self.url + "v1/logout",
-            headers = self._get_token_header())
+                                    headers = self._get_token_header())
         if response.status_code == 200:
             self.token = None
         response.raise_for_status();
@@ -65,8 +66,8 @@ class Session():
         session.get('Person', 'John')
         '''
         response = self.session.get(self.url + "v1/" + quote_plus(entity) + '/' + quote_plus(id),
-                headers = self._get_token_header(),
-                params={"attributes": attributes, "expand": expand})
+                                    headers = self._get_token_header(),
+                                    params={"attributes": attributes, "expand": expand})
         if response.status_code == 200:
             return response.json()
         response.raise_for_status();
@@ -90,13 +91,15 @@ class Session():
         '''
         if q:
             response = self.session.post(self.url + "v1/" + quote_plus(entity),
-                headers = self._get_token_header_with_content_type(),
-                params={ "_method":"GET"},
-                data=json.dumps({"q":q, "attributes":attributes, "expand": expand, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder}))
+            headers = self._get_token_header_with_content_type(),
+            params={ "_method":"GET"},
+            data=json.dumps({"q":q, "attributes":attributes, "expand": expand, "num": num, "start": start,
+            "sortColumn":sortColumn, "sortOrder": sortOrder}))
         else:
             response = self.session.get(self.url + "v1/" + quote_plus(entity),
-                headers = self._get_token_header(),
-                params={"attributes":attributes, "expand": expand, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder": sortOrder})
+            headers = self._get_token_header(),
+            params={"attributes":attributes, "expand": expand, "num": num, "start": start, "sortColumn":sortColumn, "sortOrder":
+            sortOrder})
         if response.status_code == 200:
             return response.json()["items"]
         response.raise_for_status();
@@ -108,8 +111,10 @@ class Session():
         Args:
         entity -- fully qualified name of the entity
         files -- dictionary containing file attribute values for the entity row.
-            The dictionary should for each file attribute map the attribute name to a tuple containing the file name and an input stream.
-        data -- dictionary mapping attribute name to non-file attribute value for the entity row, gets merged with the kwargs argument
+        The dictionary should for each file attribute map the attribute name to a tuple containing the file name and an
+        input stream.
+        data -- dictionary mapping attribute name to non-file attribute value for the entity row, gets merged with the
+        kwargs argument
         **kwargs -- keyword arguments get merged with the data argument
 
         Examples:
@@ -118,14 +123,14 @@ class Session():
 
         You can have multiple file type attributes.
 
-        >>> session.add('Plot', files={'image': ('expression.jpg', open('~/first-plot.jpg','rb')), 
-            'image2': ('expression-large.jpg', open('/Users/me/second-plot.jpg', 'rb'))}, 
-            data={'name':'IBD-plot'})
+        >>> session.add('Plot', files={'image': ('expression.jpg', open('~/first-plot.jpg','rb')),
+        'image2': ('expression-large.jpg', open('/Users/me/second-plot.jpg', 'rb'))},
+        data={'name':'IBD-plot'})
         ''' 
         response = self.session.post(self.url + "v1/" + quote_plus(entity),
-            headers = self._get_token_header(),
-            data = self._merge_two_dicts(data, kwargs),
-            files = files)
+                                    headers = self._get_token_header(),
+                                    data = self._merge_two_dicts(data, kwargs),
+                                    files = files)
         if response.status_code == 201:
             return response.headers["Location"].split("/")[-1]
         response.raise_for_status()
@@ -134,28 +139,39 @@ class Session():
     def add_all(self, entity, entities):
         '''Adds multiple entity rows to an entity repository.'''
         response = self.session.post(self.url+"v2/"+quote_plus(entity),
-            headers = self._get_token_header_with_content_type(),
-            data = json.dumps({"entities" : entities}))
+                                    headers = self._get_token_header_with_content_type(),
+                                    data = json.dumps({"entities" : entities}))
         if response.status_code == 201:
             return [resource["href"].split("/")[-1] for resource in response.json()["resources"]]
         response.raise_for_status();
         return response;
-
+    
+    def update_one(self, entity, id, attr, value):
+        '''Updates one attribute of a given entity in a table with a given value'''
+        response = self.session.put(self.url + "v1/" + quote_plus(entity)+"/"+id+"/"+attr,
+                                    headers=self._get_token_header_with_content_type(),
+                                    data=json.dumps(value))
+        response.raise_for_status()
+        return response
+    
     def delete(self, entity, id):
         '''Deletes a single entity row from an entity repository.'''
-        response = self.session.delete(self.url + "v1/" + quote_plus(entity))#+ "/" + quote_plus(id), headers = self._get_token_header())
+        response = self.session.delete(self.url + "v1/" + quote_plus(entity)+ "/" + quote_plus(id), 
+                                       headers = self._get_token_header())
         response.raise_for_status();
         return response;
 
     def get_entity_meta_data(self, entity):
         '''Retrieves the metadata for an entity repository.'''
-        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta?expand=attributes", headers = self._get_token_header())
+        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta?expand=attributes", 
+                                    headers = self._get_token_header())
         response.raise_for_status();
         return response.json();
 
     def get_attribute_meta_data(self, entity, attribute):
         '''Retrieves the metadata for a single attribute of an entity repository.'''
-        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta/"+ quote_plus(attribute), headers = self._get_token_header())
+        response = self.session.get(self.url + "v1/" + quote_plus(entity) + "/meta/"+ quote_plus(attribute), 
+                                    headers = self._get_token_header())
         response.raise_for_status();
         return response.json();
 

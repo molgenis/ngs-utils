@@ -89,6 +89,12 @@ if args.coupling:
 if args.fast is not None:
     fast_mode = args.fast
 
+if args.coupling is not None:
+    same_names = False
+if args.fast is not None:
+    fast_mode = True
+fast_mode = False # fast mode compares 0|1 and 0|1 instead of A|G A|G...CT|CT T|T is not detected!
+
 # If the sample names are not the same provide a two column tab delimited coupling file CheckID RefID
 ref_reader = vcf.Reader(filename=args.reference)
 chk_reader = vcf.Reader(filename=args.toevaluate)
