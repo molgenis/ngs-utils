@@ -35,7 +35,7 @@ Options:
 
    required:
 	-p   projectname ngs
-	-f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123;4532101)
+	-f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
 	-g   which group
     optional:
 	-p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
