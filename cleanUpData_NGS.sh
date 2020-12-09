@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 set -u
 
@@ -41,7 +43,6 @@ Options:
         -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
 ===============================================================================================================
 EOH
-	trap - EXIT
 	exit 0
 }
 

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -e
 set -u
 
@@ -40,7 +42,6 @@ Options:
         -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
 ===============================================================================================================
 EOH
-	trap - EXIT
 	exit 0
 }
 
@@ -90,7 +91,8 @@ IFS=',' read -ra GLAASJES <<< \"${filePrefix}\"
 echo "switch user to ${group}-dm to remove data from ${prmCluster} and ${project}"
 sudo -u ${group}-dm bash << EOF
 ssh ${prmCluster} '
-for i in ${GLAASJES[@]} ; do echo \$i ; done
+for i in ${GLAASJES[@]} ; do rm -rf \$i ; done
+echo "removed ${GLAASJES[@]}"
 rm -rf /groups/${group}/${prm}/logs/${project}
 echo "rm -rf /groups/${group}/${prm}/logs/${project}"
 rm -rf /groups/${group}/${prm}/projects/${project}
