@@ -91,7 +91,7 @@ IFS=',' read -ra GLAASJES <<< \"${filePrefix}\"
 echo "switch user to ${group}-dm to remove data from ${prmCluster} and ${project}"
 sudo -u ${group}-dm bash << EOF
 ssh ${prmCluster} '
-for i in ${GLAASJES[@]} ; do rm -rf \$i ; done
+for i in ${GLAASJES[@]} ; do rm -rf "/groups/${group}/${prm}/rawdata/array/{IDAT,GTC}/\$i" ; done
 echo "removed ${GLAASJES[@]}"
 rm -rf /groups/${group}/${prm}/logs/${project}
 echo "rm -rf /groups/${group}/${prm}/logs/${project}"
