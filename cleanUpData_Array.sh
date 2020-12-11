@@ -5,10 +5,10 @@ set -u
 
 
 function showHelp() {
-	#
-	# Display commandline help on STDOUT.
-	#
-	cat <<EOH
+        #
+        # Display commandline help on STDOUT.
+        #
+        cat <<EOH
 ===============================================================================================================
 Script to remove data from prm,scr and diagnostic cluster for ARRAY:
 prm --> rm -rf rawdata/array/IDAT/{glaasje}
@@ -29,45 +29,45 @@ scr01 --> rm -rf tmp/{project}
 scr01 --> rm -rf projects/{project}
 scr01 --> rm -rf logs/{project}
 Usage:
-	$(basename $0) OPTIONS
+        $(basename $0) OPTIONS
 Options:
-	-h   Show this help.
+        -h   Show this help.
 
    required:
-	-p   projectname ngs
-	-f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
-	-g   which group
+        -p   projectname ngs
+        -f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
+        -g   which group
     optional:
-	-p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
+        -p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
         -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
 ===============================================================================================================
 EOH
-	exit 0
+        exit 0
 }
 
-while getopts "p:f:g:p:d:h" opt; 
+while getopts "p:f:g:p:d:h" opt;
 do
-	case $opt in h)showHelp;; p)project="${OPTARG}";; f)filePrefix="${OPTARG}";;  g)group="${OPTARG}";; p)prmOther="${OPTARG}";; d)gattacaOther="${OPTARG}";;
-esac 
+        case $opt in h)showHelp;; p)project="${OPTARG}";; f)filePrefix="${OPTARG}";;  g)group="${OPTARG}";; p)prmOther="${OPTARG}";; d)gattacaOther="${OPTARG}";;
+esac
 done
 
 ## setting defaults
 if [[ $(hostname -s) == "leucine-zipper" ]]
 then
-	prm="prm06"
-	prmCluster="chaperone"
-	gattaca="gattaca01.gcc.rug.nl"
-	tmpFolder="tmp06"
-	scr="scr01"
+        prm="prm06"
+        prmCluster="chaperone"
+        gattaca="gattaca01.gcc.rug.nl"
+        tmpFolder="tmp06"
+        scr="scr01"
 elif [[ $(hostname -s) == "zinc-finger" ]]
 then
-	prm="prm05"
-	prmCluster="coenzyme"
-	gattaca="gattac02.gcc.rug.nl"
-	tmpFolder="tmp05"
-	scr="scr01"
+        prm="prm05"
+        prmCluster="coenzyme"
+        gattaca="gattaca02.gcc.rug.nl"
+        tmpFolder="tmp05"
+        scr="scr01"
 else
-	echo "at this moment we can only run this on leucine-zipper (leu-chap-gat1-prm06) or zinc-finger train (zinc-coe-gat2-prm05)"
+        echo "at this moment we can only run this on leucine-zipper (leu-chap-gat1-prm06) or zinc-finger train (zinc-coe-gat2-prm05)"
 fi
 
 if [[ -z "${project:-}" ]]; then showHelp ; echo "project not defined" ; fi
@@ -91,14 +91,11 @@ IFS=',' read -ra GLAASJES <<< \"${filePrefix}\"
 echo "switch user to ${group}-dm to remove data from ${prmCluster} and ${project}"
 sudo -u ${group}-dm bash << EOF
 ssh ${prmCluster} '
-for i in ${GLAASJES[@]} ; do rm -rf "/groups/${group}/${prm}/rawdata/array/{IDAT,GTC}/\$i" ; done
+for i in ${GLAASJES[@]} ; do rm -rf /groups/${group}/${prm}/rawdata/array/{IDAT,GTC}/\$i ; done
 echo "removed ${GLAASJES[@]}"
-rm -rf /groups/${group}/${prm}/logs/${project}
-echo "rm -rf /groups/${group}/${prm}/logs/${project}"
-rm -rf /groups/${group}/${prm}/projects/${project}
-echo "rm -rf /groups/${group}/${prm}/projects/${project}"
-mv -f /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/ 2&>1 /dev/null
-echo "mv -f /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/"
+rm -rvf /groups/${group}/${prm}/logs/${project}
+rm -rvf /groups/${group}/${prm}/projects/${project}
+mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/
 echo "cleaned up prm"
 '
 exit
@@ -106,31 +103,21 @@ EOF
 
 echo "switch user to ${group}-ateambot to remove data from $(hostname -s) for ${project}"
 sudo -u ${group}-ateambot bash -l << EOF
-id
-rm -rf /groups/${group}/${tmpFolder}/logs/${project}
-echo "rm -rf /groups/${group}/${tmpFolder}/logs/${project}"
-rm -rf /groups/${group}/${tmpFolder}/generatedscripts/${project}
-echo "rm -rf /groups/${group}/${tmpFolder}/generatedscripts/${project}"
-rm -rf /groups/${group}/${tmpFolder}/projects/${project}
-echo "rm -rf /groups/${group}/${tmpFolder}/projects/${project}"
-rm -rf /groups/${group}/${tmpFolder}/tmp/${project}
-echo "rm -rf /groups/${group}/${tmpFolder}/tmp/${project}"
-rm -f /groups/${group}/${tmpFolder}/Samplesheets/${project}.csv
-echo "rm -f /groups/${group}/${tmpFolder}/Samplesheets/${project}.csv"
-echo cleaned up tmp on diagnostics cluster
-echo now moving to ${gattaca} to clean up ${project}
+rm -rvf "/groups/${group}/${tmpFolder}/logs/${project}"
+rm -rvf "/groups/${group}/${tmpFolder}/generatedscripts/${project}"
+rm -rvf "/groups/${group}/${tmpFolder}/projects/${project}"
+rm -rvf "/groups/${group}/${tmpFolder}/tmp/${project}"
+rm -vf "/groups/${group}/${tmpFolder}/Samplesheets/${project}.csv"
+echo "cleaned up tmp on diagnostics cluster"
+echo "now moving to ${gattaca} to clean up ${project}"
 
 ssh ${gattaca} "
-rm -rf /groups/${group}/${scr}/logs/${project}
-echo rm -rf /groups/${group}/${scr}/logs/${project}
-rm -rf /groups/${group}/${scr}/rawdata/ngs/${filePrefix}
-echo rm -rf /groups/${group}/${scr}/projects/${project}
-rm -rf /groups/${group}/${scr}/projects/${project}
-rm -rf /groups/${group}/${scr}/tmp/${project}
-echo rm -rf /groups/${group}/${scr}/tmp/${project}
-mv -f /groups/${group}/${scr}/Samplesheets/archive/${project}.csv /groups/${group}/${scr}/Samplesheets/ 2&>1 /dev/null
+rm -rvf /groups/${group}/${scr}/logs/${project}
+rm -rvf /groups/${group}/${scr}/rawdata/ngs/${filePrefix}
+rm -rvf /groups/${group}/${scr}/projects/${project}
+rm -rvf /groups/${group}/${scr}/tmp/${project}
+mv -f /groups/${group}/${scr}/Samplesheets/archive/${project}.csv /groups/${group}/${scr}/Samplesheets/
 echo \"cleaned up scr on gattaca\"
 "
 exit
 EOF
-
