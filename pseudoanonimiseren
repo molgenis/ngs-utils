@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -eu
+
+ml SAMtools
+
+while read line
+do
+newKey=$(echo "${line}" | awk '{print $1}')     ##sample1
+oldKey=$(echo "${line}" | awk '{print $2}')     ## DNA12345
+bam=$(ls *${oldKey}*.bam) ## 20000_DNA12345_000_12312.merged.bam
+sampleName=${bam%%.*} ## 20000000_DNA12345_0000000_1231244
+echo "BAM: ${bam} ${oldKey} ${newKey} ${sampleName}"
+
+if [ -f "${bam}.finished" ]
+then
+echo "skipping ${bam} conversion, already converted"
+else
+samtools view -H "${bam}" > "${sampleName}.header.sam"   
+perl -pi -e s"|$sampleName|$newKey|"g "${sampleName}.header.sam"
+ 		echo "starting to reheader ${bam} to ${newKey}.reheader.bam"
+samtools reheader -P "${sampleName}.header.sam" "${bam}" >  "${newKey}.reheader.bam"
+echo "mv ${bam} ${newKey}.reheader.bam"
+touch "${bam}.finished"
+fi
+done<samples.tsv
