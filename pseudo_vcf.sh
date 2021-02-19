@@ -38,15 +38,14 @@ database file is created on chaperone as umcg-gd-dm user, in /home/umcg-gd-dm/in
 Then the file is copied to /groups/umcg-gd/tmp06/pseudo/
 ===============================================================================================================
 EOH
-        exit 0
+		exit 0
 }
 
 while getopts "i:g:d:s:f:mp:h" opt;
 do
-        case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";; m)mantaBool='-m';;  p)prm="${OPTARG}";;w)workDir="${OPTARG}";;
+		case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";; m)mantaBool='-m';;  p)prm="${OPTARG}";;w)workDir="${OPTARG}";;
 		esac
 done
-
 
 if [[ -z "${input:-}" && -z "${search:-}" ]]
 then
@@ -76,17 +75,15 @@ then
 		showHelp 
 		echo "no mapping file"
 		exit 1 
-
 	fi
 fi
 
 if [[ -z "${workDir:-}" ]]
 then
-        workDir="$(pwd)/pseudoTmp/"
+		workDir="$(pwd)/pseudoTmp/"
 else
-        workDir="${workDir}/pseudoTmp/"
+		workDir="${workDir}/pseudoTmp/"
 fi
-
 
 mkdir -p "${workDir}/"{variants,manta}"/"{output,tmp,input}"/"
 
