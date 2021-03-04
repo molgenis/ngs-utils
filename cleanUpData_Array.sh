@@ -75,7 +75,7 @@ else
 fi
 
 if [[ -z "${project:-}" ]]; then showHelp ; echo "project not defined" ; fi
-if [[ -z "${glaasjeNumbers:-}" ]]; then showHelp ; echo "filePrefix not specified" ; fi
+if [[ -z "${glaasjeNumbers:-}" ]]; then showHelp ; echo "glaasjeNumbers not specified" ; fi
 if [[ -z "${group:-}" ]]; then showHelp ; echo "group not specified" ; fi
 if [[ -z "${prmOther:-}" ]]; then prm="${prm}"; else prm="${prmOther}" ; fi
 if [[ -z "${gattacaOther:-}" ]]; then gattaca="${gattaca}" ; else gattaca="${gattacaOther}" ; fi
