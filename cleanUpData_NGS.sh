@@ -87,20 +87,31 @@ echo "prmCluster=${prmCluster}"
 echo "prm=${prm}"
 echo "tmpFolder=${tmpFolder}"
 echo "scr=${scr}"
-
-echo "switch user to ${group}-dm to remove data from ${prmCluster} for ${filePrefix} and ${project}"
-sudo -u ${group}-dm bash -l << EOF
-ssh ${prmCluster} "
-rm -rvf /groups/${group}/${prm}/logs/${project}
-rm -rvf /groups/${group}/${prm}/logs/${filePrefix}
-rm -rvf /groups/${group}/${prm}/rawdata/ngs/${filePrefix}
-rm -rf /groups/${group}/${prm}/projects/${project}
-mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/
-mv -vf /groups/${group}/${prm}/Samplesheets/${filePrefix}.csv /groups/${group}/${prm}/Samplesheets/archive/
-echo \"cleaned up prm\"
-"
-exit
-EOF
+if [[ "${group}" == 'umcg-gd' ]]
+then
+	echo "it is not possible to delete data via this script on prm. commands will be printed only (in case a variable is not expanded and everthing will be deleted by accident)"
+	echo -e "
+	rm -rvf /groups/${group}/${prm}/logs/${project}\n\
+	rm -rvf /groups/${group}/${prm}/logs/${filePrefix}\n\
+	rm -rvf /groups/${group}/${prm}/rawdata/ngs/${filePrefix}\n\
+	rm -rf /groups/${group}/${prm}/projects/${project}\n\
+	mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/\n\
+	mv -vf /groups/${group}/${prm}/Samplesheets/${filePrefix}.csv /groups/${group}/${prm}/Samplesheets/archive/"
+else
+	echo "switch user to ${group}-dm to remove data from ${prmCluster} for ${filePrefix} and ${project}"
+	sudo -u ${group}-dm bash -l << EOF
+	ssh ${prmCluster} "
+	rm -rvf /groups/${group}/${prm}/logs/${project}
+	rm -rvf /groups/${group}/${prm}/logs/${filePrefix}
+	rm -rvf /groups/${group}/${prm}/rawdata/ngs/${filePrefix}
+	rm -rf /groups/${group}/${prm}/projects/${project}
+	mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/
+	mv -vf /groups/${group}/${prm}/Samplesheets/${filePrefix}.csv /groups/${group}/${prm}/Samplesheets/archive/
+	echo \"cleaned up prm\"
+	"
+	exit
+	EOF
+fi
 
 echo "switch user to ${group}-ateambot to remove data from $(hostname -s) for ${project}"
 sudo -u ${group}-ateambot bash -l << EOF

@@ -23,21 +23,25 @@ tmp --> rm -rf logs/{project}
 tmp --> rm {project}.csv samplesheet from Samplesheets/
 scr01 --> move {project} samplesheet from Samplesheets/archive to Samplesheets/
 scr01 --> rm -rf rawdata/array/GTC/{glaasje}
-scr01 --> rm -rf rawdata/array/IDAT/{glaasje}
 scr01 --> rm -rf generatedscripts/{project}
 scr01 --> rm -rf tmp/{project}
 scr01 --> rm -rf projects/{project}
 scr01 --> rm -rf logs/{project}
+
+OPTIONAL:
+scr01 --> rm -rf rawdata/array/IDAT/{glaasje}
+
 Usage:
         $(basename $0) OPTIONS
 Options:
         -h   Show this help.
 
    required:
-        -p   projectname ngs
+        -p   projectname array
         -f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
         -g   which group
     optional:
+        -i   remove IDAT from sourceServer also
         -p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
         -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
 ===============================================================================================================
@@ -47,7 +51,7 @@ EOH
 
 while getopts "p:f:g:p:d:h" opt;
 do
-        case $opt in h)showHelp;; p)project="${OPTARG}";; f)filePrefix="${OPTARG}";;  g)group="${OPTARG}";; p)prmOther="${OPTARG}";; d)gattacaOther="${OPTARG}";;
+        case $opt in h)showHelp;; p)project="${OPTARG}";; f)glaasjeNumbers="${OPTARG}";;  g)group="${OPTARG}";; p)prmOther="${OPTARG}";; d)gattacaOther="${OPTARG}";; i)removeIDAT="-i";;
 esac
 done
 
@@ -71,14 +75,14 @@ else
 fi
 
 if [[ -z "${project:-}" ]]; then showHelp ; echo "project not defined" ; fi
-if [[ -z "${filePrefix:-}" ]]; then showHelp ; echo "filePrefix not specified" ; fi
+if [[ -z "${glaasjeNumbers:-}" ]]; then showHelp ; echo "filePrefix not specified" ; fi
 if [[ -z "${group:-}" ]]; then showHelp ; echo "group not specified" ; fi
 if [[ -z "${prmOther:-}" ]]; then prm="${prm}"; else prm="${prmOther}" ; fi
 if [[ -z "${gattacaOther:-}" ]]; then gattaca="${gattaca}" ; else gattaca="${gattacaOther}" ; fi
 
 
 echo "project=${project}"
-echo "filePrefix=${filePrefix}"
+echo "glaasjeNumbers=${glaasjeNumbers}"
 echo "group=${group}"
 echo "gattaca=${gattaca}"
 echo "prmCluster=${prmCluster}"
@@ -86,21 +90,29 @@ echo "prm=${prm}"
 echo "tmpFolder=${tmpFolder}"
 echo "scr=${scr}"
 
-IFS=',' read -ra GLAASJES <<< \"${filePrefix}\"
-
-echo "switch user to ${group}-dm to remove data from ${prmCluster} and ${project}"
-sudo -u ${group}-dm bash << EOF
-ssh ${prmCluster} '
-for i in ${GLAASJES[@]} ; do rm -rf /groups/${group}/${prm}/rawdata/array/{IDAT,GTC}/\$i ; done
-echo "removed ${GLAASJES[@]}"
-rm -rvf /groups/${group}/${prm}/logs/${project}
-rm -rvf /groups/${group}/${prm}/projects/${project}
-mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/
-echo "cleaned up prm"
-'
-exit
-EOF
-
+IFS=',' read -ra GLAASJES <<< \"${glaasjeNumbers}\"
+if [[ "${group}" == 'umcg-gap' ]]
+then
+	echo "it is not possible to delete data via this script on prm. commands will be printed only (in case a variable is not expanded and everthing will be deleted by accident)"
+	for i in ${GLAASJES[@]} ; do echo -e "rm -rf /groups/${group}/${prm}/rawdata/array/"{IDAT,GTC}"/"${i}"\n" ; done
+	echo -e "
+	rm -rvf /groups/${group}/${prm}/logs/${project}\n\
+	rm -rvf /groups/${group}/${prm}/projects/${project}\n\
+	mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/"
+else
+	echo "switch user to ${group}-dm to remove data from ${prmCluster} and ${project}"
+	sudo -u ${group}-dm bash << EOF
+	ssh ${prmCluster} "
+	for i in ${GLAASJES[@]} ; do rm -rf /groups/${group}/${prm}/rawdata/array/{IDAT,GTC}/\${i} ; done
+	echo "removed ${GLAASJES[@]}"
+	rm -rvf /groups/${group}/${prm}/logs/${project}
+	rm -rvf /groups/${group}/${prm}/projects/${project}
+	mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/
+	echo "cleaned up prm"
+	"
+	exit
+	EOF
+fi
 echo "switch user to ${group}-ateambot to remove data from $(hostname -s) for ${project}"
 sudo -u ${group}-ateambot bash -l << EOF
 rm -rvf "/groups/${group}/${tmpFolder}/logs/${project}"
@@ -113,7 +125,12 @@ echo "now moving to ${gattaca} to clean up ${project}"
 
 ssh ${gattaca} "
 rm -rvf /groups/${group}/${scr}/logs/${project}
-rm -rvf /groups/${group}/${scr}/rawdata/ngs/${filePrefix}
+if [[ -n "${removeIDAT:-}" ]]
+then
+	for i in ${GLAASJES[@]} ; do rm -rvf /groups/${group}/${scr}/rawdata/array//{IDAT,GTC}/\${i} ; done
+else
+	for i in ${GLAASJES[@]} ; do rm -rvf /groups/${group}/${scr}/rawdata/array//GTC/\${i} ; done
+fi
 rm -rvf /groups/${group}/${scr}/projects/${project}
 rm -rvf /groups/${group}/${scr}/tmp/${project}
 mv -f /groups/${group}/${scr}/Samplesheets/archive/${project}.csv /groups/${group}/${scr}/Samplesheets/

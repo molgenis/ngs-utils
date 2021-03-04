@@ -125,9 +125,12 @@ then
 
 		bcftools view -h "${workDir}/variants/input/${vcfFile}" > "${workDir}/variants/tmp/header.txt"
 		## pseudo anonimize sample and project
-		perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/variants/tmp/header.txt"
+		perl -pi -e "s|${sampleName}|${pseudo}|g" > "${workDir}/variants/tmp/header.txt"
 		perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/variants/tmp/header.txt"
-		bcftools reheader -h "${workDir}/variants/tmp/header.txt" -o "${workDir}/variants/output/${pseudo}.vcf.gz" "${workDir}/variants/input/${vcfFile}"
+		##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
+		sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/variants/tmp/header.txt" > "${workDir}/variants/tmp/updatedheader.txt"
+
+		bcftools reheader -h "${workDir}/variants/tmp/updatedheader.txt" -o "${workDir}/variants/output/${pseudo}.vcf.gz" "${workDir}/variants/input/${vcfFile}"
 
 		if [[ -n "${mantaBool:-}" ]]
 		then
@@ -140,7 +143,9 @@ then
 				bcftools view -h "${workDir}/manta/input/${mantaFile}" > "${workDir}/manta/tmp/header.txt"
 				perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/manta/tmp/header.txt"
 				perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/manta/tmp/header.txt"
-				bcftools reheader -h "${workDir}/manta/tmp/header.txt" -o "${workDir}/manta/output/${pseudo}_diploid.vcf.gz" "${workDir}/manta/input/${mantaFile}"
+				##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
+				sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/manta/tmp/header.txt" > "${workDir}/manta/tmp/updatedheader.txt"
+				bcftools reheader -h "${workDir}/manta/tmp/updatedheader.txt" -o "${workDir}/manta/output/${pseudo}_diploid.vcf.gz" "${workDir}/manta/input/${mantaFile}"
 			else
 				echo "original file was not found"
 				echo -e "original file was not found" > "${workDir}/manta/output/${pseudo}_diploid.vcf.gz.NOTFOUND"
