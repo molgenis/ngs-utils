@@ -45,3 +45,4 @@ foreach $chrom (@chromosomes){
     $execute_pindel = "$path_to_pindel $ref_genome $output4pindel $outputdir $brkdncresult $indel_size $cores $chrom";
     system($execute_pindel);
 }
+
