@@ -83,7 +83,7 @@ input="${sampleList}"
 
 # Making the reference samplesheet
 
-while read line
+while read -r line
  do
         echo "Making reference samplesheet for these samples:"
         echo "Warning: may contain duplicate samples, because samplesheets are sometimes stored on both prm05 and prm06 so please check the samplesheet before using it in GenomeStudio"
@@ -103,7 +103,7 @@ awk 'BEGIN {FS=","}{print $7 "_" $8}' "${outputFile}" > "${workDirectory}/barcod
 
 # Looping through the list of barcodes and positions
 
-while read line
+while read -r line
 do
         echo "${line}"
         col1=$(echo "${line}" | awk 'BEGIN {FS="_"}{print $1}')
