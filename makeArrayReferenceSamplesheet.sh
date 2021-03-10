@@ -70,11 +70,12 @@ then
         exit 0
 fi
 
-mkdir -p ${workDirectory}
+mkdir -p "${workDirectory}"
 
 datum=$(date '+%Y%m%d')
 echo "${datum}"
 outputFile="${workDirectory}/reference_samplesheet_${datum}.csv"
+missingSamplesFile="${workDirectory}/missing_samples_${datum}.csv"
 rm -rf "${outputFile}"
 touch "${outputFile}"
 input="${sampleList}"
@@ -87,11 +88,11 @@ while read line
         echo "Making reference samplesheet for these samples:"
         echo "Warning: may contain duplicate samples, because samplesheets are sometimes stored on both prm05 and prm06 so please check the samplesheet before using it in GenomeStudio"
         echo "${line}"
-        if grep "${line}" /groups/umcg-gap/prm0*/Samplesheets/archive/*.csv
+        if grep "${line}" "/groups/umcg-gap/prm0"*"/Samplesheets/archive/"*".csv"
         then
-                grep "${line}" /groups/umcg-gap/prm0*/Samplesheets/archive/*.csv >> "${outputFile}"
+                grep "${line}" "/groups/umcg-gap/prm0"*"/Samplesheets/archive/"*".csv" >> "${outputFile}"
         else
-                echo "cannot find ${line}"
+                echo "cannot find ${line}" >> "${missingSamplesFile}"
         fi
 done < "${input}"
 
@@ -111,6 +112,6 @@ do
         echo "location is:"
         echo "slide is : ${col1}"
         echo "Copying data /groups/umcg-gap/prm0*/rawdata/array/IDAT/${col1}/${col1}_${col2}*.idat"
-        ls -latrh /groups/umcg-gap/prm0*/rawdata/array/IDAT/"${col1}/${col1}_${col2}"*.idat
-        rsync -av /groups/umcg-gap/prm0*/rawdata/array/IDAT/"${col1}/${col1}_${col2}"*.idat "${workDirectory}/scanData"
+        ls -latrh "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat"
+        rsync -av "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat" "${workDirectory}/scanData"
 done <"${workDirectory}/barcodes.txt"
