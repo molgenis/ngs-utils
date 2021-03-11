@@ -76,8 +76,9 @@ datum=$(date '+%Y%m%d')
 echo "${datum}"
 outputFile="${workDirectory}/reference_samplesheet_${datum}.csv"
 missingSamplesFile="${workDirectory}/missing_samples_${datum}.csv"
-rm -rf "${outputFile}"
-touch "${outputFile}"
+printf '' > "${outputFile}"
+printf '' > "${missingSamplesFile}"
+
 input="${sampleList}"
 
 
