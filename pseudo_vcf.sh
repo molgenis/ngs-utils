@@ -93,27 +93,25 @@ then
 	## red input file
 	while read line
 	do
+		echo "LINE: ${line}"
 		# get dna number from first column
-		dnaNumber=$(echo ${line} | awk '{print $1}')
+		dnaNumber=$(echo "${line}" | awk '{print $1}')
 		# get pseudo id from second column
-		pseudo=$(echo ${line} | awk '{print $2}')
+		pseudo=$(echo "${line}" | awk '{print $2}')
 		# get
 		echo "${dnaNumber} ${database}"
-		if grep -m 1 ${dnaNumber} ${database}
+		if grep -m 1 "${dnaNumber}" "${database}"
 		then
-			echo "ik kom er wel in"
 			vcfFilePath=$(grep -m 1 ${dnaNumber} ${database} | awk '{print $1}')
-			## first check if there is a Gavin file
+			## first check if there is a Gavin file, if so then use it
 			resultsDir=$(dirname "${vcfFilePath}")
 			if ssh -n chaperone "test -e ${resultsDir}/GAVIN/*${dnaNumber}*vcf.gz"
 			then
 				vcfFilePath=$(ssh -n chaperone "ls ${resultsDir}/GAVIN/*${dnaNumber}*vcf.gz")
 			fi
-		fi
-		if [[ -z "${vcfFilePath:-}" ]]
-		then
-			echo "there is no vcfFilePath set, cannot continue"
-			exit 1
+		else
+			echo "${dnaNumber} cannot be found back in the database (${database})"
+			continue 
 		fi
 
 		vcfFile=$(basename "${vcfFilePath}")
@@ -125,7 +123,7 @@ then
 
 		bcftools view -h "${workDir}/variants/input/${vcfFile}" > "${workDir}/variants/tmp/header.txt"
 		## pseudo anonimize sample and project
-		perl -pi -e "s|${sampleName}|${pseudo}|g" > "${workDir}/variants/tmp/header.txt"
+		perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/variants/tmp/header.txt"
 		perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/variants/tmp/header.txt"
 		##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
 		sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/variants/tmp/header.txt" > "${workDir}/variants/tmp/updatedheader.txt"
@@ -134,21 +132,30 @@ then
 
 		if [[ -n "${mantaBool:-}" ]]
 		then
-			mantaFilePath=$(grep -m 1 "${dnaNumber}" ${database%.txt}_manta.txt | awk '{print $2}')
-			mantaFile=$(basename "${mantaFilePath}")
-			echo "ssh chaperone ls [${mantaFilePath}]"
-			if ssh -n chaperone "test -e ${mantaFilePath}"
+			if [ -f "${database%.txt}_manta.txt" ]
 			then
-				rsync -av  "chaperone:${mantaFilePath}" "${workDir}/manta/input/"
-				bcftools view -h "${workDir}/manta/input/${mantaFile}" > "${workDir}/manta/tmp/header.txt"
-				perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/manta/tmp/header.txt"
-				perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/manta/tmp/header.txt"
-				##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
-				sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/manta/tmp/header.txt" > "${workDir}/manta/tmp/updatedheader.txt"
-				bcftools reheader -h "${workDir}/manta/tmp/updatedheader.txt" -o "${workDir}/manta/output/${pseudo}_diploid.vcf.gz" "${workDir}/manta/input/${mantaFile}"
+				if grep -s -m 1 "${dnaNumber}" "${database%.txt}_manta.txt" 
+				then
+					mantaFilePath=$(grep -m 1 "${dnaNumber}" ${database%.txt}_manta.txt | awk '{print $1}')
+					mantaFile=$(basename "${mantaFilePath}")
+					if ssh -n chaperone "test -e ${mantaFilePath}"
+					then
+						rsync -av  "chaperone:${mantaFilePath}" "${workDir}/manta/input/"
+						bcftools view -h "${workDir}/manta/input/${mantaFile}" > "${workDir}/manta/tmp/header.txt"
+						perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/manta/tmp/header.txt"
+						perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/manta/tmp/header.txt"
+						##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
+						sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/manta/tmp/header.txt" > "${workDir}/manta/tmp/updatedheader.txt"
+						bcftools reheader -h "${workDir}/manta/tmp/updatedheader.txt" -o "${workDir}/manta/output/${pseudo}_diploid.vcf.gz" "${workDir}/manta/input/${mantaFile}"
+					else
+						echo "original file was not found"
+						echo -e "original file was not found" > "${workDir}/manta/output/${pseudo}_diploid.vcf.gz.NOTFOUND"
+					fi
+				else
+					echo "manta file for ${dnaNumber} not found in ${database%.txt}_manta.txt"
+				fi
 			else
-				echo "original file was not found"
-				echo -e "original file was not found" > "${workDir}/manta/output/${pseudo}_diploid.vcf.gz.NOTFOUND"
+				echo "${database%.txt}_manta.txt not found"
 			fi 
 		fi
 	done<"${search}"
