@@ -152,10 +152,10 @@ then
 						echo -e "original file was not found" > "${workDir}/manta/output/${pseudo}_diploid.vcf.gz.NOTFOUND"
 					fi
 				else
-					echo "manta file for ${dnaNumber} not found in" ${database%.txt}"_manta.txt"
+					echo "manta file for ${dnaNumber} not found in ${database%.txt}_manta.txt"
 				fi
 			else
-				echo ${database%.txt}"_manta.txt not found"
+				echo "${database%.txt}_manta.txt not found"
 			fi 
 		fi
 	done<"${search}"
