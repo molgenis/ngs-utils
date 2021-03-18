@@ -6,32 +6,30 @@ set -u
 
 
 function reheader(){
-
 	workDir="${1}"
 	sampleName="${2}"
 	fileName="${3}"
 	pseudo="${4}"
 
 	if [ -f "${workDir}/${sampleName}.finished" ]
-        then
-                echo "skipping ${workDir}/input/${fileName} conversion, already converted"
-        else
-                samtools view -H "${workDir}/input/${fileName}" > "${workDir}/tmp/${sampleName}.header.sam"
-                perl -pi -e s"|$sampleName|$pseudo|"g "${workDir}/tmp/${sampleName}.header.sam"
-                echo "starting to reheader ${workDir}/input/${fileName} to ${pseudo}.reheader.bam"
-                samtools reheader -P "${workDir}/tmp/${sampleName}.header.sam" "${workDir}/input/${fileName}" >  "${workDir}/tmp/${pseudo}.reheader.bam"
-                mv -v "${workDir}/tmp/${pseudo}.reheader.bam" "${workDir}/output/${pseudo}.bam"
-                touch "${workDir}/${sampleName}.finished"
-        fi
-
+		then
+				echo "skipping ${workDir}/input/${fileName} conversion, already converted"
+		else
+				samtools view -H "${workDir}/input/${fileName}" > "${workDir}/tmp/${sampleName}.header.sam"
+				perl -pi -e s"|$sampleName|$pseudo|"g "${workDir}/tmp/${sampleName}.header.sam"
+				echo "starting to reheader ${workDir}/input/${fileName} to ${pseudo}.reheader.bam"
+				samtools reheader -P "${workDir}/tmp/${sampleName}.header.sam" "${workDir}/input/${fileName}" >  "${workDir}/tmp/${pseudo}.reheader.bam"
+				mv -v "${workDir}/tmp/${pseudo}.reheader.bam" "${workDir}/output/${pseudo}.bam"
+				touch "${workDir}/${sampleName}.finished"
+		fi
 
 }
 
 function showHelp() {
-        #
-        # Display commandline help on STDOUT.
-        #
-        cat <<EOH
+		#
+		# Display commandline help on STDOUT.
+		#
+		cat <<EOH
 ===============================================================================================================
 Script to pseudo anonimize vcf files. 
 
@@ -41,28 +39,31 @@ Usage:
 	$(basename $0) [-i FILE] [-f FILE] [-m]
 
 Options:
-        -h   Show this help.
+		-h   Show this help.
 
    required:
-        -s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
-	-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/ngs.csv)
-        -i   input folder containing bam files (not in combination with -s) 
-        -f   mapping file (in combination with -i) [
-        -g   which group (default = umcg-gd)
+		-s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
+		-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/AllVcfs.txt)
+		-i   input folder containing bam files (not in combination with -s) 
+		-f   mapping file (in combination with -i) [
+		-g   which group (default = umcg-gd)
 
-    optional:
-        -p   which prm (e.g. prm06) default is both prm05 and prm06
+	optional:
+		-p   which prm (e.g. prm06) default is both prm05 and prm06
 	-w   working directory
 
-   example:
+
+EXTRA INFO:
+there is the script for creating a database file (ngs-utils repo; indexing.sh)
+Then the file is copied to /groups/umcg-gd/tmp06/pseudo/
 ===============================================================================================================
 EOH
-        exit 0
+		exit 0
 }
 
 while getopts "i:g:s:d:f:p:w:h" opt;
 do
-        case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";;  p)prm="${OPTARG}";; w)workDir="${OPTARG}";;
+		case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";;  p)prm="${OPTARG}";; w)workDir="${OPTARG}";;
 		esac
 done
 
@@ -110,24 +111,23 @@ then
 		echo "workdir"
 		workDir="$(pwd)/pseudoTmp/bam/"
 	else
-		echo "yello"
 		workDir="${workDir}/pseudoTmp/bam/"
 	fi
-        mkdir -p "${workDir}"/{input,tmp,output}
+		mkdir -p "${workDir}/"{input,tmp,output}
 	module load BCFtools
 	## read input file
 	while read line
 	do
 		# get dna number from first column
-		dnaNumber=$(echo ${line} | awk '{print $1}')
+		dnaNumber=$(echo "${line}" | awk '{print $1}')
 		# get pseudo id from second column
-		pseudo=$(echo ${line} | awk '{print $2}')
-		# get
-		filePath=$(grep -m 1 ${dnaNumber} ${database} | awk '{print $1}')
-		vcfFile=$(basename ${filePath})
+		pseudo=$(echo "${line}" | awk '{print $2}')
+		filePath=$(grep -m 1 "${dnaNumber}" "${database}" | awk '{print $1}')
+		vcfFile=$(basename "${filePath}")
 		sample=${vcfFile%%.*}
 		notFound="false"
-		if grep -m 1 ${dnaNumber} ${database}
+		
+		if grep -m 1 "${dnaNumber}" "${database}"
 		then
 			resultsDir=$(dirname "$(dirname ${filePath})")
 			if ssh -n chaperone "test -e ${resultsDir}/alignment/${sample}*bam"
@@ -146,8 +146,6 @@ then
 		sampleName=${fileName%%.*} ## 20000000_DNA12345_0000000_1231244
 
 		reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
-
-
 	done<"${search}"
 fi
 
@@ -166,8 +164,8 @@ then
 
 	while read line
 	do
-		oldKey=$(echo "${line}" | awk '{print $1}')     ## DNA12345
-		pseudo=$(echo "${line}" | awk '{print $2}')     ##sample1
+		oldKey=$(echo "${line}" | awk '{print $1}')	 ## DNA12345
+		pseudo=$(echo "${line}" | awk '{print $2}')	 ##sample1
 		bam=$(ls ${workDir}/input/*${oldKey}*.bam) ## 20000_DNA12345_000_12312.merged.bam
 		fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
 		sampleName=${fileName%%.*} ## 20000000_DNA12345_0000000_1231244
