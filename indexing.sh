@@ -8,9 +8,9 @@ set -eu
 #
 # Script can be used as input with the pseudo_bam and pseudo_vcf.sh scripts in the ngs-utils repo
 
-mkdir ${HOME}/indexing
+mkdir "${HOME}/indexing"
 
-if [ -e /groups/umcg-gd/prm06 ]
+if [ -e "/groups/umcg-gd/prm06" ]
 then 
 	echo "yes there is prm"
 else 
@@ -19,8 +19,8 @@ else
 fi
 	
 echo "starting with gavin vcfs"
-find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/GAVIN/ -maxdepth 1 -name '*.vcf.gz' > ${HOME}/indexing/AllVCFs.txt
+find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/GAVIN/ -maxdepth 1 -name '*.vcf.gz' > "${HOME}/indexing/AllVCFs.txt"
 echo "starting with no Gavin files"
-find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/ -maxdepth 1 -name '*final.vcf.gz' -o -name '*.final.vcf'  > ${HOME}/indexing/AllVCFs_noGAVIN.txt
+find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/ -maxdepth 1 -name '*final.vcf.gz' -o -name '*.final.vcf'  > "${HOME}/indexing/AllVCFs_noGAVIN.txt"
 echo "starting with manta files"
-find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/cnv/ -maxdepth 1 -name '*_diploidSV.vcf.gz' > ${HOME}/indexing/AllVCFs_Manta.txt
+find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/cnv/ -maxdepth 1 -name '*_diploidSV.vcf.gz' > "${HOME}/indexing/AllVCFs_Manta.txt"

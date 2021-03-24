@@ -159,7 +159,7 @@ then
 	fi
 
 	mkdir -p "${workDir}"/{input,tmp,output}
-
+	mv "${input}/"*".bams" "${workDir}/input/"
 	module load SAMtools
 
 	while read line
