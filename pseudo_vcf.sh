@@ -5,10 +5,10 @@ set -u
 
 
 function showHelp() {
-        #
-        # Display commandline help on STDOUT.
-        #
-        cat <<EOH
+	#
+	# Display commandline help on STDOUT.
+	#
+	cat <<EOH
 ===============================================================================================================
 Script to pseudo anonimize vcf files. 
 
@@ -18,23 +18,23 @@ Usage:
 	$(basename $0) [-i FILE] [-f FILE] [-m]
 
 Options:
-        -h   Show this help.
+	-h   Show this help.
 
    required:
-        -s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
+	-s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
 	-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/AllVcfs.txt)
-        -i   input folder containing vcf files (not in combination with -s) 
-        -f   mapping file (in combination with -i)
-        -g   which group (default = umcg-gd)
+	-i   input folder containing vcf files (not in combination with -s) 
+	-f   mapping file (in combination with -i)
+	-g   which group (default = umcg-gd)
 
     optional:
-        -m   manta data (default disabled) (manta file should be in the same place as the database file, naming should be {DATABASEFILE}_manta.txt e.g. AllVcfs_manta.txt)
-        -p   which prm (e.g. prm06) default is both prm05 and prm06
+	-m   manta data (default disabled) (manta file should be in the same place as the database file, naming should be {DATABASEFILE}_manta.txt e.g. AllVcfs_manta.txt)
+	-p   which prm (e.g. prm06) default is both prm05 and prm06
 	-w   working directory
 
 
 EXTRA INFO:
-database file is created on chaperone as umcg-gd-dm user, in /home/umcg-gd-dm/indexing/ there is the script for creating a database file
+there is the script for creating a database file (ngs-utils repo; indexing.sh)
 Then the file is copied to /groups/umcg-gd/tmp06/pseudo/
 ===============================================================================================================
 EOH
@@ -93,16 +93,16 @@ then
 	## red input file
 	while read line
 	do
-		echo "LINE: ${line}"
+
 		# get dna number from first column
 		dnaNumber=$(echo "${line}" | awk '{print $1}')
 		# get pseudo id from second column
 		pseudo=$(echo "${line}" | awk '{print $2}')
-		# get
 		echo "${dnaNumber} ${database}"
+		
 		if grep -m 1 "${dnaNumber}" "${database}"
 		then
-			vcfFilePath=$(grep -m 1 ${dnaNumber} ${database} | awk '{print $1}')
+			vcfFilePath=$(grep -m 1 "${dnaNumber}" "${database}" | awk '{print $1}')
 			## first check if there is a Gavin file, if so then use it
 			resultsDir=$(dirname "${vcfFilePath}")
 			if ssh -n chaperone "test -e ${resultsDir}/GAVIN/*${dnaNumber}*vcf.gz"
