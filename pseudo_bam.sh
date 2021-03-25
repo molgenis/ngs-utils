@@ -166,7 +166,7 @@ then
 	do
 		oldKey=$(echo "${line}" | awk '{print $1}')	 ## DNA12345
 		pseudo=$(echo "${line}" | awk '{print $2}')	 ##sample1
-		bam=$(ls ${workDir}/input/*${oldKey}*.bam) ## 20000_DNA12345_000_12312.merged.bam
+		bam=$(ls "${workDir}/input/"*"${oldKey}"*".bam") ## 20000_DNA12345_000_12312.merged.bam
 		fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
 		sampleName=${fileName%%.*} ## 20000000_DNA12345_0000000_1231244
 		echo "BAM: ${bam} ${oldKey} ${pseudo} ${sampleName}"

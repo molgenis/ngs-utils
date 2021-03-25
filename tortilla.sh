@@ -52,7 +52,7 @@ then
 elif [[ "${1}" == "--validateNGS" || "${1}" == "-n" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/checkValidationNGS_DNA.sh ${@}
+	${EBROOTNGSMINUTILS}/checkValidationNGS_DNA_v2.sh ${@}
 elif [[ "${1}" == "--revertBamToFastQ" || "${1}" == "-r" ]]
 then
 	${EBROOTNGSMINUTILS}/revertFromBamToFastQ.sh ${@}
