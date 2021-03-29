@@ -55,6 +55,18 @@ elif [[ -n "${input:-}" && -n "${search:-}" ]]
 then
 	showHelp
 	echo "input and search option is selected, one of them should be chosen" 
+### inputfolder
+elif [[ -z "${search:-}" ]]
+then
+	pathway=input
+	echo "hier komt een pad naar de files ${input}"
+	if [[ -z "${mapping:-}" ]]
+	then 
+		showHelp 
+		echo "no mapping file"
+		exit 1 
+	fi
+### search db
 elif [[ -z "${input:-}" ]]
 then
 	echo "search=${search}"
@@ -66,16 +78,6 @@ then
 		echo "database=${database}"
 	fi
 
-elif [[ -z "${search:-}" ]]
-then
-	pathway=input
-	echo "hier komt een pad naar de files ${input}"
-	if [[ -z "${mapping:-}" ]]
-	then 
-		showHelp 
-		echo "no mapping file"
-		exit 1 
-	fi
 fi
 
 if [[ -z "${workDir:-}" ]]
@@ -87,7 +89,40 @@ fi
 
 mkdir -p "${workDir}/"{variants,manta}"/"{output,tmp,input}"/"
 
-if [[ "${pathway}" == "search" ]]
+if [[ "${pathway}" == "input" ]]
+then
+	module load BCFtools
+	while read line 
+	do
+		# get dna number from first column
+		dnaNumber=$(echo "${line}" | awk '{print $1}')
+		# get pseudo id from second column
+		pseudo=$(echo "${line}" | awk '{print $2}')
+
+		if ls "${input}/"*"${dnaNumber}"*
+		then
+			vcfFilePath=$(ls "${input}/"*"${dnaNumber}"*)
+		else
+			echo "There is not a file with ${dnaNumber} found"
+			continue
+		fi
+	
+		vcfFile=$(basename "${vcfFilePath}")
+		sampleName=${vcfFile%%.*}
+		echo "${vcfFilePath}"
+		echo "bcftools view -h ${vcfFilePath} > ${workDir}/variants/tmp/header.txt"
+		bcftools view -h "${vcfFilePath}" > "${workDir}/variants/tmp/header.txt"
+		## pseudo anonimize sample
+		perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/variants/tmp/header.txt"
+		##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
+		sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/variants/tmp/header.txt" > "${workDir}/variants/tmp/updatedheader.txt"
+
+		bcftools reheader -h "${workDir}/variants/tmp/updatedheader.txt" -o "${workDir}/variants/output/${pseudo}.vcf.gz" "${vcfFilePath}"
+
+done<"${mapping}"
+
+
+elif [[ "${pathway}" == "search" ]]
 then
 	module load BCFtools
 	## red input file
@@ -116,15 +151,13 @@ then
 
 		vcfFile=$(basename "${vcfFilePath}")
 		sampleName=${vcfFile%%.*}
-		project=$(echo $(dirname "${vcfFilePath}") | awk 'BEGIN {FS="/"}{print $6}')
 
 		## copy file from prm to tmp
 		rsync -av "chaperone:${vcfFilePath}" "${workDir}/variants/input/"
 
 		bcftools view -h "${workDir}/variants/input/${vcfFile}" > "${workDir}/variants/tmp/header.txt"
-		## pseudo anonimize sample and project
+		## pseudo anonimize sample
 		perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/variants/tmp/header.txt"
-		perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/variants/tmp/header.txt"
 		##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
 		sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/variants/tmp/header.txt" > "${workDir}/variants/tmp/updatedheader.txt"
 
@@ -143,7 +176,6 @@ then
 						rsync -av  "chaperone:${mantaFilePath}" "${workDir}/manta/input/"
 						bcftools view -h "${workDir}/manta/input/${mantaFile}" > "${workDir}/manta/tmp/header.txt"
 						perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/manta/tmp/header.txt"
-						perl -pi -e "s|${project}|XXXXXX|g" "${workDir}/manta/tmp/header.txt"
 						##removing all paths that starts with /groups/ because it can contain stuff like projectnames we do not want to show 
 						sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/manta/tmp/header.txt" > "${workDir}/manta/tmp/updatedheader.txt"
 						bcftools reheader -h "${workDir}/manta/tmp/updatedheader.txt" -o "${workDir}/manta/output/${pseudo}_diploid.vcf.gz" "${workDir}/manta/input/${mantaFile}"
