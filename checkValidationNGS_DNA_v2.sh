@@ -19,6 +19,12 @@ Options:
 	-t   inputType (vcf or vcf.gz) (default= vcf.gz)
 	-o   outputFolder (default:\${inputFolder}/output/)
 	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm06/projects/validationVcfs/)
+	-l   validationLevel (all|1|2|3|4) default is 4
+					1	is old validation (finding back some SNPs in 11 samples)
+					2	vkgl standard = giab sample vs hc callset and vice versa
+					3	frankenstein
+					4	is running both option 1 and 2
+					all	is running options 1,2 and 3 
 ===============================================================================================================
 EOH
 	trap - EXIT
@@ -28,85 +34,103 @@ EOH
 function doVariantEval(){
 
 	folder="${validationFolderTmp}"
-	output="${outputFolder}"
+	
+	mapfile -t validationFiles < <(find "${folder}" -maxdepth 1 -name "*.${inputType}")
+	if [[ "${#validationFiles[@]:-0}" -eq '0' ]]
+	then
+		echo "There are no files found in: ${folder}"
+	else
+		echo "##OPEN## COMPARING vcf files, all variants should be found back!##" >>  "${outputFolder}/output.txt"
 
-	for i in $(ls "${folder}/"*".${inputType}")
-	do
-		name=$(basename $i ".${inputType}")
-		java -jar ${EBROOTGATK}/GenomeAnalysisTK.jar \
-		-T VariantEval \
-		-R /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta \
-		-o "${output}/output.${name}.eval.grp" \
-		--eval "${inputFolder}/"*"${name}"*".${inputType}" \
-		--comp "${i}"
+		for i in "${validationFiles[@]}"
+		do
+			name=$(basename ${i} ".${inputType}")
+			inputFile=$(ls "${inputFolder}/"*"${name}"*".${inputType}")
+			bgzippedInput=${inputFile%.*}.bgz
 
-	done
+			zcat "${inputFile}" | bgzip -c > "${bgzippedInput}" 
+			tabix -p vcf "${bgzippedInput}" 
+			inputFile="${bgzippedInput}"
 
-	for i in $(ls "${folder}/"*".${inputType}")
-	do
+			java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
+			-T VariantEval \
+			-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
+			-o "${outputFolder}/output.${name}.eval.grp" \
+			--eval "${inputFile}" \
+			--comp "${i}"
 
-		name=$(basename "${i}" ".${inputType}")
-		check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${output}/output.${name}.eval.grp")
-		if [ "${check}" == "correct" ]
-		then
-			zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}'
-		else
-			zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' 
-			exit 1
-		fi
-	done
+		
+			check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${outputFolder}/output.${name}.eval.grp")
+			if [ "${check}" == "correct" ]
+			then
+				zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}' >> "${outputFolder}/output.txt"
+			else
+				zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' >> "${outputFolder}/output.txt"
+			
+			fi
+		done
+		echo "##CLOSE## COMPARING vcf files, all variants should be found back!##" >>  "${outputFolder}/output.txt"
+
+	fi
 
 }
 
 function doComparisonFiltered (){
 	refCall="${1}"
 	if [ "${refCall}" == "referenceCall" ]
-        then
+	then
 		folder="${validationFolderTmp}/filtered/referenceCall"
-                output="${outputFolder}/filtered/referenceCall"
-        else
+		output="${outputFolder}/filtered/referenceCall"
+	else
 		folder="${validationFolderTmp}/filtered/"
-                output="${outputFolder}/filtered/"
-        fi
+		output="${outputFolder}/filtered/"
+	fi
 	mkdir -p "${output}"
 
-for i in $(ls "${folder}/"*".${inputType}")
-do
+	mapfile -t inputFiles < <(find "${folder}" -maxdepth 1 -name "*.${inputType}")
+	if [[ "${#inputFiles[@]:-0}" -eq '0' ]]
+	then
+		echo "There are no files found in: ${folder}"
+	else
+		for i in "${inputFiles[@]}"
+		do
+			name=$(basename "${i}" ".${inputType}")
 
-	name=$(basename "${i}" ".${inputType}")
+			if [[ "${inputType}" == "vcf.gz" ]]
+			then
+				validationSample=$(zcat ${i} | grep -v '^#' | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
+				inputSample=$(zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089 | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
 
-        if [[ "${inputType}" == "vcf.gz" ]]
-        then
-		validationSample=$(zcat ${i} | grep -v '^#' | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
-                inputSample=$(zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089 | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
+				if [ "${validationSample}" == "${inputSample}" ]
+				then
+					if [ "${refCall}" == "referenceCall" ]
+					then
+						zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"FOUND BACK,REF CALL"}}' >> "${outputFolder}/output.txt"
+					else
+						zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"FOUND BACK"}}' >> "${outputFolder}/output.txt"
+					fi
+				else
+					echo -e "\n##OPEN## ${refCall}: Expected variant####" >>  "${outputFolder}/output.txt"
+					zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"Not 100% concordant!"}}' >> "${outputFolder}/output.txt"
+					zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep '18598089' >> "${outputFolder}/output.txt"
+					zcat "${i}" >> "${outputFolder}/output.txt"
+					echo -e "\n##CLOSE## ${refCall}: Expected variant####" >>  "${outputFolder}/output.txt"
 
-                if [ "${validationSample}" == "${inputSample}" ]
-                then
-			if [ "${refCall}" == "referenceCall" ]
-                        then
-				zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"FOUND BACK,REF CALL"}}'
-                        else
-                                zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"FOUND BACK"}}'
-                        fi
-                else
-			zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,$7,"Not 100% concordant!"}}' 
-                        zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089
-                        zcat "${i}"
-                        exit 1
-                fi
-        fi
-done
+				fi
+			fi
 
+		done
+	fi
 }
 
 function checkFrankenstein() {
 
-        knownVariants=${validationFolderTmp}/ValidationSet.annotated.vcf.gz
-        knownMissingVariants=${validationFolderTmp}/knownMissingVariants.txt
+	knownVariants="${validationFolderTmp}/ValidationSet.annotated.vcf.gz"
+	knownMissingVariants="${validationFolderTmp}/knownMissingVariants.txt"
 
-        totalNoOfKnownVariants=$(zcat "${knownVariants}" | grep -v '^#' | wc -l)
+	totalNoOfKnownVariants=$(zcat "${knownVariants}" | grep -v '^#' | wc -l)
 
-        echo "Testing Frankenstein on ${totalNoOfKnownVariants} known variants"
+	echo "Testing Frankenstein on ${totalNoOfKnownVariants} known variants"
 
 	tmpFolder="${outputFolder}/tmp"
 	input="${inputFolder}/Frankenstein_1.final.vcf.gz"
@@ -115,32 +139,103 @@ function checkFrankenstein() {
 	echo "with new: ${input}"
 	echo "working folder: ${tmpFolder}"
 
-	bedtools intersect -header -b ${input} -a ${knownVariants} > ${tmpFolder}/SameAsFrank.vcf
-	bgzip -c ${tmpFolder}/SameAsFrank.vcf > ${tmpFolder}/SameAsFrank.vcf.gz
+	bedtools intersect -header -b "${input}" -a "${knownVariants}" > "${tmpFolder}/SameAsFrank.vcf"
+	bgzip -c "${tmpFolder}/SameAsFrank.vcf" > "${tmpFolder}/SameAsFrank.vcf.gz"
 
 	totalNoOfKnownVariants=$(zcat "${knownVariants}" | grep -v '^#' | wc -l)
 	totalSame=$(cat "${tmpFolder}/SameAsFrank.vcf" | grep -v '^#' | wc -l)
 
 	echo "found ${totalSame} of in total ${totalNoOfKnownVariants} back in the ${input}"
 
-	tortilla.sh -v -1  ${tmpFolder}/SameAsFrank.vcf.gz -2 ${knownVariants} -o ${outputFolder}
+	tortilla.sh -v -1  "${tmpFolder}/SameAsFrank.vcf.gz" -2 "${knownVariants}" -o "${outputFolder}"
 
 
-	if diff -q "${knownMissingVariants}" ${outputFolder}/notInVcf1.txt
+	if diff -q "${knownMissingVariants}" "${outputFolder}/notInVcf1.txt"
 	then
-	    	echo "Everything is OK, the missing variants are the same as the already missing variants"
+		echo "Everything is OK, the missing variants are the same as the already missing variants"
 	else
-	    	echo "diff ${knownMissingVariants} ${outputFolder}/notInVcf1.txt"
-	        echo "OOPS, there are differences between the known missing variants and the sample!"
-
-	        diff -y "${knownMissingVariants}" ${outputFolder}/notInVcf1.txt
+		echo "diff ${knownMissingVariants} ${outputFolder}/notInVcf1.txt"
+		echo "OOPS, there are differences between the known missing variants and the sample!"
+		diff -y "${knownMissingVariants}" "${outputFolder}/notInVcf1.txt"
 	fi
 }
 
+function giabvshc(){
+	giabSample="${1}"
+	path=$(dirname "${giabSample}")	
+	sampleName=$(basename "${giabSample}")
 
-while getopts "i:o:v:t:h" opt; 
+	sampleName=${sampleName%%.*}
+	## capture 20bp bedfile
+	bedtools intersect \
+		-header \
+		-a "${giabSample}" \
+		-b "/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured_20bp.bed" \
+		> "${outputFolder}/tmp/${sampleName}_captured_20bp.vcf"
+
+	##capture no union bedfile
+	bedtools intersect \
+		-header \
+		-a "${outputFolder}/tmp/${sampleName}_captured_20bp.vcf"\
+		-b "/apps/data/NIST/union13callableMQonlymerged_addcert_nouncert_excludesimplerep_excludesegdups_excludedecoy_excludeRepSeqSTRs_noCNVs_v2.19_2mindatasets_5minYesNoRatio_noMT.bed" \
+		> "${outputFolder}/tmp/${sampleName}_union.vcf"
+
+
+	#split giabFile into INDEL and SNP	
+	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
+	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
+	-T SelectVariants \
+	--variant "${outputFolder}/tmp/${sampleName}_union.vcf" \
+	-o "${outputFolder}/tmp/${sampleName}_union.INDEL.vcf" \
+	--selectTypeToInclude INDEL \
+	-sn "${sampleName}"
+
+	echo "${sampleName}.INDEL.vcf done"
+
+	#Select SNPs and MNPs
+	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
+	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
+	-T SelectVariants \
+	--variant "${outputFolder}/tmp/${sampleName}_union.vcf" \
+	-o  "${outputFolder}/tmp/${sampleName}_union.SNP.vcf" \
+	--selectTypeToExclude INDEL \
+	-sn "${sampleName}"
+
+	echo "${sampleName}.SNP.vcf done"
+
+	## Do comparison per type
+
+	for type in SNP INDEL
+	do
+		echo "comparing ${type}: ${sampleName}vsHC"
+		## sample vs HC callset
+		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
+		-T VariantEval \
+		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
+		-o "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" \
+		--eval "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
+		--comp "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
+
+		printf "${sampleName}vsHC ${type} " >> "${outputFolder}/output.txt"
+		head -5 "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
+
+		echo "comparing ${type}: HCvs${sampleName}"
+		##HC callset vs sample
+		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
+		-T VariantEval \
+		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
+		-o "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" \
+		--comp "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
+		--eval "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
+
+		printf "HCvs${sampleName} ${type} " >> "${outputFolder}/output.txt"
+		head -5 "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
+	done
+}
+
+while getopts "i:o:v:t:l:h" opt; 
 do
-	case $opt in h)showHelp;; i)inputFolder="${OPTARG}";; o)outputFolder="${OPTARG}";; v)validationFolderPrm="${OPTARG}";; t)inputType="${OPTARG}";;
+	case $opt in h)showHelp;; i)inputFolder="${OPTARG}";; o)outputFolder="${OPTARG}";; v)validationFolderPrm="${OPTARG}";; t)inputType="${OPTARG}";; l)validationLevel="${OPTARG}";;
 esac 
 done
 
@@ -148,40 +243,77 @@ if [[ -z "${inputFolder:-}" ]]; then showHelp ; echo "inputFolder is not specifi
 if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${inputFolder}/output/tmp" ; outputFolder="${inputFolder}/output/" ; fi ; echo "outputFolder=${outputFolder}"
 if [[ -z "${inputType:-}" ]]; then inputType="vcf.gz" ; fi ; echo "inputType=${inputType}"
 if [[ -z "${validationFolderPrm:-}" ]]; then validationFolderPrm="/groups/umcg-gd/prm06/projects/validationVcfs/" ; fi ; echo "validationFolderPrm=${validationFolderPrm}"
+if [[ -z "${validationLevel:-}" ]]; then validationLevel="all" ; fi ; echo "validationLevel=${validationLevel}" 
 
 ml GATK 
 ml HTSlib
 ml BEDTools
 ml ngs-utils
 
-mkdir -p "${outputFolder}"
+rm -rf "${outputFolder}/tmp/"
+mkdir -p "${outputFolder}/tmp/"
 
+echo '' > "${outputFolder}/output.txt"
 
-if [ $(hostname) != "calculon" ]
+if [[ "${validationLevel}" != "all" && "${validationLevel}" != "1" && "${validationLevel}" != "2" && "${validationLevel}" != "3" && "${validationLevel}" != "4" ]] 
 then
-	validationFolderTmp=${inputFolder}/validationVcfs/
-	mkdir -p "${outputFolder}/filtered/"
+	echo "this is an unknown validationLevel [${validationLevel}]"
+	echo "bye bye"
+	exit 1
+fi
+if [[ "${validationLevel}" == "all" || "${validationLevel}" == "1" || "${validationLevel}" == "4" ]]
+then
 
-	echo "copying validationVcfs"
-	if [ -f "${validationFolderTmp}/DNA087244.${inputType}" ]
+	whichHost=$(hostname)
+
+	if [[ "${whichHost}" == "leucine-zipper"  || "${whichHost}" == "zinc-finger" ]]
 	then
-		echo "already copied, skipped"
+		validationFolderTmp="${inputFolder}/validationVcfs/"
+		mkdir -p "${outputFolder}/filtered/"
+
+		echo "copying validationVcfs"
+		if [[ -f "${validationFolderTmp}/DNA087244.${inputType}" ]]
+		then
+			echo "already copied, skipped"
+		else
+			rsync -av chaperone:${validationFolderPrm}/ "${validationFolderTmp}/"
+		fi
 	else
-		scp -r calculon.hpc.rug.nl:${validationFolderPrm}/ "${validationFolderTmp}/"
-		#scp calculon.hpc.rug.nl:${validationFolderPrm}/referenceCall/*{.gz,tbi} "${validationFolderTmp}/referenceCall/"
-		#scp -r calculon.hpc.rug.nl:${validationFolderPrm}/filtered/* "${validationFolderTmp}/filtered/"
+		echo "please run on leucine-zipper or zinc-finger"
 	fi
-else
-	validationFolderTmp=${inputFolder}/validationVcfs/
-	if [ -f "${validationFolderTmp}/DNA087244.${inputType}" ]
-        then
-		echo "already copied, skipped"
-        else
-		cp -r calculon.hpc.rug.nl:${validationFolderPrm}/ "${validationFolderTmp}/"
-	fi
+
+	doVariantEval
+	doComparisonFiltered "findVariant"
+	doComparisonFiltered "referenceCall"
 fi
 
-#doVariantEval
-#doComparisonFiltered "no"
-#doComparisonFiltered "referenceCall"
-checkFrankenstein
+if [[ "${validationLevel}" == "all" || "${validationLevel}" == "2" || "${validationLevel}" == "4" ]]
+then
+	echo "starting giab hc callset"
+	mapfile -t giabSamples < <(find ${inputFolder} -maxdepth 1 -name "*GIABNA12878*" -name "*.vcf.gz")
+	if [[ "${#giabSamples[@]:-0}" -eq '0' ]]
+	then
+		echo "no GIAB samples found in: ${inputFolder}, file should contain at least GIABNA12878 in their name" >>  "${outputFolder}/output.txt"
+	else
+		echo -e "##OPEN## GIAB vs HC and versa" >> "${outputFolder}/output.txt"
+		for i in "${giabSamples[@]}"
+		do
+			echo "processing ${i}.."
+			giabvshc "${i}"
+		done
+	fi
+
+	echo "giab hc callset done, output can be found here: ${outputFolder}/output.txt" 
+	echo -e "Name type\t% Concordance\t((%variantsOverlap * %concordanceOverlap) / 100)" >> "${outputFolder}/output.txt"
+	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+	echo "${lineNumberStart} && ${lineNumberStop}"
+	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt"
+	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt" >> "${outputFolder}/output.txt"
+fi
+
+if [[ "${validationLevel}" == "all" || "${validationLevel}" == "3" ]]
+then
+	validationFolderTmp="${inputFolder}/validationVcfs/Frankenstein/"
+	checkFrankenstein
+fi
