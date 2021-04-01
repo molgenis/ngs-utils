@@ -100,7 +100,7 @@ then
 		pseudo=$(echo "${line}" | awk '{print $2}')
 
 		echo "working on:"
-		if ls "${input}/"*"${dnaNumber}"* 1>/dev/null
+		if ls "${input}/"*"${dnaNumber}"*
 		then
 			vcfFilePath=$(ls "${input}/"*"${dnaNumber}"*.vcf.gz)
 		else
