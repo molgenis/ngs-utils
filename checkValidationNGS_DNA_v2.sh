@@ -44,7 +44,7 @@ function doVariantEval(){
 
 		for i in "${validationFiles[@]}"
 		do
-			name=$(basename ${i} ".${inputType}")
+			name=$(basename "${i}" ".${inputType}")
 			inputFile=$(ls "${inputFolder}/"*"${name}"*".${inputType}")
 			bgzippedInput=${inputFile%.*}.bgz
 
