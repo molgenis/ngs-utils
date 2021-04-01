@@ -23,7 +23,7 @@ Options:
    required:
 	-s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
 	-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/AllVcfs.txt)
-	-i   input folder containing vcf files (not in combination with -s) 
+	-i   input folder containing vcf files (vcf.gz extension necessary) (not in combination with -s) 
 	-f   mapping file (in combination with -i)
 	-g   which group (default = umcg-gd)
 
@@ -99,18 +99,18 @@ then
 		# get pseudo id from second column
 		pseudo=$(echo "${line}" | awk '{print $2}')
 
-		if ls "${input}/"*"${dnaNumber}"*
+		echo "working on:"
+		if ls "${input}/"*"${dnaNumber}"* 1>/dev/null
 		then
-			vcfFilePath=$(ls "${input}/"*"${dnaNumber}"*)
+			vcfFilePath=$(ls "${input}/"*"${dnaNumber}"*.vcf.gz)
 		else
 			echo "There is not a file with ${dnaNumber} found"
 			continue
 		fi
-	
+
 		vcfFile=$(basename "${vcfFilePath}")
 		sampleName=${vcfFile%%.*}
-		echo "${vcfFilePath}"
-		echo "bcftools view -h ${vcfFilePath} > ${workDir}/variants/tmp/header.txt"
+		
 		bcftools view -h "${vcfFilePath}" > "${workDir}/variants/tmp/header.txt"
 		## pseudo anonimize sample
 		perl -pi -e "s|${sampleName}|${pseudo}|g" "${workDir}/variants/tmp/header.txt"
