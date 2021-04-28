@@ -146,6 +146,7 @@ then
 			fi
 		else
 			echo "${dnaNumber} cannot be found back in the database (${database})"
+			echo "${dnaNumber}" >> "${workDir}/variants/tmp/notFound.txt"
 			continue 
 		fi
 
@@ -193,5 +194,6 @@ then
 	done<"${search}"
 
 	echo "reheadering done, results can be found here: ${workDir}/variants/output/"
+	echo "samples that could not be found back are reported here: ${workDir}/variants/tmp/notFound.txt"
 
 fi

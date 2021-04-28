@@ -135,9 +135,13 @@ then
 				## copy file from prm to tmp
 				echo "chaperone:${resultsDir}/alignment/${sample}*bam" "${workDir}/input/"
 				rsync -av "chaperone:${resultsDir}/alignment/${sample}*bam" "${workDir}/input/"
+			elif ssh -n chaperone "test -e ${resultsDir}/alignment/${sample}*cram"
+			then
+				 echo "${sample}.cram is found, please convert it to bam and rerun this again" >> "${workDir}/tmp/notFound.txt"
 			else
 				notFound="true"
 				echo "${resultsDir}/alignment/${sample}*bam not found on prm05/prm06"
+				echo "${sample}" >> "${workDir}/tmp/notFound.txt"
 				continue
 			fi
 		fi
@@ -147,6 +151,9 @@ then
 
 		reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
 	done<"${search}"
+	
+	echo "pseudo anonimizing done, results can be found here: ${workDir}/output/"
+	echo "samples that could not be found back are reported here: ${workDir}/tmp/notFound.txt"
 fi
 
 if [[ "${pathway}" == 'input' ]]
