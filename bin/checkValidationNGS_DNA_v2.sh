@@ -204,32 +204,38 @@ function giabvshc(){
 	echo "${sampleName}.SNP.vcf done"
 
 	## Do comparison per type
-
+	firstLine="false"
 	for type in SNP INDEL
 	do
 		echo "comparing ${type}: ${sampleName}vsHC"
-		## sample vs HC callset
+		## sample vs HC callset (specifity)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
 		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
-		-o "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" \
+		-o "${outputFolder}/tmp/specifity-${sampleName}vsHC_union.${type}.vcf" \
 		--eval "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
 		--comp "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
 
-		printf "${sampleName}vsHC ${type} " >> "${outputFolder}/output.txt"
-		head -5 "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
-
+#		printf "${sampleName}vsHC ${type} " >> "${outputFolder}/output.txt"
+		if [[ ${firstLine} == "false" ]]
+		then
+			## print header too
+			head -4 "${outputFolder}/tmp/specifity-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' >> "${outputFolder}/output.txt"
+			firstLine="true"
+		fi
+		head -5 "${outputFolder}/tmp/specifity-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "specificity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/output.txt"
+	
 		echo "comparing ${type}: HCvs${sampleName}"
-		##HC callset vs sample
+		##HC callset vs sample (sensitivity)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
 		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
-		-o "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" \
+		-o "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" \
 		--comp "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
 		--eval "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
 
-		printf "HCvs${sampleName} ${type} " >> "${outputFolder}/output.txt"
-		head -5 "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
+#		printf "HCvs${sampleName} ${type} " >> "${outputFolder}/output.txt"
+		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/output.txt"
 	done
 }
 
@@ -264,7 +270,7 @@ fi
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "1" || "${validationLevel}" == "4" ]]
 then
 
-	whichHost=$(hostname)
+	whichHost=$(hostname -s)
 
 	if [[ "${whichHost}" == "leucine-zipper"  || "${whichHost}" == "zinc-finger" ]]
 	then
@@ -308,8 +314,15 @@ then
 	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
 	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
 	echo "${lineNumberStart} && ${lineNumberStop}"
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt"
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt" >> "${outputFolder}/output.txt"
+	echo -e "Measurement\tType\tnVariantsEval\tnDifference\tnVariantsComp\tConcordance(in %)"
+	echo -e "Measurement\tType\tnVariantsEval\tnDifference\tnVariantsComp\tConcordance(in %)" >> "${outputFolder}/output.txt"
+
+	## Sample  Type    nEvalVariants   novelSites      nVariantsAtComp compRate        nConcordant     concordantRate  FinalConcordance        comparison
+	## 00000000_0000000_GIABNA12878_000000_HSR269A_AllExonV7_283261    SNP     26672   97      26575   99.64   26574   100.00  99.6326 specificity
+	
+	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$3"\t"($3-$7)"\t"$7"\t"$9}}}' "${outputFolder}/output.txt"
+	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$3"\t"($3-$7)"\t"$7"\t"$9}}}' "${outputFolder}/output.txt" >> "${outputFolder}/output.txt"
+
 fi
 
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "3" ]]
