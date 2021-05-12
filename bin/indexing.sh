@@ -21,6 +21,6 @@ fi
 echo "starting with gavin vcfs"
 find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/GAVIN/ -maxdepth 1 -name '*.vcf.gz' > "${HOME}/indexing/AllVcfs.txt"
 echo "starting with no Gavin files"
-find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/ -maxdepth 1 -name '*final.vcf.gz' -o -name '*.final.vcf'  >> "${HOME}/indexing/AllVcfs.txt"
+find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/ -maxdepth 1 -name '*final.vcf.gz' -o -name '*.final.vcf'  >> "${HOME}/indexing/AllVcfs_noGavin.txt"
 echo "starting with manta files"
 find /groups/umcg-gd/prm0*/projects/*/run01/results/variants/cnv/ -maxdepth 1 -name '*_diploidSV.vcf.gz' > "${HOME}/indexing/AllVcfs_Manta.txt"
