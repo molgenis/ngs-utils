@@ -134,16 +134,16 @@ then
 		# get pseudo id from second column
 		pseudo=$(echo "${line}" | awk '{print $2}')
 		echo "${dnaNumber} ${database}"
-		
+		noGavin='false'
 		if grep -m 1 "${dnaNumber}" "${database}"
 		then
 			vcfFilePath=$(grep -m 1 "${dnaNumber}" "${database}" | awk '{print $1}')
-			## first check if there is a Gavin file, if so then use it
-			resultsDir=$(dirname "${vcfFilePath}")
-			if ssh -n chaperone "test -e ${resultsDir}/GAVIN/*${dnaNumber}*vcf.gz"
-			then
-				vcfFilePath=$(ssh -n chaperone "ls ${resultsDir}/GAVIN/*${dnaNumber}*vcf.gz")
-			fi
+			
+		elif grep -m 1 "${dnaNumber}" "${database%.txt}_noGavin.txt"
+		then
+			vcfFilePath=$(grep -m 1 "${dnaNumber}" "${database%.txt}_noGavin.txt" | awk '{print $1}')
+			mkdir -p "${workDir}/variants/output/noGavin/"
+			noGavin='true'
 		else
 			echo "${dnaNumber} cannot be found back in the database (${database})"
 			echo "${dnaNumber}" >> "${workDir}/variants/tmp/notFound.txt"
@@ -163,7 +163,11 @@ then
 		sed -e 's#/groups/[^\(\), ]*#dummy#g' "${workDir}/variants/tmp/header.txt" > "${workDir}/variants/tmp/updatedheader.txt"
 
 		bcftools reheader -h "${workDir}/variants/tmp/updatedheader.txt" -o "${workDir}/variants/output/${pseudo}.vcf.gz" "${workDir}/variants/input/${vcfFile}"
-
+		
+		if [[ ${noGavin} == 'true' ]]
+		then
+			mv -v "${workDir}/variants/output/${pseudo}.vcf.gz" "${workDir}/variants/output/noGavin/"
+		fi
 		if [[ -n "${mantaBool:-}" ]]
 		then
 			if [ -f "${database%.txt}_manta.txt" ]
