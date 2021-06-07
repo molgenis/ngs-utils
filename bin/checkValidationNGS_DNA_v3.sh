@@ -225,14 +225,12 @@ function giabvshc(){
 		--eval "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
 		--comp "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
 
-#		printf "${sampleName}vsHC ${type} " >> "${outputFolder}/output.txt"
 		if [[ ${firstLine} == "false" ]]
 		then
 			## print header too
-			head -4 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' >> "${outputFolder}/output.txt"
-			firstLine="true"
+			head -4 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/precision_output.txt"
 		fi
-		head -5 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "precision",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/output.txt"
+		head -5 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "precision",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/precision_output.txt"
 	
 		echo "comparing ${type}: HCvs${sampleName}"
 		##HC callset vs sample (sensitivity)
@@ -243,8 +241,15 @@ function giabvshc(){
 		--comp "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
 		--eval "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
 
-#		printf "HCvs${sampleName} ${type} " >> "${outputFolder}/output.txt"
-		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/output.txt"
+		if [[ ${firstLine} == "false" ]]
+                then
+                        ## print header too
+                        head -4 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/sensitivity_output.txt"
+                        firstLine="true"
+                fi
+
+
+		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/sensitivity_output.txt"
 	done
 }
 
@@ -318,19 +323,27 @@ then
 		done
 	fi
 
-	echo "giab hc callset done, output can be found here: ${outputFolder}/output.txt" 
-	echo -e "Name type\t% Concordance\t((%variantsOverlap * %concordanceOverlap) / 100)" >> "${outputFolder}/output.txt"
-	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
-	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
-	echo "${lineNumberStart} && ${lineNumberStop}"
-	echo -e "Measurement\tType\tnVariantsEval\tnVariantsComp\tnDifference\tConcordance(in %)"
-	echo -e "Measurement\tType\tnVariantsEval\tnVariantsComp\tnDifference\tConcordance(in %)" >> "${outputFolder}/output.txt"
-
-	## Sample  Type    nEvalVariants   novelSites      nVariantsAtComp compRate        nConcordant     concordantRate  FinalConcordance        comparison
-	## 00000000_0000000_GIABNA12878_000000_HSR269A_AllExonV7_283261    SNP     26672   97      26575   99.64   26574   100.00  99.6326 precision
+#	echo "giab hc callset done, output can be found here: ${outputFolder}/output.txt" 
+#	echo -e "Name type\t% Concordance\t((%variantsOverlap * %concordanceOverlap) / 100)" >> "${outputFolder}/output.txt"
+#	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+#	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+#	echo "${lineNumberStart} && ${lineNumberStop}"
+	#echo -e "Measurement\tType\tnVariantsEval\tnVariantsComp\tnDifference\t\tConcordance(in %)"
 	
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$3"\t"$5"\t"$4"\t"$6}}}' "${outputFolder}/output.txt"
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$3"\t"$5"\t"$4"\t"$6}}}' "${outputFolder}/output.txt" >> "${outputFolder}/output.txt"
+	##precision
+	echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP"
+	echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP" >> "${outputFolder}/output.txt"
+	
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+	#awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$5"\t"$4"\t"$6}}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+
+	##sensitivity
+	echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN"
+	echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN" >> "${outputFolder}/output.txt"
+	
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt"
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
 
 fi
 
@@ -339,3 +352,4 @@ then
 	validationFolderTmp="${inputFolder}/validationVcfs/Frankenstein/"
 	checkFrankenstein
 fi
+
