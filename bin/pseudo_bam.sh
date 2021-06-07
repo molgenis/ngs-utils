@@ -132,7 +132,7 @@ then
 			
 			if [[ "${filePath}" == *"GAVIN"* ]]
 			then
-				resultsDir=$(dirname $(dirname "$(dirname ${filePath})"))
+				resultsDir=$(dirname $(dirname "$(dirname ${filePath})")
 			else
 				resultsDir=$(dirname "$(dirname ${filePath})")
 			fi
