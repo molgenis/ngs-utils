@@ -76,6 +76,8 @@ datum=$(date '+%Y%m%d')
 echo "${datum}"
 outputFile="${workDirectory}/reference_samplesheet_${datum}.csv"
 missingSamplesFile="${workDirectory}/missing_samples_${datum}.csv"
+missingSlideList="${workDirectory}/missing_slides_${datum}.csv"
+
 printf '' > "${outputFile}"
 printf '' > "${missingSamplesFile}"
 
@@ -113,6 +115,13 @@ do
         echo "location is:"
         echo "slide is : ${col1}"
         echo "Copying data /groups/umcg-gap/prm0*/rawdata/array/IDAT/${col1}/${col1}_${col2}*.idat"
-        ls -latrh "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat"
-        rsync -av "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat" "${workDirectory}/scanData"
+
+	if ls -latrh  "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat"
+	then
+	        ls -latrh "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat"
+        	rsync -av "/groups/umcg-gap/prm0"*"/rawdata/array/IDAT/${col1}/${col1}_${col2}"*".idat" "${workDirectory}/scanData"
+	else
+		echo "cannot find slide ${col1}/${col1}_${col2}*.idat >> ${missingSlideList}"
+	fi
 done <"${workDirectory}/barcodes.txt"
+
