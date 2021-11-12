@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+#
+# DATA in /groups/umcg-atd/tmp04/projects/QXTR_276-Exoom_v1/run01/results/variants/gVCF
+#
+
 import argparse
 from collections import namedtuple
 import pandas as pd
@@ -113,7 +116,7 @@ def calculate_stats_per_target(chr,start,stop,geneName,gVCF):
                         numberBases=(regionEnd-targetStart)
                 elif regionEnd > targetEnd:
                 ### regionEnd is higher than targetEnd --> regionStart is start, targetEnd is end
-  	       	    numberBases=(targetEnd-regionStart)
+       	       	    numberBases=(targetEnd-regionStart)
                 else:
                 #### regionStart and region stop are within 1 target --> regionStart and regionEnd are the boundaries     
                     numberBases=(regionEnd-regionStart)
