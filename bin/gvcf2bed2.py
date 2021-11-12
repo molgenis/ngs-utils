@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import argparse
 from collections import namedtuple
 import pandas as pd
@@ -113,7 +114,7 @@ def calculate_stats_per_target(chr,start,stop,geneName,gVCF):
                         numberBases=(regionEnd-targetStart)
                 elif regionEnd > targetEnd:
                 ### regionEnd is higher than targetEnd --> regionStart is start, targetEnd is end
-  	       	    numberBases=(targetEnd-regionStart)
+       	       	    numberBases=(targetEnd-regionStart)
                 else:
                 #### regionStart and region stop are within 1 target --> regionStart and regionEnd are the boundaries     
                     numberBases=(regionEnd-regionStart)
