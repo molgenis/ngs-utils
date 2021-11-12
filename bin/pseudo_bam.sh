@@ -129,17 +129,31 @@ then
 		
 		if grep -m 1 "${dnaNumber}" "${database}"
 		then
-			resultsDir=$(dirname "$(dirname ${filePath})")
+			
+			if [[ "${filePath}" == *"GAVIN"* ]]
+			then
+				resultsDir=$(dirname $(dirname "$(dirname ${filePath})")
+			else
+				resultsDir=$(dirname "$(dirname ${filePath})")
+			fi
 			if ssh -n chaperone "test -e ${resultsDir}/alignment/${sample}*bam"
 			then
 				## copy file from prm to tmp
 				echo "chaperone:${resultsDir}/alignment/${sample}*bam" "${workDir}/input/"
 				rsync -av "chaperone:${resultsDir}/alignment/${sample}*bam" "${workDir}/input/"
+			elif ssh -n chaperone "test -e ${resultsDir}/alignment/${sample}*cram"
+			then
+				 echo "${sample}.cram is found, please convert it to bam and rerun this again" >> "${workDir}/tmp/notFound.txt"
 			else
 				notFound="true"
 				echo "${resultsDir}/alignment/${sample}*bam not found on prm05/prm06"
+				echo "${sample}" >> "${workDir}/tmp/notFound.txt"
 				continue
 			fi
+		else	
+			echo "${dnaNumber} cannot be found back in the database (${database})"
+			echo "${dnaNumber}" >> "${workDir}/tmp/notFound.txt"
+			continue 
 		fi
 		bam=$(ls ${workDir}/input/*${dnaNumber}*.bam) ## 20000_DNA12345_000_12312.merged.bam
 		fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
@@ -147,6 +161,9 @@ then
 
 		reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
 	done<"${search}"
+	
+	echo "pseudo anonimizing done, results can be found here: ${workDir}/output/"
+	echo "samples that could not be found back are reported here: ${workDir}/tmp/notFound.txt"
 fi
 
 if [[ "${pathway}" == 'input' ]]

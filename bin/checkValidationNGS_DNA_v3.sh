@@ -166,70 +166,90 @@ function giabvshc(){
 	sampleName=$(basename "${giabSample}")
 
 	sampleName=${sampleName%%.*}
-	## capture 20bp bedfile
-	bedtools intersect \
-		-header \
-		-a "${giabSample}" \
-		-b "/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured_20bp.bed" \
-		> "${outputFolder}/tmp/${sampleName}_captured_20bp.vcf"
 
 	##capture no union bedfile
 	bedtools intersect \
 		-header \
-		-a "${outputFolder}/tmp/${sampleName}_captured_20bp.vcf"\
+		-a "${giabSample}" \
 		-b "/apps/data/NIST/union13callableMQonlymerged_addcert_nouncert_excludesimplerep_excludesegdups_excludedecoy_excludeRepSeqSTRs_noCNVs_v2.19_2mindatasets_5minYesNoRatio_noMT.bed" \
-		> "${outputFolder}/tmp/${sampleName}_union.vcf"
-
+		> "${outputFolder}/tmp/${sampleName}.union.vcf"
 
 	#split giabFile into INDEL and SNP	
 	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
 	-T SelectVariants \
-	--variant "${outputFolder}/tmp/${sampleName}_union.vcf" \
-	-o "${outputFolder}/tmp/${sampleName}_union.INDEL.vcf" \
+	--variant "${outputFolder}/tmp/${sampleName}.union.vcf" \
+	-o "${outputFolder}/tmp/${sampleName}_INDEL.union.vcf" \
 	--selectTypeToInclude INDEL \
 	-sn "${sampleName}"
 
-	echo "${sampleName}.INDEL.vcf done"
+	echo "${sampleName}_INDEL.vcf done"
 
 	#Select SNPs and MNPs
 	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
 	-T SelectVariants \
-	--variant "${outputFolder}/tmp/${sampleName}_union.vcf" \
-	-o  "${outputFolder}/tmp/${sampleName}_union.SNP.vcf" \
+	--variant "${outputFolder}/tmp/${sampleName}.union.vcf" \
+	-o  "${outputFolder}/tmp/${sampleName}_SNP.union.vcf" \
 	--selectTypeToExclude INDEL \
 	-sn "${sampleName}"
 
-	echo "${sampleName}.SNP.vcf done"
+	echo "${sampleName}_SNP.vcf done"
+	
+	## capture 20bp bedfile SNP
+	bedtools intersect \
+		-header \
+		-a "${outputFolder}/tmp/${sampleName}_SNP.union.vcf" \
+		-b "/apps/data/Agilent/Exoom_v1/human_g1k_v37/captured.merged.bed" \
+		> "${outputFolder}/tmp/${sampleName}_SNP.union.20bp.vcf"
+	
+	## capture 20bp bedfile INDEL
+	bedtools intersect \
+		-header \
+		-a "${outputFolder}/tmp/${sampleName}_INDEL.union.vcf" \
+		-b "/apps/data/Agilent/Exoom_v1/human_g1k_v37/captured.merged.bed" \
+		> "${outputFolder}/tmp/${sampleName}_INDEL.union.20bp.vcf"
 
 	## Do comparison per type
-
+	firstLine="false"
 	for type in SNP INDEL
 	do
+		grep "^#" "${outputFolder}/tmp/${sampleName}_${type}.union.20bp.vcf" > "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf"
+		grep -v "^#" "${outputFolder}/tmp/${sampleName}_${type}.union.20bp.vcf" |  grep -v "0/0" | grep -v "\./\." | grep "PASS" | grep -v "1/0" >> "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf"
 		echo "comparing ${type}: ${sampleName}vsHC"
-		## sample vs HC callset
+		## sample vs HC callset (precision)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
 		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
-		-o "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" \
-		--eval "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
-		--comp "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
+		-o "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" \
+		--eval "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
+		--comp "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
 
-		printf "${sampleName}vsHC ${type} " >> "${outputFolder}/output.txt"
-		head -5 "${outputFolder}/tmp/${sampleName}vsHC_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
-
+		if [[ ${firstLine} == "false" ]]
+		then
+			## print header too
+			head -4 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/precision_output.txt"
+		fi
+		head -5 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "precision",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/precision_output.txt"
+	
 		echo "comparing ${type}: HCvs${sampleName}"
-		##HC callset vs sample
+		##HC callset vs sample (sensitivity)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
 		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
-		-o "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" \
-		--comp "${outputFolder}/tmp/${sampleName}_union.${type}.vcf" \
-		--eval "/apps/data/NIST/GIAB_High_Confidence.${type}_union_20bp.vcf"
+		-o "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" \
+		--comp "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
+		--eval "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
 
-		printf "HCvs${sampleName} ${type} " >> "${outputFolder}/output.txt"
-		head -5 "${outputFolder}/tmp/HCvs${sampleName}_union.${type}.vcf" | tail -1 >> "${outputFolder}/output.txt"
+		if [[ ${firstLine} == "false" ]]
+                then
+                        ## print header too
+                        head -4 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/sensitivity_output.txt"
+                        firstLine="true"
+                fi
+
+
+		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/sensitivity_output.txt"
 	done
 }
 
@@ -264,7 +284,7 @@ fi
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "1" || "${validationLevel}" == "4" ]]
 then
 
-	whichHost=$(hostname)
+	whichHost=$(hostname -s)
 
 	if [[ "${whichHost}" == "leucine-zipper"  || "${whichHost}" == "zinc-finger" ]]
 	then
@@ -303,13 +323,28 @@ then
 		done
 	fi
 
-	echo "giab hc callset done, output can be found here: ${outputFolder}/output.txt" 
-	echo -e "Name type\t% Concordance\t((%variantsOverlap * %concordanceOverlap) / 100)" >> "${outputFolder}/output.txt"
-	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
-	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
-	echo "${lineNumberStart} && ${lineNumberStop}"
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt"
-	awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>start && NR<stop){if($0!=""){print $1,$2"\t"($11*$13/100)"\t("$11"x"$13"/100)"}}}' "${outputFolder}/output.txt" >> "${outputFolder}/output.txt"
+#	echo "giab hc callset done, output can be found here: ${outputFolder}/output.txt" 
+#	echo -e "Name type\t% Concordance\t((%variantsOverlap * %concordanceOverlap) / 100)" >> "${outputFolder}/output.txt"
+#	lineNumberStart=$(grep -n '##OPEN## GIAB' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+#	lineNumberStop=$(grep -n 'Name type' "${outputFolder}/output.txt" | awk 'BEGIN{FS=":"}{print $1}')
+#	echo "${lineNumberStart} && ${lineNumberStop}"
+	#echo -e "Measurement\tType\tnVariantsEval\tnVariantsComp\tnDifference\t\tConcordance(in %)"
+	
+	##precision
+	echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP"
+	echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP" >> "${outputFolder}/output.txt"
+	
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+	#awk -v start=${lineNumberStart} -v stop=${lineNumberStop} '{if (NR>(start+1) && NR<stop){if($0!=""){print $1,$2"\t"$5"\t"$4"\t"$6}}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+
+	##sensitivity
+	echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN"
+	echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN" >> "${outputFolder}/output.txt"
+	
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt"
+	awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
+
 fi
 
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "3" ]]
@@ -317,3 +352,4 @@ then
 	validationFolderTmp="${inputFolder}/validationVcfs/Frankenstein/"
 	checkFrankenstein
 fi
+

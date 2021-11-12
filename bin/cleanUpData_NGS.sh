@@ -110,7 +110,7 @@ else
 	echo \"cleaned up prm\"
 	"
 	exit
-	EOF
+EOF
 fi
 
 echo "switch user to ${group}-ateambot to remove data from $(hostname -s) for ${project}"
