@@ -22,7 +22,7 @@ function reheader(){
 				mv -v "${workDir}/tmp/${pseudo}.reheader.bam" "${workDir}/output/${pseudo}.bam"
 				touch "${workDir}/${sampleName}.finished"
 		fi
-
+ 
 }
 
 function showHelp() {
@@ -176,19 +176,22 @@ then
 	fi
 
 	mkdir -p "${workDir}"/{input,tmp,output}
-	mv "${input}/"*".bams" "${workDir}/input/"
+	rsync -av "${input}/"*".bam" "${workDir}/input/"
 	module load SAMtools
 
 	while read line
 	do
 		oldKey=$(echo "${line}" | awk '{print $1}')	 ## DNA12345
 		pseudo=$(echo "${line}" | awk '{print $2}')	 ##sample1
-		bam=$(ls "${workDir}/input/"*"${oldKey}"*".bam") ## 20000_DNA12345_000_12312.merged.bam
-		fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
-		sampleName=${fileName%%.*} ## 20000000_DNA12345_0000000_1231244
-		echo "BAM: ${bam} ${oldKey} ${pseudo} ${sampleName}"
+		if [[ -f "${workDir}/input/"*"${oldKey}"*".bam" ]]
+		then
+			bam=$(ls "${workDir}/input/"*"${oldKey}"*".bam") ## 20000_DNA12345_000_12312.merged.bam
+			fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
+			sampleName=${fileName%%.*} ## 20000000_DNA12345_0000000_1231244
+			echo "BAM: ${bam} ${oldKey} ${pseudo} ${sampleName}"
 
-		reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
-
+			reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
+		else
+			echo "bam is not found"
 	done<"${mapping}"
 fi
