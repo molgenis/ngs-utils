@@ -1,6 +1,4 @@
-#
-# DATA in /groups/umcg-atd/tmp04/projects/QXTR_276-Exoom_v1/run01/results/variants/gVCF
-#
+#!/usr/bin/env python
 
 import argparse
 from collections import namedtuple
