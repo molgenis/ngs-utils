@@ -15,9 +15,11 @@ Usage:
 	$(basename $0) OPTIONS
 Options:
 	-h   Show this help.
-	-i   inputFolder
+	-i   inputFile
 	-t   inputType (vcf or vcf.gz) (default= vcf.gz)
-	-o   outputFolder (default:\${inputFolder}/output/)
+	-t   workDir working directory (default= CURRENTDIR)
+	-b   which build, ucsc (chr1, chr2,chrX etc) or regular (1,2,X etc)
+	-o   outputFolder (default:\${workDir}/output/)
 	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm06/projects/validationVcfs/)
 	-l   validationLevel (all|1|2|3|4) default is 4
 					1	is old validation (finding back some SNPs in 11 samples)
@@ -164,19 +166,33 @@ function giabvshc(){
 	giabSample="${1}"
 	path=$(dirname "${giabSample}")	
 	sampleName=$(basename "${giabSample}")
-
 	sampleName=${sampleName%%.*}
+
+	if [ "${buildType}" == "regular" ]
+	then
+		namingConvention=""
+		refGenome="/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta"
+		bedfile="/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured.merged.bed"
+	elif [ "${buildType}" == "ucsc" ]
+	then
+		namingConvention="ucsc"
+		refGenome="/apps/data/GRC/GCA_000001405.14_GRCh37.p13_full_analysis_set.fna"
+		bedfile="/apps/data/Agilent/Exoom_v3-ucsc/human_g1k_v37/captured.merged.bed"
+	else
+		echo "buildType ${buildType} unknown"
+	fi
+		
 
 	##capture no union bedfile
 	bedtools intersect \
 		-header \
 		-a "${giabSample}" \
-		-b "/apps/data/NIST/union13callableMQonlymerged_addcert_nouncert_excludesimplerep_excludesegdups_excludedecoy_excludeRepSeqSTRs_noCNVs_v2.19_2mindatasets_5minYesNoRatio_noMT.bed" \
+		-b "/apps/data/NIST/${namingConvention}/union13callableMQonlymerged_addcert_nouncert_excludesimplerep_excludesegdups_excludedecoy_excludeRepSeqSTRs_noCNVs_v2.19_2mindatasets_5minYesNoRatio_noMT.bed" \
 		> "${outputFolder}/tmp/${sampleName}.union.vcf"
 
 	#split giabFile into INDEL and SNP	
 	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
-	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
+	-R "${refGenome}" \
 	-T SelectVariants \
 	--variant "${outputFolder}/tmp/${sampleName}.union.vcf" \
 	-o "${outputFolder}/tmp/${sampleName}_INDEL.union.vcf" \
@@ -187,7 +203,7 @@ function giabvshc(){
 
 	#Select SNPs and MNPs
 	java -XX:ParallelGCThreads=1 -Xmx5g -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
-	-R "/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta" \
+	-R "${refGenome}" \
 	-T SelectVariants \
 	--variant "${outputFolder}/tmp/${sampleName}.union.vcf" \
 	-o  "${outputFolder}/tmp/${sampleName}_SNP.union.vcf" \
@@ -200,14 +216,14 @@ function giabvshc(){
 	bedtools intersect \
 		-header \
 		-a "${outputFolder}/tmp/${sampleName}_SNP.union.vcf" \
-		-b "/apps/data/Agilent/Exoom_v1/human_g1k_v37/captured.merged.bed" \
+		-b "${bedfile}" \
 		> "${outputFolder}/tmp/${sampleName}_SNP.union.20bp.vcf"
 	
 	## capture 20bp bedfile INDEL
 	bedtools intersect \
 		-header \
 		-a "${outputFolder}/tmp/${sampleName}_INDEL.union.vcf" \
-		-b "/apps/data/Agilent/Exoom_v1/human_g1k_v37/captured.merged.bed" \
+		-b "${bedfile}" \
 		> "${outputFolder}/tmp/${sampleName}_INDEL.union.20bp.vcf"
 
 	## Do comparison per type
@@ -220,10 +236,10 @@ function giabvshc(){
 		## sample vs HC callset (precision)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
-		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
+		-R "${refGenome}" \
 		-o "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" \
 		--eval "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
-		--comp "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
+		--comp "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf"
 
 		if [[ ${firstLine} == "false" ]]
 		then
@@ -236,32 +252,33 @@ function giabvshc(){
 		##HC callset vs sample (sensitivity)
 		java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 		-T VariantEval \
-		-R '/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta' \
+		-R "${refGenome}" \
 		-o "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" \
 		--comp "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
-		--eval "/apps/data/NIST/GIAB_HC.${type}_20bp.vcf"
+		--eval "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf"
 
 		if [[ ${firstLine} == "false" ]]
-                then
-                        ## print header too
-                        head -4 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/sensitivity_output.txt"
-                        firstLine="true"
-                fi
-
+		then
+			## print header too
+			head -4 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/sensitivity_output.txt"
+			firstLine="true"
+		fi
 
 		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type=${type} '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/sensitivity_output.txt"
 	done
 }
 
-while getopts "i:o:v:t:l:h" opt; 
+while getopts "i:o:w:v:t:b:l:h" opt; 
 do
-	case $opt in h)showHelp;; i)inputFolder="${OPTARG}";; o)outputFolder="${OPTARG}";; v)validationFolderPrm="${OPTARG}";; t)inputType="${OPTARG}";; l)validationLevel="${OPTARG}";;
+	case $opt in h)showHelp;; i)inputFile="${OPTARG}";; w)workDir="${OPTARG}";; o)outputFolder="${OPTARG}";; v)validationFolderPrm="${OPTARG}";; b)buildType="${OPTARG}";; t)inputType="${OPTARG}";; l)validationLevel="${OPTARG}";;
 esac 
 done
 
-if [[ -z "${inputFolder:-}" ]]; then showHelp ; echo "inputFolder is not specified" ; fi ; echo "inputFolder=${inputFolder}"
-if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${inputFolder}/output/tmp" ; outputFolder="${inputFolder}/output/" ; fi ; echo "outputFolder=${outputFolder}"
-if [[ -z "${inputType:-}" ]]; then inputType="vcf.gz" ; fi ; echo "inputType=${inputType}"
+if [[ -z "${inputFile:-}" ]]; then showHelp ; echo "inputFile is not specified" ; fi ; echo "inputFile=${inputFile}"
+if [[ -z "${workDir:-}" ]]; then workDir="$(pwd)" ; mkdir -p "${workDir}/input/" ; fi ; echo "workDir=${workDir}"
+if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${workDir}/output/tmp" ; outputFolder="${workDir}/output/" ; fi ; echo "outputFolder=${outputFolder}"
+if [[ -z "${buildType:-}" ]]; then buildType="regular" ; fi ; echo "buildType=${buildType}" 
+if [[ -z "${inputType:-}" ]]; then inputType="vcf.gz" ; fi ; echo "inputType=${inputType}"	
 if [[ -z "${validationFolderPrm:-}" ]]; then validationFolderPrm="/groups/umcg-gd/prm06/projects/validationVcfs/" ; fi ; echo "validationFolderPrm=${validationFolderPrm}"
 if [[ -z "${validationLevel:-}" ]]; then validationLevel="all" ; fi ; echo "validationLevel=${validationLevel}" 
 
@@ -288,7 +305,7 @@ then
 
 	if [[ "${whichHost}" == "leucine-zipper"  || "${whichHost}" == "zinc-finger" ]]
 	then
-		validationFolderTmp="${inputFolder}/validationVcfs/"
+		validationFolderTmp="${workDir}/input/validationVcfs/"
 		mkdir -p "${outputFolder}/filtered/"
 
 		echo "copying validationVcfs"
@@ -310,13 +327,14 @@ fi
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "2" || "${validationLevel}" == "4" ]]
 then
 	echo "starting giab hc callset"
-	mapfile -t giabSamples < <(find ${inputFolder} -maxdepth 1 -name "*GIABNA12878*" -name "*.vcf.gz")
-	if [[ "${#giabSamples[@]:-0}" -eq '0' ]]
+	mapfile -t giabSample < <(find ${inputFile})
+	if [[ "${#giabSample[@]:-0}" -eq '0' ]]
 	then
-		echo "no GIAB samples found in: ${inputFolder}, file should contain at least GIABNA12878 in their name" >>  "${outputFolder}/output.txt"
+		echo "${inputFile} not found" 
+		echo "${inputFile} not found" >> "${outputFolder}/output.txt"
 	else
 		echo -e "##OPEN## GIAB vs HC and versa" >> "${outputFolder}/output.txt"
-		for i in "${giabSamples[@]}"
+		for i in "${giabSample[@]}"
 		do
 			echo "processing ${i}.."
 			giabvshc "${i}"
@@ -349,7 +367,8 @@ fi
 
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "3" ]]
 then
-	validationFolderTmp="${inputFolder}/validationVcfs/Frankenstein/"
+	validationFolderTmp="${workDir}/input/validationVcfs/Frankenstein/"
 	checkFrankenstein
 fi
+
 
