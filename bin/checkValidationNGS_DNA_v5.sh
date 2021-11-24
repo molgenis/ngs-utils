@@ -18,7 +18,7 @@ Options:
 	-i   inputFile
 	-t   inputType (vcf or vcf.gz) (default= vcf.gz)
 	-t   workDir working directory (default= CURRENTDIR)
-	-b   which build, ucsc (chr1, chr2,chrX etc) or regular (1,2,X etc)
+	-b   which build, ucsc (chr1, chr2,chrX etc) or regular (1,2,X etc) default is regular
 	-o   outputFolder (default:\${workDir}/output/)
 	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm06/projects/validationVcfs/)
 	-l   validationLevel (all|1|2|3|4) default is 4
