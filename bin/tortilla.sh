@@ -18,6 +18,7 @@ Script requires one initial argument:
     -r|--revertBamToFastQ       go back from bam to fastq (paired end only)
     -cc|--calculateCoverage     CoveragePerBase or per Target calculations for a specific targetpanel
     -d|--cramToBam              Converting cram files to bam(CramConversion.sh)
+    -l|--liftover               Liftover vcf file (LiftoverVcf.sh)
 ===============================================================================================================
 EOH
 trap - EXIT
@@ -60,11 +61,18 @@ then
 	${EBROOTNGSMINUTILS}/bin/compareWithVKGL.sh ${@}
 elif [[ "${1}" == "--revertBamToFastQ" || "${1}" == "-r" ]]
 then
+	shift
 	${EBROOTNGSMINUTILS}/bin/revertFromBamToFastQ.sh ${@}
 elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
 then
+	shift
 	${EBROOTNGSMINUTILS}/bin/coverage_calc.sh ${@}
 elif [[ "${1}" == "--cramToBam" || "${1}" == "-d" ]]
 then
+	shift
 	${EBROOTNGSMINUTILS}/bin/CramConversion.sh ${@}
+elif [[ "${1}" == "--liftover" || "${1}" == "-l" ]]
+then
+	shift
+	${EBROOTNGSMINUTILS}/bin/LiftOverVcf.sh ${@}
 fi
