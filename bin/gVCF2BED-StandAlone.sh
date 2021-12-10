@@ -1,37 +1,39 @@
-\#!/bin/bash
+#!/bin/bash
 set -eu
 
 
 function showHelp() {
-        #
-        # Display commandline help on STDOUT.
-        #
-        cat <<EOH
+	#
+	# Display commandline help on STDOUT.
+	#
+	cat <<EOH
 ===============================================================================================================
 Script to calculate coverage based on gVCF files
 Usage:
-        $(basename $0) OPTIONS
+	$(basename "${0}") OPTIONS
 Options:
-        -h   Show this help.
+	-h   Show this help.
 
     Required:
 	-i   inputFolder
    
     Optional:
 	-b   select which bedfile to use for the targets (default="/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured.merged.bed""
-        -w   workDir working directory (default= CURRENTDIR)
+	-w   workDir working directory (default= CURRENTDIR)
 	-g   gatk version (3 or 4) default="3"
-        -o   outputFolder (default:\${workDir}/output/)
+	-o   outputFolder (default:\${workDir}/output/)
 ===============================================================================================================
 EOH
-        trap - EXIT
-        exit 0
+	trap - EXIT
+	exit 0
 }
 
 
 while getopts "i:o:w:b:g:h" opt;
 do
-        case $opt in h)showHelp;; i)inputFolder="${OPTARG}";; w)workDir="${OPTARG}";; o)outputFolder="${OPTARG}";; b)bedfile="${OPTARG}";; g)gatkVersion="${OPTARG}";; 
+	# shellcheck disable=SC2249
+	# shellcheck disable=SC2220
+	case "${opt}" in h)showHelp;; i)inputFolder="${OPTARG}";; o)outputFolder="${OPTARG}";; w)workDir="${OPTARG}";; b)bedfile="${OPTARG}";; g)gatkVersion="${OPTARG}";;
 esac
 done
 
@@ -58,8 +60,8 @@ fi
 uniqSamples=$(for i in "${inputFolder}/"*"vcf.gz" ; do printf '%s\n' "${i%%.*}";done | sort -V | uniq)
 
 printf "number of unique samples is: " 
-echo ${uniqSamples} | wc -w
-
+IFS=' ' ; echo "${uniqSamples}" | wc -w
+IFS=' ' read -r -a uniqSamplesArray <<< "${uniqSamples}"
 
 if [ "${gatkVersion}" == "3" ]
 then
@@ -75,58 +77,55 @@ module load HTSlib
 module load gVCF2BED
 module load BCFtools
 
-## Must be without quotes since it is string containing spaces we need to loop over
-for i in ${uniqSamples}
+for i in "${uniqSamplesArray[@]}"
 do
 	
 	sample=$(basename "${i}")
 	path=$(dirname "${i}")
-	xpFile=""
-	inputName="${sample}"
+	
 	## GATK3
 	if [ "${gatkVersion}" == "3" ]
 	then
-		if [ -f ${workDir}/${sample}.merged.g.vcf.gz ]
+		if [ -f "${workDir}/${sample}.merged.g.vcf.gz" ]
 		then
 			echo "already created ${workDir}/${sample}.merged.g.vcf.gz, skipped"
 		else
+			xpFile=""
 			INPUTS=()
 
-			for gVCF in $(ls ${path}/${sample}*.vcf.gz)
+			for gVCF in "${path}/${sample}"*".vcf.gz"
 			do 
 				if [[ "${gVCF}" == *"batch-Xp.variant.calls.g.vcf.gz"* ]]
 				then
 					echo "skip the Xp batch for now, this will be added later on"
-					xpFile=$(ls ${path}/${sample}*batch-Xp.variant.calls.g.vcf.gz)
-				else	
-					echo "###${gVCF}###"
+					xpFile=$(ls "${path}/${sample}"*"batch-Xp.variant.calls.g.vcf.gz")
+				else
 					INPUTS+=("--variant ${gVCF}")
-				
 				fi
 			done
+			IFS=$'\n' mapfile -t sortedINPUTS < <(sort -V <<<"${INPUTS[*]}")
+#			IFS=$'\n' sortedINPUTS=($(sort -V <<<"${INPUTS[*]}")) ; unset IFS
 
-			IFS=$'\n' sortedINPUTS=($(sort -V <<<"${INPUTS[*]}")) ; unset IFS
-			echo "INPUTS=${#INPUTS[@]}"
-
-			java -Xmx5g -cp ${EBROOTGATK}/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants \
+			# shellcheck disable=SC2154
+			java -Xmx5g -cp "${EBROOTGATK}/GenomeAnalysisTK.jar" org.broadinstitute.gatk.tools.CatVariants \
 			-R /apps/data/1000G/phase1/human_g1k_v37_phiX.fasta \
-			${sortedINPUTS[@]} \
+			"${sortedINPUTS[@]}" \
 			-out "${workDir}/${sample}.mergedWithoutXp.g.vcf.gz"
 		
-			zcat ${workDir}/${sample}.mergedWithoutXp.g.vcf.gz > ${workDir}/${sample}.mergedWithoutXp.g.vcf
-			zcat "${xpFile}" | grep -v '^#' >> ${workDir}/${sample}.mergedWithoutXp.g.vcf
+			zcat "${workDir}/${sample}.mergedWithoutXp.g.vcf.gz" > "${workDir}/${sample}.mergedWithoutXp.g.vcf"
+			zcat "${xpFile}" | grep -v '^#' >> "${workDir}/${sample}.mergedWithoutXp.g.vcf"
 
-			bcftools sort ${workDir}/${sample}.mergedWithoutXp.g.vcf -o ${workDir}/${sample}.merged.g.vcf
-			bgzip ${workDir}/${sample}.merged.g.vcf
-			tabix -p vcf ${workDir}/${sample}.merged.g.vcf.gz
+			bcftools sort "${workDir}/${sample}.mergedWithoutXp.g.vcf" -o "${workDir}/${sample}.merged.g.vcf"
+			bgzip "${workDir}/${sample}.merged.g.vcf"
+			tabix -p vcf "${workDir}/${sample}.merged.g.vcf.gz"
 		fi
 			
 
 	## GATK4
 	else
 		INPUTS=()
-               
-		for gVCF in $(ls ${path}/${sample}*.vcf.gz)
+	       
+		for gVCF in "${path}/${sample}"*".vcf.gz"
 		do 
 			INPUTS+=("--INPUT ${gVCF}")
 		done
@@ -136,23 +135,23 @@ do
 		--OUTPUT "${workDir}/${sample}.merged.g.vcf.gz"
 	fi
 
-        outputFile="${outputFolder}/${sample}.output.csv"
+	outputFile="${outputFolder}/${sample}_${bedfile}.output.csv"
 
 	echo "starting to do the calculations"
 
-        python ${EBROOTGVCF2BED}/bin/gvcf2bed2.py \
-        -I "${workDir}/${sample}.merged.g.vcf.gz" \
-        -O "${outputFile}" \
-        -b "${bedfile}"
+	gvcf2bed2.py \
+	-I "${workDir}/${sample}.merged.g.vcf.gz" \
+	-O "${outputFile}" \
+	-b "${bedfile}"
 
-        awk '{sumDP+=$11;sumTargetSize+=$12;sumCoverageInDpLow+=$13;sumZeroCoverage+=14}END{print "avgCov: "(sumDP/sumTargetSize)"\t%coverageBelow20: "((sumCoverageInDpLow/sumTargetSize)*100)"\t%ZeroCoverage: "((sumZeroCoverage/sumTargetSize)*100)}' "${outputFile}" > ${outputFile%.*}.output.incl_TotalAvgCoverage_TotalPercentagebelow20x.txt
+	awk '{sumDP+=$11;sumTargetSize+=$12;sumCoverageInDpLow+=$13;sumZeroCoverage+=14}END{print "avgCov: "(sumDP/sumTargetSize)"\t%coverageBelow20: "((sumCoverageInDpLow/sumTargetSize)*100)"\t%ZeroCoverage: "((sumZeroCoverage/sumTargetSize)*100)}' "${outputFile}" > "${outputFile%.*}.incl_TotalAvgCoverage_TotalPercentagebelow20x.txt"
 
-        ## creeer de coveragePerTarget.txt file
-        awk 'BEGIN{OFS="\t"}{if (NR>1){print (NR-1),$1,$2,$3,$8,$4,$12,"CDS","1"}else{print "Index\tChr\tChr Position Start\tChr Position End\tAverage Counts\tDescription\tReference Length\tCDS\tContig"}}' ${outputFile} > ${outputFile%*.}.coveragePerTarget.txt
+	## creeer de coveragePerTarget.txt file
+	awk 'BEGIN{OFS="\t"}{if (NR>1){print (NR-1),$1,$2,$3,$8,$4,$12,"CDS","1"}else{print "Index\tChr\tChr Position Start\tChr Position End\tAverage Counts\tDescription\tReference Length\tCDS\tContig"}}' "${outputFile}" > "${outputFile%%*.}.coveragePerTarget.txt"
 
-        echo "Raw output file is here: ${outputFile}"
-        echo "final statistics can be found here: ${outputFile}.incl_TotalAvgCoverage_TotalPercentagebelow20x.txt"
-        echo "coveragePerTarget file can be found here: ${outputFile}.coveragePerTarget.txt"
+	echo "Raw output file is here: ${outputFile}"
+	echo "final statistics can be found here: ${outputFile}.incl_TotalAvgCoverage_TotalPercentagebelow20x.txt"
+	echo "coveragePerTarget file can be found here: ${outputFile%%.*}.coveragePerTarget.txt"
 
 
 done
