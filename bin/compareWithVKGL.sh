@@ -36,17 +36,17 @@ function giabvshc(){
 	then
 		namingConvention=""
 		refGenome="/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta"
-		bedfile="/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured.merged.bed"
+		bedfile="/apps/data/Agilent/Exoom_v1/human_g1k_v37/captured.merged.bed"
 	elif [ "${buildType}" == "ucsc" ]
 	then
 		namingConvention="ucsc"
 		refGenome="/apps/data/GRC/GCA_000001405.14_GRCh37.p13_full_analysis_set.fna"
-		bedfile="/apps/data/Agilent/Exoom_v3-ucsc/human_g1k_v37/captured.merged.bed"
+		bedfile="/apps/data/Agilent/Exoom_v1-ucsc/human_g1k_v37/captured.merged.bed"
 	else
 		echo "buildType ${buildType} unknown"
 	fi
 		
-	##capture no union bedfile
+	##capture union bedfile
 	bedtools intersect \
 		-header \
 		-a "${giabSample}" \
