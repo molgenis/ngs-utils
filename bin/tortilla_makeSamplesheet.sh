@@ -29,17 +29,17 @@ fi
 if [[ "${1}" == "--makeSamplesheetSimple" || "${1}" == "-m" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/makeSamplesheet.sh ${@}
+	"${EBROOTNGSMINUTILS}/makeSamplesheet.sh" "${@}"
 
 elif [[ "${1}" == "--makeSamplesheetWithFastQ" || "${1}" == "-w" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/makeSamplesheet_externalSamplesWithFastQ.sh ${@}
+	"${EBROOTNGSMINUTILS}/makeSamplesheet_externalSamplesWithFastQ.sh" "${@}"
 
 elif [[ "${1}" == "--makeSamplesheetNoFastQ" || "${1}" == "-n" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/makeSamplesheet_InhouseNoFastQinfo.sh ${@}
+	"${EBROOTNGSMINUTILS}/makeSamplesheet_InhouseNoFastQinfo.sh" "${@}"
 fi
 
 
