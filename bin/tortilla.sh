@@ -27,7 +27,7 @@ exit 0
 
 ml ngs-utils
 
-if [ -z ${1:-} ]
+if [ -z "${1:-}" ]
 then
 	showHelp
 fi
@@ -35,44 +35,51 @@ fi
 if [[ "${1}" == "--makeSamplesheet" || "${1}" == "-m" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/tortilla_makeSamplesheet.sh ${@}
-
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/tortilla_makeSamplesheet.sh" "${@}"
 elif [[ "${1}" == "--bamout" || "${1}" == "-b" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/bamout.sh ${@}
-
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/bamout.sh" "${@}"
 elif [[ "${1}" == "--countCoverage" || "${1}" == "-c" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/countCoverage.sh ${@}
-
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/countCoverage.sh" "${@}"
 elif [[ "${1}" == "--vcfCompare" || "${1}" == "-v" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/vcf-compare_2.0.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/vcf-compare_2.0.sh" "${@}"
 elif [[ "${1}" == "--validateNGS" || "${1}" == "-n" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/checkValidationNGS_DNA_v6.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/checkValidationNGS_DNA_v6.sh" "${@}"
 elif [[ "${1}" == "--compareWithVKGL" || "${1}" == "-cv" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/compareWithVKGL.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/compareWithVKGL.sh" "${@}"
 elif [[ "${1}" == "--revertBamToFastQ" || "${1}" == "-r" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/revertFromBamToFastQ.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/revertFromBamToFastQ.sh" "${@}"
 elif [[ "${1}" == "--calculateCoverage" || "${1}" == "-cc" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/coverage_calc.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/coverage_calc.sh" "${@}"
 elif [[ "${1}" == "--cramToBam" || "${1}" == "-d" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/CramConversion.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/CramConversion.sh" "${@}"
 elif [[ "${1}" == "--liftover" || "${1}" == "-l" ]]
 then
 	shift
-	${EBROOTNGSMINUTILS}/bin/LiftOverVcf.sh ${@}
+	# shellcheck disable=SC2154
+	"${EBROOTNGSMINUTILS}/bin/LiftOverVcf.sh" "${@}"
 fi

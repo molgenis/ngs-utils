@@ -40,7 +40,7 @@ done
 if [[ -z "${inputFolder:-}" ]]; then showHelp ; echo "inputFolder is not specified" ; fi ; echo "inputFolder=${inputFolder}"
 if [[ -z "${bedfile:-}" ]]; then bedfile="/apps/data/Agilent/Exoom_v3/human_g1k_v37/captured.merged.bed" ; fi ; echo "bedfile=${bedfile}"
 if [[ -z "${workDir:-}" ]]; then workDir="$(pwd)" ; mkdir -p "${workDir}/input/" ; fi ; echo "workDir=${workDir}"
-if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${workDir}/output/tmp" ; outputFolder="${workDir}/output/" ; fi ; echo "outputFolder=${outputFolder}"
+if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${workDir}/output/tmp" ; outputFolder="${workDir}/output/" ; fi ; mkdir -p "${outputFolder}/tmp"; echo "outputFolder=${outputFolder}"
 if [[ -z "${gatkVersion:-}" ]]; then gatkVersion="3" ; fi ; echo "gatkVersion=${gatkVersion}"
 
 
@@ -134,8 +134,9 @@ do
 		"${INPUTS[@]}" \
 		--OUTPUT "${workDir}/${sample}.merged.g.vcf.gz"
 	fi
-
-	outputFile="${outputFolder}/${sample}_${bedfile}.output.csv"
+	bedfileName=$(basename ${bedfile})
+	bedfileName=${bedfileName%%.*}
+	outputFile="${outputFolder}/${sample}_${bedfileName}.output.csv"
 
 	echo "starting to do the calculations"
 
