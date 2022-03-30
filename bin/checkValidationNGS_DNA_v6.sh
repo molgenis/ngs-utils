@@ -3,7 +3,6 @@
 set -e
 set -u
 
-
 function showHelp() {
 	#
 	# Display commandline help on STDOUT.
@@ -29,14 +28,47 @@ EOH
 	exit 0
 }
 
+function checkAllChromosomes(){
+	folder="${validationFolderTmp}"
+	mapfile -t validationFiles < <(find "${folder}" -maxdepth 1 -name "*.${inputType}" | head -1)
+	if [[ "${#validationFiles[@]:-0}" -eq '0' ]]
+	then
+		echo "There are no files found in: ${folder}, exiting"
+		exit 1
+	fi
+	for i in "${validationFiles[@]}"
+	do
+		name=$(basename "${i}" ".${inputType}")
+		inputFile=$(ls ${inputFolder}/*${name}*.${inputType})
+		chromosomesInFile=($(zcat "${inputFile}" | grep -v '^#' | awk '{print $1}' | sort -V | uniq))
+		exitAfterLoopFinished="no"
+		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y
+		do
+			if [[ ! " ${chromosomesInFile[*]} " == *" ${i} "* ]]
+			then
+				echo -e "\nCHROMOSOME: ${i} is not in the data!\n"
+				exitAfterLoopFinished="yes"
+			fi
+		done
+		if [[ "${exitAfterLoopFinished}" == "yes" ]]
+		then
+			echo "there is/are chromosomes missing from this list: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y"
+			exit 1
+		fi
+	done
+
+}
+
+
 function doVariantEval(){
 
 	folder="${validationFolderTmp}"
-	
+
 	mapfile -t validationFiles < <(find "${folder}" -maxdepth 1 -name "*.${inputType}")
 	if [[ "${#validationFiles[@]:-0}" -eq '0' ]]
 	then
 		echo "There are no files found in: ${folder}"
+		exit 1
 	else
 		echo "##OPEN## COMPARING vcf files, all variants should be found back!##" >>  "${outputFolder}/output.txt"
 
@@ -46,10 +78,10 @@ function doVariantEval(){
 			inputFile=$(ls "${inputFolder}/"*"${name}"*".${inputType}")
 			bgzippedInput=${inputFile%.*}.bgz
 
-			zcat "${inputFile}" | bgzip -c > "${bgzippedInput}" 
-			tabix -p vcf "${bgzippedInput}" 
+			zcat "${inputFile}" | bgzip -c > "${bgzippedInput}"
+			tabix -p vcf "${bgzippedInput}"
 			inputFile="${bgzippedInput}"
-			
+
 			# shellcheck disable=SC2154
 			java -jar "${EBROOTGATK}/GenomeAnalysisTK.jar" \
 			-T VariantEval \
@@ -58,18 +90,16 @@ function doVariantEval(){
 			--eval "${inputFile}" \
 			--comp "${i}"
 
-		
-			check=$(awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${outputFolder}/output.${name}.eval.grp")
+
+			check=$(set -e ; awk '{if (NR==5){if ($11 == "100.00"){print "correct"}}}' "${outputFolder}/output.${name}.eval.grp")
 			if [ "${check}" == "correct" ]
 			then
 				zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"FOUND BACK"}}' >> "${outputFolder}/output.txt"
 			else
 				zcat "${i}" | awk -v sample="${name}" 'BEGIN {OFS="  "}{if ($1 !~ /^#/){print sample,$1,$2,$4,$5,"Not 100% concordant!"}}' >> "${outputFolder}/output.txt"
-			
 			fi
 		done
 		echo "##CLOSE## COMPARING vcf files, all variants should be found back!##" >>  "${outputFolder}/output.txt"
-
 	fi
 
 }
@@ -98,8 +128,15 @@ function doComparisonFiltered (){
 			if [[ "${inputType}" == "vcf.gz" ]]
 			then
 				validationSample=$(zcat "${i}" | grep -v '^#' | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
-				inputSample=$(zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089 | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
-
+				echo "SAMPLE: ${inputFolder}/*${name}*.${inputType}"
+				if zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089 
+				then
+					echo "found it, proceed"
+				else
+					echo "position not found, exiting"
+					exit 1
+				fi
+				inputSample=$(set -e ; zcat "${inputFolder}/"*"${name}"*".${inputType}" | grep 18598089 | awk '{print $1"-"$2"-"$4"-"$5"-"$7}')
 				if [ "${validationSample}" == "${inputSample}" ]
 				then
 					if [ "${refCall}" == "referenceCall" ]
@@ -211,9 +248,11 @@ then
 		echo "please run on leucine-zipper or zinc-finger"
 	fi
 
+	checkAllChromosomes
 	doVariantEval
 	doComparisonFiltered "findVariant"
 	doComparisonFiltered "referenceCall"
+	
 fi
 
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "2" ]]

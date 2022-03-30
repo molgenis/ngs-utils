@@ -45,7 +45,7 @@ Options:
 		-s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
 		-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/AllVcfs.txt)
 		-i   input folder containing bam files (not in combination with -s) 
-		-f   mapping file (in combination with -i) [
+		-f   mapping file (in combination with -i) [format: DNA number \t mapping name]
 		-g   which group (default = umcg-gd)
 
 	optional:
