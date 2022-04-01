@@ -19,8 +19,9 @@ Options:
 	-o   outputFolder (default:\${workDir}/validationFolder/)
 	-v   validationFolder, folder where the vcfs are with the SNPs that should be found back (default=/groups/umcg-gd/prm06/projects/validationVcfs/)
 	-l   validationLevel (all|1|2) default is all
-					1	is old validation (finding back some SNPs in 11 samples)
+					1	is old validation (finding back some SNPs in 11 samples) + checkChromosomes
 					2	frankenstein
+					3	checkChromosomes
 					all	is running both option 1 and 2 
 ===============================================================================================================
 EOH
@@ -29,36 +30,28 @@ EOH
 }
 
 function checkAllChromosomes(){
-	folder="${validationFolderTmp}"
-	mapfile -t validationFiles < <(find "${folder}" -maxdepth 1 -name "*.${inputType}" | head -1)
-	if [[ "${#validationFiles[@]:-0}" -eq '0' ]]
-	then
-		echo "There are no files found in: ${folder}, exiting"
-		exit 1
-	fi
-	for i in "${validationFiles[@]}"
+	## we need only first file, all files are coming from same project, thus same variants (not genotypes of course)
+	firstInputFile=$(ls "${inputFolder}/"*".${inputType}" | head -1)
+	chromosomesInFile=($(zcat "${firstInputFile}" | grep -v '^#' | awk '{print $1}' | sort -V | uniq))
+	exitAfterLoopFinished="no"
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y
 	do
-		name=$(basename "${i}" ".${inputType}")
-		inputFile=$(ls ${inputFolder}/*${name}*.${inputType})
-		chromosomesInFile=($(zcat "${inputFile}" | grep -v '^#' | awk '{print $1}' | sort -V | uniq))
-		exitAfterLoopFinished="no"
-		for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y
-		do
-			if [[ ! " ${chromosomesInFile[*]} " == *" ${i} "* ]]
-			then
-				echo -e "\nCHROMOSOME: ${i} is not in the data!\n"
-				exitAfterLoopFinished="yes"
-			fi
-		done
-		if [[ "${exitAfterLoopFinished}" == "yes" ]]
+		if [[ ! " ${chromosomesInFile[*]} " == *" ${i} "* ]]
 		then
-			echo "there is/are chromosomes missing from this list: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y"
-			exit 1
+			echo -e "\nCHROMOSOME: ${i} is not in the data!\n"
+			exitAfterLoopFinished="yes"
 		fi
 	done
+	# exit when there is a chromosome missing
+	if [[ "${exitAfterLoopFinished}" == "yes" ]]
+	then
+		echo "there is/are chromosomes missing from this list: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 MT NC_001422.1 X Y"
+		exit 1
+	else
+		echo -e "\ncheckAllChromosomes: All chromosomes are found back!\n"
+	fi
 
 }
-
 
 function doVariantEval(){
 
@@ -221,7 +214,7 @@ mkdir -p "${outputFolder}/tmp/"
 
 echo '' > "${outputFolder}/output.txt"
 
-if [[ "${validationLevel}" != "all" && "${validationLevel}" != "1" && "${validationLevel}" != "2" ]] 
+if [[ "${validationLevel}" != "all" && "${validationLevel}" != "1" && "${validationLevel}" != "2" && "${validationLevel}" != "3" ]] 
 then
 	echo "this is an unknown validationLevel [${validationLevel}]"
 	echo "bye bye"
@@ -248,11 +241,10 @@ then
 		echo "please run on leucine-zipper or zinc-finger"
 	fi
 
-	checkAllChromosomes
 	doVariantEval
 	doComparisonFiltered "findVariant"
 	doComparisonFiltered "referenceCall"
-	
+	checkAllChromosomes
 fi
 
 if [[ "${validationLevel}" == "all" || "${validationLevel}" == "2" ]]
@@ -261,4 +253,8 @@ then
 	checkFrankenstein
 fi
 
-
+if [[ "${validationLevel}" == "all" || "${validationLevel}" == "3" ]]
+then
+	validationFolderTmp="${outputFolder}/input/validationVcfs/Frankenstein/"
+	checkAllChromosomes
+fi
