@@ -49,6 +49,7 @@ function checkAllChromosomes(){
 		exit 1
 	else
 		echo -e "\ncheckAllChromosomes: All chromosomes are found back!\n"
+		echo -e "checkAllChromosomes: All chromosomes are found back!" > "${outputFolder}/allChromosomes.txt"
 	fi
 
 }
