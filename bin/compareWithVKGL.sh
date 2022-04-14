@@ -177,17 +177,13 @@ fi
 echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP"
 echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP" >> "${outputFolder}/output.txt"
 
-awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
-awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+#awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
+awk '{if (NR>1){print $1,$2"\t"$3"\t"($3-$7)"\t"$9}}' "${outputFolder}/precision_output.txt"
+awk '{if (NR>1){print $1,$2"\t"$3"\t"($3-$7)"\t"$9}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
 
 ##sensitivity
 echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN"
 echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN" >> "${outputFolder}/output.txt"
 
-awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt"
-awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
-
-
-
-
-
+awk '{if (NR>1){print $1,$2"\t"$3"\t"($3-$7)"\t"$9}}' "${outputFolder}/sensitivity_output.txt"
+awk '{if (NR>1){print $1,$2"\t"$3"\t"($3-$7)"\t"$9}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
