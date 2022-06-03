@@ -28,7 +28,7 @@ do
 	lastChar="${used: -1}"
 	usedWithoutLastChar="${used::-1}"
 	limitWithoutLastChar="${limit::-1}"
-	limitInMb=$(echo ${limitWithoutLastChar} | awk '{print $1 * 1000000}')
+	limitInMb=$(echo "${limitWithoutLastChar}" | awk '{print $1 * 1000000}')
 
 	if [[ "${lastChar}" == [0-9] || "${lastChar}" == 'k' ]]
 	then
@@ -37,11 +37,11 @@ do
 	elif [[ "${lastChar}" == 'T' ]]
 	then
 		##used is in Tb
-		usedInMb=$(echo ${usedWithoutLastChar} | awk '{print $1 * 1000000}')
+		usedInMb=$(echo "${usedWithoutLastChar}" | awk '{print $1 * 1000000}')
 	elif [[ "${lastChar}" == 'G' ]]
 	then
 		##used is in Gb
-		usedInMb=$(echo ${usedWithoutLastChar} | awk '{print $1 * 1000}')
+		usedInMb=$(echo "${usedWithoutLastChar}" | awk '{print $1 * 1000}')
 	else
 		##echo "is already in Mb"
 		usedInMb="${limitWithoutLastChar}"
