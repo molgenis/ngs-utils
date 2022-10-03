@@ -144,8 +144,8 @@ esac
 done
 
 if [[ -z "${inputFile:-}" ]]; then showHelp ; echo "inputFile is not specified" ; fi ; echo "inputFile=${inputFile}"
-if [[ -z "${workDir:-}" ]]; then workDir="$(pwd)" ; mkdir -p "${workDir}/input/" ; fi ; echo "workDir=${workDir}"
-if [[ -z "${outputFolder:-}" ]]; then mkdir -p "${workDir}/output/tmp" ; outputFolder="${workDir}/output/" ; fi ; echo "outputFolder=${outputFolder}"
+if [[ -z "${workDir:-}" ]]; then workDir="$(pwd)" ; fi ; echo "workDir=${workDir}"
+if [[ -z "${outputFolder:-}" ]]; then outputFolder="${workDir}/output/" ; fi ; echo "outputFolder=${outputFolder}"
 if [[ -z "${buildType:-}" ]]; then buildType="regular" ; fi ; echo "buildType=${buildType}" 
 
 ml GATK 
@@ -153,6 +153,7 @@ ml HTSlib
 ml BEDTools
 ml ngs-utils
 
+mkdir -p "${workDir}/input/"
 rm -rf "${outputFolder}/tmp/"
 mkdir -p "${outputFolder}/tmp/"
 
