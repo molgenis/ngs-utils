@@ -112,11 +112,13 @@ grep -v '^#' ${inputVcf1} > ${SCRATCH}/${vcf01}.removedHeader.txt
 awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${SCRATCH}/${vcf01}.removedHeader.txt > ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt
 ##get only genotype call
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf01}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf01}.stripped.txt
-
+grep -v '0/0' ${SCRATCH}/${vcf01}.stripped.txt | grep -v "\./\." > ${SCRATCH}/${vcf01}.strippedReferenceCalls.txt
 
 awk '{OFS="\t"} {print $1,$2,$4,$5,$10}' ${inputVcf2} > ${SCRATCH}/${vcf02}.stripped.txt
 grep -v '^#' ${SCRATCH}/${vcf02}.stripped.txt > ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt
 awk -F '[\t:]' '{OFS="-"}{print $1,$2,$3,$4,$5}' ${SCRATCH}/${vcf02}.stripColumns_removedHeader.txt > ${SCRATCH}/${vcf02}.stripped.txt
+grep -v '0/0' ${SCRATCH}/${vcf02}.stripped.txt | grep -v "\./\." > ${SCRATCH}/${vcf02}.strippedReferenceCalls.txt
+
 
 declare -A arrVCF1
 declare -A arrVCF2
@@ -137,7 +139,7 @@ do
 	mykey="${chr}-${pos}"
 	arrVCF1["${mykey}"]="${myvalue}"
 
-done<${SCRATCH}/${vcf01}.stripped.txt
+done<${SCRATCH}/${vcf01}.strippedReferenceCalls.txt
 
 while read line 
 do
@@ -152,7 +154,7 @@ do
         IFS=$OLDIFS
         arrVCF2["${chr}-${pos}"]="${ref}-${alt}-${gen}"
 
-done<${SCRATCH}/${vcf02}.stripped.txt
+done<${SCRATCH}/${vcf02}.strippedReferenceCalls.txt
 printf "" > ${SCRATCH}/differences.txt
 printf "" > ${SCRATCH}/diff.txt
 
