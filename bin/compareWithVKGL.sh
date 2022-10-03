@@ -154,7 +154,6 @@ ml BEDTools
 ml ngs-utils
 
 mkdir -p "${workDir}/input/"
-mkdir -p "${workDir}/output/tmp"
 rm -rf "${outputFolder}/tmp/"
 mkdir -p "${outputFolder}/tmp/"
 
