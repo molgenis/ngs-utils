@@ -3,7 +3,7 @@ set -e
 set -u
 
 
-declare -a searchBasePathsNGS=('/groups/umcg-gd/prm05' '/groups/umcg-gd/prm06')
+#declare -a searchBasePathsNGS=('/groups/umcg-gd/prm05' '/groups/umcg-gd/prm06')
 
 function showHelp() {
 	#
@@ -23,6 +23,7 @@ Options:
 	-f	recovering all the fastq files from prm
 	-a	recover all files from prm
 	-o	location of the output file
+	-p	prmlocations from where the script runs
 
 ===============================================================================================================
 EOH
@@ -227,14 +228,16 @@ function _findFastQFiles() {
 				#Getting the md5s from both fastq files if they are there
 				if [[ -e "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}_1.fq.gz.md5" ]]
 				then
-					local _md5_1=$(cat "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}"_1.fq.gz.md5 | cut -d ' ' -f 1)
+					#local _md5_1=$(cat "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}"_1.fq.gz.md5 | cut -d ' ' -f 1)
+					local _md5_1=$(cut -d ' ' -f 1 "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}"_1.fq.gz.md5)
 				else
 					local _md5_1='N/A'
 				fi
 				
 				if [[ -e "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}_2.fq.gz.md5" ]]
 				then
-					local _md5_2=$(cat "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}_2.fq.gz.md5" | cut -d ' ' -f 1)
+					#local _md5_2=$(cat "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}_2.fq.gz.md5" | cut -d ' ' -f 1)
+					local _md5_2=$(cut -d ' ' -f 1 "${_filePath}/${_ngsRawdataName}_L${_lane}_${_barcode}"_2.fq.gz.md5)
 				else
 					local _md5_2='N/A'
 				fi
@@ -259,7 +262,7 @@ fastqFiles='false'
 recoverAllFiles='false'
 
 
-while getopts "o:fcbvfah" opt
+while getopts "o:p:fcbvah" opt
 do
 	case "${opt}" in
 		h)
@@ -283,6 +286,9 @@ do
 		o)
 			outputLocation="${OPTARG}"
 			;;
+		p)
+			searchBasePathsNGS="${OPTARG}"
+			;;
 	esac
 done
 
@@ -293,6 +299,13 @@ if [[ -z "${outputLocation:-}" ]]
 then
 	showHelp
 	echo -e 'ERROR: Must specify an outputLocation with -o'
+	exit 1
+fi
+
+if [[ -z "${searchBasePathsNGS:-}" ]]
+then
+	showHelp
+	echo -e 'ERROR: Must specify the prm locations from where this script must run example :  /groups/umcg-gd/prm06'
 	exit 1
 fi
 
@@ -311,8 +324,13 @@ then
 	_findVCFFiles
 fi
 
-if [[ "${recoverAllFiles}" == 'true' ]]
+if [[ "${fastqFiles}" == 'true' ]]
 then
+	_findFastQFiles
+fi
+
+if [[ "${recoverAllFiles}" == 'true' ]]
+then 
 	_findCoverageReports
 	_findBamsAndCramfiles
 	_findVCFFiles
