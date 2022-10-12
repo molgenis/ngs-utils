@@ -336,7 +336,7 @@ then
 	_findVCFFiles
 	_findFastQFiles
 fi
-if [[ "${coverageFiles}" == 'false' && "${bamCramFiles}" == 'false' && "${vcfFiles}" == 'false' && "${recoverAllFiles}" == 'false' ]]
+if [[ "${coverageFiles}" == 'false' && "${bamCramFiles}" == 'false' && "${vcfFiles}" == 'false' && "${recoverAllFiles}" == 'false' && "${fastqFiles}" == 'false' ]]
 then
 	showHelp
 	echo -e 'ERROR: Must specify one of the options -c ; -b ; -v ; -f ; -a'
