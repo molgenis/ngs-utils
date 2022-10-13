@@ -274,7 +274,7 @@ do
 		b)
 			bamCramFiles='true'
 			;;
-		 v)
+		v)
 			vcfFiles='true'
 			;;
 		f)
@@ -289,6 +289,15 @@ do
 		p)
 			searchBasePathsNGS="${OPTARG}"
 			;;
+		\?)
+				echo "FATAL: Invalid option -${OPTARG}. Try $(basename "${0}") -h for help."
+				;;
+		:)
+				echo "FATAL: Option -${OPTARG} requires an argument. Try $(basename "${0}") -h for help."
+				;;
+		*)
+				echo "FATAL: Unhandled option. Try $(basename "${0}") -h for help."
+				;;
 	esac
 done
 
