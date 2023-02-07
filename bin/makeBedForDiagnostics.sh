@@ -89,11 +89,11 @@ cd 'human_g1k_v37' || exit
 if [[ "${exome}" == 'true' ]]
 then
 	echo "Creating bedfiles for a new exomekit ${name}"
-	"/apps/data/Agilent/prepare_NGS_Bedfiles.sh" -n 'captured'
+	prepare_NGS_Bedfiles.sh -n 'captured'
 elif [[ "${exome}" == 'false' ]]
 then
 	echo "Creating bedfiles for a new kit ${name}"
-	"/apps/data/Agilent/prepare_NGS_Bedfiles.sh" -n 'captured' -c 'true' -d 'targeted'
+	prepare_NGS_Bedfiles.sh -n 'captured' -c 'true' -d 'targeted'
 else
 	echo "please fill in true or false"
 	exit 1
