@@ -36,15 +36,15 @@ then
 	echo -e '\nERROR: Must specify a BED file!\n'
 
 	showHelp
-        exit 1
+	exit 1
 fi
 
 if [[ -z "${name:-}" ]]
 then
 	echo -e '\nERROR: Must specify a Name for the new Bed file!\n'
 
-        showHelp
-        exit 1
+	showHelp
+	exit 1
 fi
 
 if [[ -z "${exome:-}" ]]
@@ -59,12 +59,13 @@ fi
 
 if [ -d "/apps/data/Agilent/${name}" ]
 then
-	echo "/apps/data/Agilent/${name} already exists"
-	exit 1
-elif [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
+	echo "WARNING: /apps/data/Agilent/${name} already exists, removing old one"
+	rm -rf "/apps/data/Agilent/${name}"
+fi	
+if [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
 then
-	echo "/apps/data/UMCG/Diagnostics/${name} already exists"
-	exit 1
+	echo "WARNING: /apps/data/UMCG/Diagnostics/${name} already exists, removing old one"
+	rm -rf "/apps/data/UMCG/Diagnostics/${name}"
 fi
 
 umcgDir=/apps/data/UMCG/Diagnostics/
@@ -81,20 +82,18 @@ cp "${bedfile}" "human_g1k_v37/captured.bed"
 echo "copied ${bedfile} to human_g1k_v37/captured.bed"
 
 module load ngs-utils
-cd human_g1k_v37/
+cd 'human_g1k_v37' || exit
 
 ## Run the prepare step
 
 if [[ "${exome}" == 'true' ]]
 then
 	echo "Creating bedfiles for a new exomekit ${name}"
-	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured
-#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured
+	"/apps/data/Agilent/prepare_NGS_Bedfiles.sh" -n 'captured'
 elif [[ "${exome}" == 'false' ]]
 then
 	echo "Creating bedfiles for a new kit ${name}"
-	sh ${EBROOTNGSMINUTILS}/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
-#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
+	"/apps/data/Agilent/prepare_NGS_Bedfiles.sh" -n 'captured' -c 'true' -d 'targeted'
 else
 	echo "please fill in true or false"
 	exit 1
@@ -109,8 +108,6 @@ cd "${umcgDir}/${name}/human_g1k_v37/"
 echo "renaming captured into ${name}"
 rename "captured" "${name}" "captured."*
 
-
-
 #perbase
 cd "${umcgDir}/CoveragePerBase/"
 mkdir -p "${name}"
@@ -118,7 +115,7 @@ mkdir -p "${name}"
 
 if [[ "${exome}" == 'false' ]]
 then
-	cd "${name}"
+	cd "${umcgDir}/CoveragePerBase/${name}" || exit
 	ln -sf "../../${name}"/
 fi
 
@@ -128,7 +125,7 @@ mkdir -p "${name}"
 
 if [[ "${exome}" == 'false' ]]
 then
-	cd "${name}"
+	cd "${umcgDir}/CoveragePerTarget/${name}" || exit
 	ln -sf "../../${name}"/
 fi
 
