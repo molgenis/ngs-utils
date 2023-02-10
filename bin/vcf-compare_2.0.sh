@@ -190,10 +190,6 @@ do
         fi
 done
 
-bold=`tput bold`
-normal=`tput sgr0`
-underline=`tput smul`
-
 sort -n -k1 ${SCRATCH}/diff.txt > ${SCRATCH}/differences.txt
 perl -pi -e 's|-|\t|' ${SCRATCH}/differences.txt
 printf "" > ${OUT}/vcfStats.txt
@@ -227,8 +223,8 @@ if [ -f ${SCRATCH}/inconsistent.txt ]
 then
 	alarm=$(cat ${SCRATCH}/inconsistent.txt | wc -l)
 	sort -V -k1 ${SCRATCH}/inconsistent.txt > ${SCRATCH}/inconsistent.txt.sorted
-	printf "${bold}$underline\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n$normal" > ${OUT}/inconsistent.txt
-	printf "${bold}chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n${normal}" >> ${OUT}/inconsistent.txt
+	printf "\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n" > ${OUT}/inconsistent.txt
+	printf "chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n" >> ${OUT}/inconsistent.txt
 	cat ${SCRATCH}/inconsistent.txt.sorted >> ${OUT}/inconsistent.txt
 	perl -pi -e 's|-|\t|g' ${OUT}/inconsistent.txt
 	
