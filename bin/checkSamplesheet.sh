@@ -51,10 +51,10 @@ fi
 sampleSheetsDir="${SCR_DIR}/Samplesheets"
 echo "INFO: Processing samplesheets from ${sampleSheetsDir}/new/..."
 
-declare -a sampleSheets=($(find "${sampleSheetsDir}/new/" -name '*.csv'))
+declare -a sampleSheets=($(find "${sampleSheetsDir}/"*"new/" -name '*.csv'))
 if [[ "${#sampleSheets[@]:-0}" -eq '0' ]]
 then
-	echo "WARN: No samplesheets found in ${sampleSheetsDir}/new/."
+	echo "WARN: No samplesheets found in ${sampleSheetsDir}/*/new/."
 	exit 0
 else
 	echo "DEBUG: samplesheets found: ${sampleSheets[@]}."
