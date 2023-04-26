@@ -122,11 +122,14 @@ def calculate_stats_per_target(chr,start,stop,geneName,gVCF):
                 if fieldValue == 0:
                     countZeros=countZeros+numberBases
                 summedDP = summedDP + (int(get_format_value(v,'DP',0))*numberBases)
-                summedGQ = summedGQ + (int(get_format_value(v, 'GQ', 0))*numberBases)
-                summedRegionSize+=numberBases
-                thresholdsGQGroup=get_Thresholds_GQ_group(get_format_value(v, 'GQ', 0))
-                thresholdsDPGroup=get_Thresholds_DP_group(get_format_value(v, 'DP', 0))
-                gq = get_format_value(v, 'GQ', 0)
+                if get_format_value(v, 'GQ', 0) is None:
+                    gq = '0'
+                else:
+                    summedGQ = summedGQ + (int(get_format_value(v, 'GQ', 0))*numberBases)
+                    summedRegionSize+=numberBases
+                    thresholdsGQGroup=get_Thresholds_GQ_group(get_format_value(v, 'GQ', 0))
+                    thresholdsDPGroup=get_Thresholds_DP_group(get_format_value(v, 'DP', 0))
+                    gq = get_format_value(v, 'GQ', 0)
                 dp = get_format_value(v, 'DP', 0)
                 dictGQThresholds[thresholdsGQGroup]['GQ'].append(gq)
                 dictGQThresholds[thresholdsGQGroup]['DP'].append(dp)
