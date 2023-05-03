@@ -124,6 +124,8 @@ def calculate_stats_per_target(chr,start,stop,geneName,gVCF):
                 summedDP = summedDP + (int(get_format_value(v,'DP',0))*numberBases)
                 if get_format_value(v, 'GQ', 0) is None:
                     gq = '0'
+                    thresholdsGQGroup='low'
+                    thresholdsDPGroup='low'
                 else:
                     summedGQ = summedGQ + (int(get_format_value(v, 'GQ', 0))*numberBases)
                     summedRegionSize+=numberBases
