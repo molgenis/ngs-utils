@@ -135,6 +135,7 @@ do
         alt=$4
         gen=$5
         IFS=$OLDIFS
+		  gen=${gen/|//}
 	myvalue="${ref}-${alt}-${gen}"
 	mykey="${chr}-${pos}"
 	arrVCF1["${mykey}"]="${myvalue}"
@@ -152,6 +153,7 @@ do
         alt=$4
         gen=$5
         IFS=$OLDIFS
+  		  gen=${gen/|//}
         arrVCF2["${chr}-${pos}"]="${ref}-${alt}-${gen}"
 
 done<${SCRATCH}/${vcf02}.strippedReferenceCalls.txt
