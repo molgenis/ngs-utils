@@ -13,7 +13,7 @@ Script requires one initial argument:
     -b|--bamout                   Recreating the bam file for a certain region where the variant calling is based on (bamout.sh)
     -c|--countCoverage            Counting coverage (avg,med,sd,percentage 10/20/30/50/100x coverage) per Gene and target based on the panel that is given (countCoverage.sh)
     -v|--vcfCompare               Comparing 2 vcf files with eachother, this will output the differences + a vcf stats file (vcf-compare_2.0.sh)
-    -n|--validateNGS              Script to check the known SNPs back in the NGS_DNA_Verification (checkValidationNGS_DNA_v6.sh)
+    -n|--validateNGS              Script to check the known SNPs back in the NGS_DNA_Verification (checkValidationNGS_DNA_v7.sh)
     -cv|--compareWithVKGL         script that compares vcf files with the VKGL standard
     -cv4|--compareWithVKGL_GATK4  same as compareWithVKGL but with gatk4 commands
     -r|--revertBamToFastQ         go back from bam to fastq (paired end only)
@@ -55,7 +55,7 @@ elif [[ "${1}" == "--validateNGS" || "${1}" == "-n" ]]
 then
 	shift
 	# shellcheck disable=SC2154
-	"${EBROOTNGSMINUTILS}/bin/checkValidationNGS_DNA_v6.sh" "${@}"
+	"${EBROOTNGSMINUTILS}/bin/checkValidationNGS_DNA_v7.sh" "${@}"
 elif [[ "${1}" == "--compareWithVKGL" || "${1}" == "-cv" ]]
 then
 	shift
