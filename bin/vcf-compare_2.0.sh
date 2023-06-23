@@ -27,38 +27,39 @@ declare OUT=""
 #
 # Take the parameters given on the commandline and assign them to variables.
 #
-while getopts ":1:2:d:o:h" option; do
-    case "${option}" in
-        1)  VCF1=${OPTARG};;
-        2)  VCF2=${OPTARG};;
-        o)   OUT=${OPTARG};;
-        h)
-            usage
-            exit 0
-            ;;
-        \?)
-            echo "ERROR: Invalid option -${OPTARG}. Try \"$(basename $0) -h\" for help."
-            exit 1
-            ;;
-        :)
-            echo "ERROR: Option -${OPTARG} requires an argument. Try \"$(basename $0) -h\" for help."
-            ;;
-    esac
+while getopts ":1:2:d:o:h" option
+do
+	case "${option}" in
+		1)  VCF1=${OPTARG};;
+		2)  VCF2=${OPTARG};;
+		o)   OUT=${OPTARG};;
+		h)
+			usage
+			exit 0
+			;;
+		\?)
+			echo "ERROR: Invalid option -${OPTARG}. Try \"$(basename $0) -h\" for help."
+			exit 1
+			;;
+		:)
+			echo "ERROR: Option -${OPTARG} requires an argument. Try \"$(basename $0) -h\" for help."
+			;;
+	esac
 done
 
 #
 # Check if all parameters are set.
 #
 if [[ ${VCF1} && ${VCF2} && ${OUT} ]]; then
-    echo
-    echo "Comparing ${VCF1} to ${VCF2}..."
-    echo
+	echo
+	echo "Comparing ${VCF1} to ${VCF2}..."
+	echo
 else
-    usage
-    echo
-    echo "ERROR: missing required argument. Try \"$(basename $0) -h\" for help."
-    echo
-    exit 1
+	usage
+	echo
+	echo "ERROR: missing required argument. Try \"$(basename $0) -h\" for help."
+	echo
+	exit 1
 fi
 
 #
@@ -127,15 +128,15 @@ declare -A arrVCF2
 while read line 
 do
 	OLDIFS=$IFS
-        IFS="-"
-        set $line
-        chr=$1
-        pos=$2
-        ref=$3
-        alt=$4
-        gen=$5
-        IFS=$OLDIFS
-		  gen=${gen/|//}
+	IFS="-"
+	set $line
+	chr=$1
+	pos=$2
+	ref=$3
+	alt=$4
+	gen=$5
+	IFS=$OLDIFS
+	gen=${gen/|//}
 	myvalue="${ref}-${alt}-${gen}"
 	mykey="${chr}-${pos}"
 	arrVCF1["${mykey}"]="${myvalue}"
@@ -145,16 +146,16 @@ done<${SCRATCH}/${vcf01}.strippedReferenceCalls.txt
 while read line 
 do
 	OLDIFS=$IFS
-        IFS="-"
-        set $line
-        chr=$1
-        pos=$2
-        ref=$3
-        alt=$4
-        gen=$5
-        IFS=$OLDIFS
-  		  gen=${gen/|//}
-        arrVCF2["${chr}-${pos}"]="${ref}-${alt}-${gen}"
+	IFS="-"
+	set $line
+	chr=$1
+	pos=$2
+	ref=$3
+	alt=$4
+	gen=$5
+	IFS=$OLDIFS
+	gen=${gen/|//}
+	arrVCF2["${chr}-${pos}"]="${ref}-${alt}-${gen}"
 
 done<${SCRATCH}/${vcf02}.strippedReferenceCalls.txt
 printf "" > ${SCRATCH}/differences.txt
@@ -180,16 +181,16 @@ echo "comparing vcf2 with vcf1"
 
 for i in "${!arrVCF2[@]}"
 do
-        if [ "${arrVCF1[$i]+abc}" ]
-        then
-                if [ ${arrVCF1[$i]} != ${arrVCF2[$i]} ] 
-                then
-                        echo "already done"
-                fi
-        else
-                printf "$i\t${arrVCF2[$i]}\n" >> ${SCRATCH}/diff.txt
-                printf "$i\t${arrVCF2[$i]}\n" >> ${SCRATCH}/notInVcf1.txt
-        fi
+	if [ "${arrVCF1[$i]+abc}" ]
+	then
+		if [ ${arrVCF1[$i]} != ${arrVCF2[$i]} ] 
+		then
+				echo "already done"
+		fi
+		else
+			printf "$i\t${arrVCF2[$i]}\n" >> ${SCRATCH}/diff.txt
+			printf "$i\t${arrVCF2[$i]}\n" >> ${SCRATCH}/notInVcf1.txt
+	fi
 done
 
 sort -n -k1 ${SCRATCH}/diff.txt > ${SCRATCH}/differences.txt
