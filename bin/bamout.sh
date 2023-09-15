@@ -119,7 +119,7 @@ then
 fi
 
 
-ml GATK/3.7-Java-1.8.0_74 
+ml GATK/3.7-Java-8-LTS
 
 myregion=$(echo "${REGION}" | tr : _)
 
