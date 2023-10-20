@@ -35,9 +35,10 @@ Options:
         -h   Show this help.
 
    required:
-        -p   projectname ngs
-        -f   rawdata name ngs (called filePrefix) (e.g. 201101_NB501093_0001_AGFCCVASXB)
         -g   which group
+        -p   projectname ngs (required if -f is not set)
+        -f   rawdata name ngs (called filePrefix) (e.g. 201101_NB501093_0001_AGFCCVASXB) (required if -p is not set)
+
     optional:
         -p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
         -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
@@ -73,8 +74,14 @@ else
 	echo "at this moment we can only run this on betabarrel, copperfist or wingedhelix"
 fi
 
-if [[ -z "${project:-}" ]]; then showHelp ; echo "project not defined" ; fi
-if [[ -z "${filePrefix:-}" ]]; then showHelp ; echo "filePrefix not specified" ; fi
+if [[ -z "${project:-}" &&  -z "${filePrefix:-}" ]]
+then
+	showHelp
+	echo "project and filePrefix not defined" 
+fi
+
+if [[ -z "${project:-}" ]]; then project="NOT_SET" ; fi
+if [[ -z "${filePrefix:-}" ]]; then filePrefix="NOT_SET" ; fi
 if [[ -z "${group:-}" ]]; then showHelp ; echo "group not specified" ; fi
 if [[ -z "${prmOther:-}" ]]; then prm="${prm}" ; echo "prm i"; else prm="${prmOther}" ; fi
 
@@ -85,33 +92,51 @@ echo "prmCluster=${prmCluster}"
 echo "prm=${prm}"
 echo "tmpFolder=${tmpFolder}"
 
-rm -rvf "/groups/${group}/${tmpFolder}/logs/${project}"
-rm -rvf "/groups/${group}/${tmpFolder}/generatedscripts/NGS_DNA/${project}"
-rm -rvf "/groups/${group}/${tmpFolder}/projects/NGS_DNA/${project}"
-rm -rvf "/groups/${group}/${tmpFolder}/tmp/NGS_DNA/${project}"
-if [[ -e "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/${project}.csv" ]]
+
+if [[ "${filePrefix}" == "NOT_SET" ]]
 then
-	mv -vf "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/${project}.csv" "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/archive/${project}.csv"
+	echo "filePrefix not defined" 
+else
+	echo "now moving to clean up the NGS_Demultiplexing data for ${filePrefix}"
+	rm -rvf "/groups/${group}/${tmpFolder}/logs/${filePrefix}"
+	rm -rvf "/groups/${group}/${tmpFolder}/rawdata/ngs/${filePrefix}"
+	rm -rvf "/groups/${group}/${tmpFolder}/runs/NGS_Demultiplexing/${filePrefix}"
+	rm -rvf "/groups/${group}/${tmpFolder}/tmp/NGS_Demultiplexing/${filePrefix}"
+	if [[ -e "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/archive/${filePrefix}.csv" ]]
+	then
+		mv -vf "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/archive/${filePrefix}.csv" "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/"
+	fi
+	echo "cleaned up scr on NGS_Demultiplexing stuff"
+	
+	echo "!it is not possible to delete data via this script on prm. commands will be printed only"
+	echo -e "
+	go to ${prmCluster} and execute the following commands:
+	rm -rvf /groups/${group}/${prm}/logs/${filePrefix}\n\
+	rm -rvf /groups/${group}/${prm}/rawdata/ngs/${filePrefix}\n\
+	mv -vf /groups/${group}/${prm}/Samplesheets/${filePrefix}.csv /groups/${group}/${prm}/Samplesheets/archive/"
+	
 fi
 
-echo "cleaned up tmp on NGS_DNA stuff diagnostics cluster"
-echo "now moving to clean up the NGS_Demultiplexing data for ${filePrefix}"
-rm -rvf "/groups/${group}/${tmpFolder}/logs/${filePrefix}"
-rm -rvf "/groups/${group}/${tmpFolder}/rawdata/ngs/${filePrefix}"
-rm -rvf "/groups/${group}/${tmpFolder}/runs/NGS_Demultiplexing/${filePrefix}"
-rm -rvf "/groups/${group}/${tmpFolder}/tmp/NGS_Demultiplexing/${filePrefix}"
-if [[ -e "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/archive/${filePrefix}.csv" ]]
+if [[ "${project}" == "NOT_SET" ]]
 then
-	mv -vf "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/archive/${filePrefix}.csv" "/groups/${group}/${tmpFolder}/Samplesheets/NGS_Demultiplexing/"
+	echo "project not defined" 
+else
+	echo "starting to clean up the NGS_DNA data for ${project}"
+	rm -rvf "/groups/${group}/${tmpFolder}/logs/${project}"
+	rm -rvf "/groups/${group}/${tmpFolder}/generatedscripts/NGS_DNA/${project}"
+	rm -rvf "/groups/${group}/${tmpFolder}/projects/NGS_DNA/${project}"
+	rm -rvf "/groups/${group}/${tmpFolder}/tmp/NGS_DNA/${project}"
+	if [[ -e "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/${project}.csv" ]]
+	then
+		mv -vf "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/${project}.csv" "/groups/${group}/${tmpFolder}/Samplesheets/NGS_DNA/archive/${project}.csv"
+	fi
+	
+	echo "!it is not possible to delete data via this script on prm. commands will be printed only"
+	echo -e "
+	go to ${prmCluster} and execute the following commands:
+	rm -rvf /groups/${group}/${prm}/logs/${project}\n\
+	rm -rf /groups/${group}/${prm}/projects/${project}\n\
+	mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/"
+	echo "cleaned up tmp on NGS_DNA stuff diagnostics cluster"
 fi
-echo "cleaned up scr on NGS_Demultiplexing stuff"
 
-echo "!it is not possible to delete data via this script on prm. commands will be printed only"
-echo -e "
-go to ${prmCluster} and execute the following commands:
-rm -rvf /groups/${group}/${prm}/logs/${project}\n\
-rm -rvf /groups/${group}/${prm}/logs/${filePrefix}\n\
-rm -rvf /groups/${group}/${prm}/rawdata/ngs/${filePrefix}\n\
-rm -rf /groups/${group}/${prm}/projects/${project}\n\
-mv -vf /groups/${group}/${prm}/Samplesheets/${project}.csv /groups/${group}/${prm}/Samplesheets/archive/\n\
-mv -vf /groups/${group}/${prm}/Samplesheets/${filePrefix}.csv /groups/${group}/${prm}/Samplesheets/archive/"
