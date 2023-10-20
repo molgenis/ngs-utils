@@ -81,7 +81,7 @@ then
 fi
 
 if [[ -z "${project:-}" ]]; then project="NOT_SET" ; fi
-if [[ -z "${filePrefix:-}" ]]; then filePrefix="NOTSET" ; fi
+if [[ -z "${filePrefix:-}" ]]; then filePrefix="NOT_SET" ; fi
 if [[ -z "${group:-}" ]]; then showHelp ; echo "group not specified" ; fi
 if [[ -z "${prmOther:-}" ]]; then prm="${prm}" ; echo "prm i"; else prm="${prmOther}" ; fi
 
@@ -93,7 +93,7 @@ echo "prm=${prm}"
 echo "tmpFolder=${tmpFolder}"
 
 
-if [[ "${filePrefix}" == "NOTSET" ]]
+if [[ "${filePrefix}" == "NOT_SET" ]]
 then
 	echo "filePrefix not defined" 
 else
@@ -117,7 +117,7 @@ else
 	
 fi
 
-if [[ "${project}" == "NOTSET" ]]
+if [[ "${project}" == "NOT_SET" ]]
 then
 	echo "project not defined" 
 else
