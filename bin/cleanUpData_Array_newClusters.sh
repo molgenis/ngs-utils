@@ -10,38 +10,37 @@ function showHelp() {
         #
         cat <<EOH
 ===============================================================================================================
-Script to remove data from prm,scr and diagnostic cluster for ngs
-NGS:
-prm --> rm -rf rawdata/ngs/{filePrefix}
+===============================================================================================================
+Script to remove data from prm,scr and diagnostic cluster for ARRAY:
+prm --> rm -rf rawdata/array/IDAT/{glaasje}
+prm --> rm -rf rawdata/array/GTC/{glaasje}
 prm --> rm -rf projects/{project}
-prm --> rm -rf logs/{fileprefix}
 prm --> rm -rf logs/{project}
-prm --> remove (archive) {fileprefix} samplesheet from Samplesheets/
 prm --> remove (archive) {project} samplesheet from Samplesheets/
-tmp --> rm -rf projects/{project}
-tmp --> rm -rf generatedscripts/{project}
-tmp --> rm -rf tmp/{project}
+
+tmp --> rm -rf projects/GAP/{project}
+tmp --> rm -rf runs/AGCT/{project}
 tmp --> rm -rf logs/{project}
 tmp --> rm {project}.csv samplesheet from Samplesheets/
-scr01 --> move {fileprefix} samplesheet from Samplesheets/archive to Samplesheets/
-scr01 --> rm -rf generatedscripts/{filePrefix}
-scr01 --> rm -rf tmp/{filePrefix}
-scr01 --> rm -rf runs/{filePrefix}
-scr01 --> rm -rf logs/{filePrefix}
-scr01 --> rm -rf rawdata/ngs/{filePrefix}
+tmp --> rm -rf rawdata/array/GTC/{glaasje}
+tmp --> rm -rf generatedscripts/{AGCT,GAP}/{project}
+tmp --> rm -rf tmp/{AGCT,GAP}/{project}
+
+OPTIONAL:
+scr01 --> rm -rf rawdata/array/IDAT/{glaasje}
+
 Usage:
-        $(basename $0) OPTIONS
+	$(basename $0) OPTIONS
 Options:
-        -h   Show this help.
+	-h   Show this help.
 
    required:
-        -g   which group
-        -p   projectname ngs (required if -f is not set)
-        -f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
-
+	-p   projectname array
+	-f   glaasje numbers, when multiple seperator is ',' NO SPACE inbetween (e.g. 1023123,4532101)
+	-g   which group
     optional:
-        -p   which prm (e.g. prm06) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat-prm05)
-        -d   which gattaca (e.g. gattaca01) default is based on place of execution of this script (leu-chap-gat1-prm06), (zinc-coe-gat2-prm05)
+	-i   remove IDAT from sourceServer also
+	-p   which prm (e.g. prm06) default is based on place of execution of this script (cf-chaperone/copperfist-prm06), (bb-chaperone/betabarrel-prm05), (wh-chaperone/wingedhelix-prm07)
 ===============================================================================================================
 EOH
         trap - EXIT
