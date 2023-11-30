@@ -66,7 +66,7 @@ do
 	then
 		compareWithSampleName=$(echo "${compareWithSampleName}" | awk 'BEGIN {FS="_"}{print $1"_"$2}')
 	else
-		compareWithSampleName=${compareWithSampleName%%.*}
+		compareWithSampleName="${compareWithSampleName%%.*}"
 	fi
 
 	for index in "${indexFolder}/"*".gz"
@@ -76,7 +76,7 @@ do
 		then
 			indexSampleName=$(echo "${indexSampleName}" | awk 'BEGIN {FS="_"}{print $1"_"$2}')
 		else
-			indexSampleName=${indexSampleName%%.*}
+			indexSampleName="${indexSampleName%%.*}"
 		fi
 
 
@@ -85,7 +85,7 @@ do
 		echo -e "data1Id\tdata2Id\tlocation1\tlocation2" > "${sampleSheet}"
 		echo -e "${indexSampleName}\t${compareWithSampleName}\t${index}\t${compare}" >> "${sampleSheet}"
 
-		java -XX:ParallelGCThreads=1 -Djava.io.tmpdir="${tmpDir}" -Xmx9g -jar ${EBROOTCOMPAREGENOTYPECALLS}/CompareGenotypeCalls.jar \
+		java -XX:ParallelGCThreads=1 -Djava.io.tmpdir="${tmpDir}" -Xmx9g -jar "${EBROOTCOMPAREGENOTYPECALLS}/CompareGenotypeCalls.jar" \
 		-d1 "${index}" \
 		-D1 VCF \
 		-d2 "${compare}" \
