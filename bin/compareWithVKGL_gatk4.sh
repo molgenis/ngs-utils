@@ -98,36 +98,32 @@ function giabvshc(){
 		echo "comparing ${type}: ${sampleName}vsHC"
 		## sample vs HC callset (precision)
 		# shellcheck disable=SC2154
-		gatk VariantEval \
-		-R "${refGenome}" \
-		-O "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" \
-		--eval "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
-		--comp "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf"
+		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
+		-1 "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
+		-2 "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf" \
+		-o "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/"
+
 
 		if [[ "${firstLine}" == "false" ]]
 		then
-			## print header too
-			head -4 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/precision_output.txt"
+			awk '{if(NR==1){print "Measurement\tType\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/comparison.txt" > "${outputFolder}/precision_output.txt"
 		fi
-		head -5 "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}.vcf" | tail -1 | awk -v type="${type}" '{OFS="\t"}{print "precision",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/precision_output.txt"
-	
-		echo "comparing ${type}: HCvs${sampleName}"
+		awk -v type=${type} '{if(NR>1){print "precision\t"type"\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/comparison.txt" >> "${outputFolder}/precision_output.txt"
+		
 		##HC callset vs sample (sensitivity)
 		# shellcheck disable=SC2154
-		gatk VariantEval \
-		-R "${refGenome}" \
-		-O "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" \
-		--comp "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
-		--eval "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf"
-
+		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
+		-1 "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf" \
+		-2 "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
+		-o "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union_${type}/"
+		
 		if [[ "${firstLine}" == "false" ]]
 		then
-			## print header too
-			head -4 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk '{OFS="\t"}{print "measurement","Type",$6,$7,$8,$9,$10,$11,"FinalConcordance"}' > "${outputFolder}/sensitivity_output.txt"
-			firstLine="true"
+			awk '{if(NR==1){print "Measurement\tType\t"$0}}' "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union_${type}/comparison.txt" > "${outputFolder}/sensitivity_output.txt"
+			firstLine="True"
 		fi
+		awk -v type="${type}" '{if(NR>1){print "sensitivity\t"type"\t"$0}}' "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union_${type}/comparison.txt" >> "${outputFolder}/sensitivity_output.txt"
 
-		head -5 "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union.${type}.vcf" | tail -1 | awk -v type="${type}" '{OFS="\t"}{print "sensitivity",type,$6,$7,$8,$9,$10,$11,(($10/$6)*100)}' >> "${outputFolder}/sensitivity_output.txt"
 	done
 }
 
@@ -171,16 +167,12 @@ else
 fi
 	
 ##precision
-echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP"
-echo -e "Measurement\tType\tTP\tFP\tTP/TP+FP" >> "${outputFolder}/output.txt"
+head -1 "${outputFolder}/precision_output.txt" > "${outputFolder}/output.txt"
 
 #awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
-awk '{if (NR>1){print $1,$2"\t"$5"\t"($3-$7)"\t"(($7/$3)*100)"\t"}}' "${outputFolder}/precision_output.txt"
-awk '{if (NR>1){print $1,$2"\t"$5"\t"($3-$7)"\t"(($7/$3)*100)"\t"}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+awk '{if (NR>1){print $0}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
+cat "${outputFolder}/precision_output.txt" 
+echo -e "\n"  >> "${outputFolder}/output.txt" 
 
-##sensitivity
-echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN"
-echo -e "Measurement\tType\tTP\tFN\tTP/TP+FN" >> "${outputFolder}/output.txt"
-
-awk '{if (NR>1){print $1,$2"\t"$5"\t"($3-$7)"\t"(($7/$3)*100)"\t"}}' "${outputFolder}/sensitivity_output.txt"
-awk '{if (NR>1){print $1,$2"\t"$5"\t"($3-$7)"\t"(($7/$3)*100)"\t"}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
+cat "${outputFolder}/sensitivity_output.txt"
+awk '{if (NR>1){print $0}}' "${outputFolder}/sensitivity_output.txt" >> "${outputFolder}/output.txt"
