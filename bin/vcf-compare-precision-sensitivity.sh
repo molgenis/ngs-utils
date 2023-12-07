@@ -15,7 +15,8 @@ usage() {
     echo '   bash vcf-compare-precision-sensitivity.sh -1 <input_vcf_file> -2 <input_vcf_file>  -o <output_folder>'
     echo
     echo ' Example:'
-    echo '   bash vcf-compare-precision-sensitivity.sh -1 old_analysis.snps.final.vcf \'
+    echo '   bash vcf-compare-precision-sensitivity.sh \'
+    echo '                       -1 old_analysis.snps.final.vcf \'
     echo '                       -2 new_analysis.snps.final.vcf \'
     echo '                       -o ./results/'
     echo '##################################################################################################'
@@ -32,7 +33,7 @@ do
 	case "${option}" in
 		1)  VCF1=${OPTARG};;
 		2)  VCF2=${OPTARG};;
-		o)   OUT=${OPTARG};;
+		o)  OUT=${OPTARG};;
 		h)
 			usage
 			exit 0
@@ -66,7 +67,7 @@ fi
 # Create tmp folders.
 #
 SCRATCH="${OUT}/TMP/"
-rm -Rf   "${SCRATCH}"
+rm -Rf "${SCRATCH}"
 mkdir -p "${SCRATCH}"
 
 printf "vcf1:${VCF1}\nvcf2:${VCF2}"> "${OUT}/runparameters.txt"
@@ -83,14 +84,14 @@ then
 	exit 1
 fi
 
-if [ "${checkformatVCF1}" == "gz" ]
+if [[ "${checkformatVCF1}" == "gz" ]]
 then
 	inputVcf1="${VCF1%.*}"
 	gzip -c -d "${VCF1}" > "${inputVcf1}"
 
 	inputVcf2="${VCF2%.*}"
 	gzip -c -d "${VCF2}" > "${inputVcf2}"
-elif [ "${checkformatVCF1}" == 'vcf' ]
+elif [[ "${checkformatVCF1}" == 'vcf' ]]
 then
 	inputVcf1="${VCF1}"
 	inputVcf2="${VCF2}"
@@ -188,7 +189,7 @@ falseNegative=0
 falsePositive=0
 
 ##NOT IN VCF2
-if [ -f "${SCRATCH}/notInVcf2.txt" ]
+if [[ -f "${SCRATCH}/notInVcf2.txt" ]]
 then
 	falseNegative=$(cat "${SCRATCH}/notInVcf2.txt" | wc -l)
 	sort -V -k1 "${SCRATCH}/notInVcf2.txt" > "${SCRATCH}/notInVcf2.txt.sorted"
@@ -198,22 +199,22 @@ then
 fi
 
 ## INCONSISTENT
-if [ -f "${SCRATCH}/inconsistent.txt" ]
+if [[ -f "${SCRATCH}/inconsistent.txt" ]]
 then
 	alarm=$(cat "${SCRATCH}/inconsistent.txt" | wc -l)
 	sort -V -k1 "${SCRATCH}/inconsistent.txt" > "${SCRATCH}/inconsistent.txt.sorted"
 	printf "\t\t\t|\tvcf1\t\t|\t\tvcf2\t\t\n" > "${OUT}/inconsistent.txt"
 	printf "chr\tposition\t| ref\talt\tgen\t|\tref\talt\tgen\n" >> "${OUT}/inconsistent.txt"
-	cat ${SCRATCH}/inconsistent.txt.sorted >> "${OUT}/inconsistent.txt"
+	cat "${SCRATCH}/inconsistent.txt.sorted" >> "${OUT}/inconsistent.txt"
 	perl -pi -e 's|-|\t|g' "${OUT}/inconsistent.txt"
 	
 fi
 
 ##TRUE POS
 truePos=$(cat "${SCRATCH}/truePos.txt" | wc -l)
-sort -V -k1 "${SCRATCH}/truePos.txt" > "${SCRATCH}/truePos.txt".sorted
+sort -V -k1 "${SCRATCH}/truePos.txt" > "${SCRATCH}/truePos.txt.sorted"
 printf "chr\tpos\tref\talt\tgen\n" > "${OUT}/truePos.txt"
-cat "${SCRATCH}/truePos.txt".sorted >> "${OUT}/truePos.txt"
+cat "${SCRATCH}/truePos.txt.sorted" >> "${OUT}/truePos.txt"
 
 perl -pi -e 's|-|\t|g' "${OUT}/truePos.txt"
 
