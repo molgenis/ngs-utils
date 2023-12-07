@@ -167,18 +167,18 @@ printf "" > "${SCRATCH}/diff.txt"
 echo "comparing vcf1 with vcf2"
 for i in "${!arrVCF1[@]}"
 do
-	if [ "${arrVCF2[$i]+abc}" ]
+	if [[ "${arrVCF2[$i]+abc}" ]]
 	then
 		if [ "${arrVCF1[$i]}" != "${arrVCF2[$i]}" ]
 		then
-			printf "$i \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/diff.txt"
-			printf "$i \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/inconsistent.txt"
+			printf "${i} \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/diff.txt"
+			printf "${i} \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/inconsistent.txt"
 		else
-			printf "$i ${arrVCF1[$i]}\n" >> "${SCRATCH}/truePos.txt"
+			printf "${i} ${arrVCF1[$i]}\n" >> "${SCRATCH}/truePos.txt"
 		fi
 	else
-		printf "$i\t${arrVCF1[$i]}\n" >> "${SCRATCH}/diff.txt"
-		printf "$i\t${arrVCF1[$i]}\n" >> "${SCRATCH}/notInVcf2.txt"
+		printf "${i}\t${arrVCF1[$i]}\n" >> "${SCRATCH}/diff.txt"
+		printf "${i}\t${arrVCF1[$i]}\n" >> "${SCRATCH}/notInVcf2.txt"
 	fi
 done
 
@@ -196,7 +196,7 @@ then
 	falseNegative=$(cat "${SCRATCH}/notInVcf2.txt" | wc -l)
 	sort -V -k1 "${SCRATCH}/notInVcf2.txt" > "${SCRATCH}/notInVcf2.txt.sorted"
 	printf "chr\tpos\tref\talt\tgen\n" > "${OUT}/notInVcf2.txt"
-	cat "${SCRATCH}/notInVcf2.txt".sorted >> "${OUT}/notInVcf2.txt"
+	cat "${SCRATCH}/notInVcf2.txt.sorted" >> "${OUT}/notInVcf2.txt"
 	perl -pi -e 's|-|\t|g' "${OUT}/notInVcf2.txt"
 fi
 
@@ -238,9 +238,9 @@ fi
 if [[ "${alarm}" -ne 0 ]]
 then
 	alarmRate=$(awk "BEGIN {printf \"%.2f\n\", ((${alarm}/$total)*100)}")
-	printf "Inconsistent:$alarm, InconsistentRate: ${alarmRate}%%\n" >> "${OUT}/vcfStats.txt"
+	printf "Inconsistent:${alarm}, InconsistentRate: ${alarmRate}%%\n" >> "${OUT}/vcfStats.txt"
 else
-	printf "Inconsistent:$alarm, InconsistentRate: 0%%\n" >> "${OUT}/vcfStats.txt"
+	printf "Inconsistent:${alarm}, InconsistentRate: 0%%\n" >> "${OUT}/vcfStats.txt"
 fi
 
 totalDifferences=$((${falseNegative}+${alarm}))
@@ -252,6 +252,6 @@ concordant=$(awk '{print 100-(($3/$1)*100)}' "${OUT}/simpleStats.txt")
 printf "Total\tTP\tdiff\tconcordant(100-((diff/total)*100)\n" > "${OUT}/comparison.txt"
 printf "${total}\t${truePos}\t${totalDifferences}\t${concordant}\n" >> "${OUT}/comparison.txt"
 
-printf "done..\nComparison can be found: $OUT \n"
+printf "done..\nComparison can be found: ${OUT} \n"
 
 exit 0
