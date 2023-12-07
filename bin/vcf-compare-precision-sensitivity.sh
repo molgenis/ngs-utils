@@ -6,21 +6,26 @@
 set -e  # Exit if any subcommand or pipeline returns a non-zero status.
 set -u  # Exit if any uninitialised variable is used.
 
-usage() {
-    echo '##################################################################################################'
-    echo ' This tool compares 2 VCF files, based on the variants of vcf1 (or GZIPPED vcf) and shows only the different rows based on the following columns:'
-    echo '   CHROM, POS, REF, ALT and SampleID:GT'
-    echo
-    echo ' Usage:'
-    echo '   bash vcf-compare-precision-sensitivity.sh -1 <input_vcf_file> -2 <input_vcf_file>  -o <output_folder>'
-    echo
-    echo ' Example:'
-    echo '   bash vcf-compare-precision-sensitivity.sh \'
-    echo '                       -1 old_analysis.snps.final.vcf \'
-    echo '                       -2 new_analysis.snps.final.vcf \'
-    echo '                       -o ./results/'
-    echo '##################################################################################################'
+showHelp() {
+		cat <<EOH
+##################################################################################################'
+This tool compares 2 VCF files, based on the variants of vcf1 (or GZIPPED vcf) and shows only the different rows based on the following columns:
+CHROM, POS, REF, ALT and SampleID:GT
+
+Usage:
+bash vcf-compare-precision-sensitivity.sh -1 <input_vcf_file> -2 <input_vcf_file>  -o <output_folder>
+
+Example:
+bash vcf-compare-precision-sensitivity.sh \
+-1 old_analysis.snps.final.vcf \
+-2 new_analysis.snps.final.vcf \
+-o ./results/
+##################################################################################################
+EOH
+trap - EXIT
+exit 0
 }
+
 
 declare VCF1=""
 declare VCF2=""
@@ -28,38 +33,35 @@ declare OUT=""
 #
 # Take the parameters given on the commandline and assign them to variables.
 #
-while getopts ":1:2:d:o:h" option
+while getopts ":1:2:d:o:h" opt;
 do
-	case "${option}" in
-		1)  VCF1=${OPTARG};;
-		2)  VCF2=${OPTARG};;
-		o)  OUT=${OPTARG};;
-		h)
-			usage
-			exit 0
-			;;
-		\?)
-			echo "ERROR: Invalid option -${OPTARG}. Try \"$(basename $0) -h\" for help."
-			exit 1
-			;;
-		:)
-			echo "ERROR: Option -${OPTARG} requires an argument. Try \"$(basename $0) -h\" for help."
-			;;
+	case "${option}" in 1)  VCF1="${OPTARG}";; 2)  VCF2="${OPTARG}";; o)  OUT="${OPTARG}";; h) showHelp ;;
 	esac
 done
 
 #
 # Check if all parameters are set.
 #
-if [[ ${VCF1} && ${VCF2} && ${OUT} ]]; then
-	echo
-	echo "Comparing ${VCF1} to ${VCF2}..."
-	echo
-else
-	usage
-	echo
-	echo "ERROR: missing required argument. Try \"$(basename $0) -h\" for help."
-	echo
+
+
+if [[ -z "${VCF1:-}" ]]
+then
+	echo -e '\nERROR: Must specify a first VCF!\n'
+	showHelp
+	exit 1
+fi
+
+if [[ -z "${VCF2:-}" ]]
+then
+	echo -e '\nERROR: Must specify a second VCF!\n'
+	showHelp
+	exit 1
+fi
+
+if [[ -z "${OUT:-}" ]]
+then
+	echo -e '\nERROR: Must specify an output folder!\n'
+	showHelp
 	exit 1
 fi
 
