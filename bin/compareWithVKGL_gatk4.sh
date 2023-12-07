@@ -98,7 +98,7 @@ function giabvshc(){
 		echo "comparing ${type}: ${sampleName}vsHC"
 		## sample vs HC callset (precision)
 		# shellcheck disable=SC2154
-		vcf-compare-precision-sensitivity.sh \
+		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
 		-1 "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
 		-2 "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf" \
 		-o "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/"
@@ -106,14 +106,14 @@ function giabvshc(){
 
 		if [[ "${firstLine}" == "false" ]]
 		then
-			awk '{if(NR==1){print "Measurement\tType\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}/comparison.txt" > "${outputFolder}/precision_output.txt"
+			awk '{if(NR==1){print "Measurement\tType\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/comparison.txt" > "${outputFolder}/precision_output.txt"
 		fi
-		awk -v type=${type} '{if(NR>1){print "precision\t"type"\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union.${type}/comparison.txt" >> "${outputFolder}/precision_output.txt"
+		awk -v type=${type} '{if(NR>1){print "precision\t"type"\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_union_${type}/comparison.txt" >> "${outputFolder}/precision_output.txt"
 		
 		##HC callset vs sample (sensitivity)
 		# shellcheck disable=SC2154
-		vcf-compare-precision-sensitivity.sh \
-		-1 "/apps/data/NIST/${namingConvention}/GIAB_HC_${type}_20bp.vcf" \
+		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
+		-1 "/apps/data/NIST/${namingConvention}/GIAB_HC.${type}_20bp.vcf" \
 		-2 "${outputFolder}/tmp/${sampleName}_${type}.union.20bp_filtered.vcf" \
 		-o "${outputFolder}/tmp/sensitivity-HCvs${sampleName}_union_${type}/"
 		

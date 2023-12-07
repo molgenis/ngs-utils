@@ -35,7 +35,7 @@ declare OUT=""
 #
 while getopts ":1:2:d:o:h" opt;
 do
-	case "${option}" in 1)  VCF1="${OPTARG}";; 2)  VCF2="${OPTARG}";; o)  OUT="${OPTARG}";; h) showHelp ;;
+	case "${opt}" in 1)  VCF1="${OPTARG}";; 2)  VCF2="${OPTARG}";; o)  OUT="${OPTARG}";; h) showHelp ;;
 	esac
 done
 
@@ -130,16 +130,16 @@ declare -A arrVCF2
 
 while read line 
 do
-	OLDIFS=$IFS
+	OLDIFS="${IFS}"
 	IFS="-"
-	set $line
-	chr=$1
-	pos=$2
-	ref=$3
-	alt=$4
-	gen=$5
-	IFS=$OLDIFS
-	gen=${gen/|//}
+	set ${line}
+	chr="${1}"
+	pos="${2}"
+	ref="${3}"
+	alt="${4}"
+	gen="${5}"
+	IFS="${OLDIFS}"
+	gen="${gen/|//}"
 	myvalue="${ref}-${alt}-${gen}"
 	mykey="${chr}-${pos}"
 	arrVCF1["${mykey}"]="${myvalue}"
@@ -148,16 +148,16 @@ done<"${SCRATCH}/${vcf01}.strippedReferenceCalls.txt"
 
 while read line 
 do
-	OLDIFS=$IFS
+	OLDIFS="${IFS}"
 	IFS="-"
-	set $line
-	chr=$1
-	pos=$2
-	ref=$3
-	alt=$4
-	gen=$5
-	IFS=$OLDIFS
-	gen=${gen/|//}
+	set ${line}
+	chr="${1}"
+	pos="${2}"
+	ref="${3}"
+	alt="${4}"
+	gen="${5}"
+	IFS="${OLDIFS}"
+	gen="${gen/|//}"
 	arrVCF2["${chr}-${pos}"]="${ref}-${alt}-${gen}"
 
 done<"${SCRATCH}/${vcf02}.strippedReferenceCalls.txt"
@@ -169,7 +169,7 @@ for i in "${!arrVCF1[@]}"
 do
 	if [ "${arrVCF2[$i]+abc}" ]
 	then
-		if [ ${arrVCF1[$i]} != ${arrVCF2[$i]} ]
+		if [ "${arrVCF1[$i]}" != "${arrVCF2[$i]}" ]
 		then
 			printf "$i \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/diff.txt"
 			printf "$i \t| ${arrVCF1[$i]}\t|\t${arrVCF2[$i]} \n" >> "${SCRATCH}/inconsistent.txt"
