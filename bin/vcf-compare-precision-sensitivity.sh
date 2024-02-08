@@ -80,7 +80,7 @@ printf "vcf1:${VCF1}\nvcf2:${VCF2}"> "${OUT}/runparameters.txt"
 checkformatVCF1="${VCF1##*.}"
 checkformatVCF2="${VCF2##*.}"
 
-if [ "${checkformatVCF1}" != "${checkformatVCF2}" ]
+if [[ "${checkformatVCF1}" != "${checkformatVCF2}" ]]
 then
 	echo "formats are not the same (${checkformatVCF1} vs ${checkformatVCF2})"
 	exit 1
@@ -104,7 +104,8 @@ fi
 
 vcf01="$(basename ${inputVcf1})"
 vcf02="$(basename ${inputVcf2})"
-if [ "${vcf01}" == "${vcf02}" ]; then
+if [[ "${vcf01}" == "${vcf02}" ]]
+then
 	echo "files are identical, vcf02 gets a suffix"
 	t="${vcf02}.2"
 	vcf02="${t}"
@@ -247,9 +248,10 @@ totalDifferences=$((${falseNegative}+${alarm}))
 
 printf "${total}\t${truePos}\t${totalDifferences}" > "${OUT}/simpleStats.txt"
 
-
-concordant=$(awk '{print 100-(($3/$1)*100)}' "${OUT}/simpleStats.txt")
-printf "Total\tTP\tdiff\tconcordant(100-((diff/total)*100)\n" > "${OUT}/comparison.txt"
+TP/Total * 100
+#concordant=$(awk '{print 100-(($3/$1)*100)}' "${OUT}/simpleStats.txt")
+concordant=$(awk '{print ($2/$1)*100}' "${OUT}/simpleStats.txt")
+printf "Total\tTP\tdiff\tconcordant((TP/Total)*100)\n" > "${OUT}/comparison.txt"
 printf "${total}\t${truePos}\t${totalDifferences}\t${concordant}\n" >> "${OUT}/comparison.txt"
 
 printf "done..\nComparison can be found: ${OUT} \n"
