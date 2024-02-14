@@ -46,7 +46,6 @@ function giabvshc(){
 
 
 	#split giabFile into INDEL and SNP
-	# shellcheck disable=SC2154	
 	gatk --java-options "-XX:ParallelGCThreads=1 -Xmx5g" SelectVariants \
 	-R "${refGenome}" \
 	--variant "${outputFolder}/tmp/${sampleName}.highConfidenceRegions.vcf" \
@@ -57,7 +56,6 @@ function giabvshc(){
 	echo "${sampleName}_INDEL.vcf done"
 
 	#Select SNPs and MNPs
-	# shellcheck disable=SC2154
 	gatk --java-options "-XX:ParallelGCThreads=1 -Xmx5g" SelectVariants \
 	-R "${refGenome}" \
 	--variant "${outputFolder}/tmp/${sampleName}.highConfidenceRegions.vcf" \
