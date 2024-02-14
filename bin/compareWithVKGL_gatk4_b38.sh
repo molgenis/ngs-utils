@@ -94,7 +94,6 @@ function giabvshc(){
 		echo "-1 ${outputFolder}/tmp/${sampleName}_${type}.highConfidenceRegions.PseudoExome_filtered.vcf"
 		echo "-2 /apps/data/NIST/HG002_GRCh38_1_22_v4.2.1_benchmark_noincosistent.pseudoExome.${type}.vcf"
 		## sample vs HC callset (precision)
-		# shellcheck disable=SC2154
 		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
 		-1 "${outputFolder}/tmp/${sampleName}_${type}.highConfidenceRegions.PseudoExome_filtered.vcf" \
 		-2 "/apps/data/NIST/HG002_GRCh38_1_22_v4.2.1_benchmark_noincosistent.pseudoExome.${type}.vcf" \
@@ -108,7 +107,6 @@ function giabvshc(){
 		awk -v type=${type} '{if(NR>1){print "precision\t"type"\t"$0}}' "${outputFolder}/tmp/precision-${sampleName}vsHC_${type}/comparison.txt" >> "${outputFolder}/precision_output.txt"
 		
 		##HC callset vs sample (sensitivity)
-		# shellcheck disable=SC2154
 		"${EBROOTNGSMINUTILS}/bin/vcf-compare-precision-sensitivity.sh" \
 		-1 "/apps/data/NIST/HG002_GRCh38_1_22_v4.2.1_benchmark_noincosistent.pseudoExome.${type}.vcf" \
 		-2 "${outputFolder}/tmp/${sampleName}_${type}.highConfidenceRegions.PseudoExome_filtered.vcf" \
@@ -126,8 +124,6 @@ function giabvshc(){
 
 while getopts "i:o:w:b:h" opt; 
 do
-	# shellcheck disable=SC2249
-	# shellcheck disable=SC2220
 	case "${opt}" in h)showHelp;; i)inputFile="${OPTARG}";; w)workDir="${OPTARG}";; o)outputFolder="${OPTARG}";;  b)buildType="${OPTARG}";;
 esac 
 done
@@ -166,7 +162,6 @@ fi
 ##precision
 head -1 "${outputFolder}/precision_output.txt" > "${outputFolder}/output.txt"
 
-#awk '{if (NR>1){print $1,$2"\t"$5"\t"$4"\t"$6}}' "${outputFolder}/precision_output.txt"
 awk '{if (NR>1){print $0}}' "${outputFolder}/precision_output.txt" >> "${outputFolder}/output.txt"
 cat "${outputFolder}/precision_output.txt" 
 echo -e "\n"  >> "${outputFolder}/output.txt" 
