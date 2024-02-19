@@ -10,14 +10,14 @@ function showHelp() {
 	#
 	cat <<EOH
 ===============================================================================================================
-Script to compare a vcf file with the VKGL data
+Script to compare a vcf file with the GIAB HC callset(HG002_GRCh38_1_22_v4.2.1) for the VKGL veldnorm
 Usage:
 	$(basename "${0}") OPTIONS
 Options:
 	-h   Show this help.
 	-i   inputFile
 	-t   workDir working directory (default= CURRENTDIR)
-	-b   which build, ucsc (chr1, chr2,chrX etc) or regular (1,2,X etc) default is regular
+	-b   which build, UCSC (chr1, chr2,chrX etc) or regular (1,2,X etc) default is UCSC
 	-o   outputFolder (default:\${workDir}/output/)
 
 ===============================================================================================================
