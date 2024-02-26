@@ -169,7 +169,7 @@ def read_targets(bed,gVCF,outputFile):
 #   gVCF = cyvcf2.VCF(gVCF)
     content=[]
     with open(outputFile, "w") as ohandle:
-        ohandle.write(str("chr\tstart\tstop\tgene\tGQ_low\tGQ_medium\tGQ_high\tavgDp\tpercentage DP<20\tpercentage DP>20\tsummedDP\ttargetSize\tnumberBasesDPInCategoryLow\tnumberBasesZeroCoverage" + "\n" ))
+        ohandle.write(str("chr\tstart\tstop\tgene\tGQ_low\tGQ_medium\tGQ_high\tavgDp\tpercentage DP<10\tpercentage DP>10\tsummedDP\ttargetSize\tnumberBasesDPInCategoryLow\tnumberBasesZeroCoverage" + "\n" ))
         with open(bed)as f:
             for line in f:
                 content= line.strip().split()
@@ -223,7 +223,7 @@ def main():
     global dictGQThresholds
     global dictDPThresholds
     dictGQThresholds = {'low': 20, 'medium': 50, 'high': 50}
-    dictDPThresholds = {'low': 20}
+    dictDPThresholds = {'low': 10}
 
     parser = argparse.ArgumentParser(description=desc)
 
@@ -238,8 +238,8 @@ def main():
     parser.add_argument("-q", "--qualityThresholds", type=list, default=[20,50],
                         help="Genotype quality range per category low, medium, high. default: [20,50]"
                             "This results in GQ categories: low: 0 <-> 20, medium: 21 <-> 50, high: > 51")
-    parser.add_argument("-d", "--depthThresholds", type=list, default=[20],
-                        help="DepthThreshold, default=[20] this results in GQ categories: low: 0 <-> 20,high: > 20")
+    parser.add_argument("-d", "--depthThresholds", type=list, default=[10],
+                        help="DepthThreshold, default=[10] this results in GQ categories: low: 0 <-> 10,high: > 10")
     parser.add_argument("-b", "--bedfile", type=str,required=True,help="target bedfile to calculate percentage per quality threshold."
                         "Bedfile must contain colunms: chr \t start \t stop \t gene")
     parser.add_argument("-g", "--bedgraph", type=bool, default=True,
