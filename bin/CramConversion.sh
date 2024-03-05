@@ -38,7 +38,7 @@ if [[ -z "${inputFolder:-}" ]]; then showHelp ; echo "inputFolder is not specifi
 if [[ -z "${workDir:-}" ]]; then workDir=$(pwd)/BAM; mkdir -p ${workDir} ; fi ; echo "workDir=${workDir}"
 if [[ -z "${reference:-}" ]]; then reference="/apps/data/1000G/phase1/human_g1k_v37_phiX.fasta"; fi ; echo "reference=${reference}"
 
-module load io_lib/1.14.6-foss-2015b
+module load io_lib
 module load SAMtools
 
 #To convert from CRAM -> BAM do:
