@@ -87,7 +87,6 @@ $(hostname) - ${SCRIPT_NAME}:${_problematicLine}:        error message = ${_erro
 	exit 1
 }
 
-
 #
 # Trap all exit signals: HUP(1), INT(2), QUIT(3), TERM(15), ERR
 #
@@ -121,11 +120,7 @@ function _RenameFastQ() {
 	then
 		echo "DEBUG:    Found _firstReadID ............ = ${_firstReadID}"
 	fi
-	#local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
 	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]*[:ATCGN+]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
-	#local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:([0-9]*|[0-9]*:[ATCGN+]) ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
-	#               @A01685             :224          :HJ5C5DSX7          :2      :1101  :1524  :1094:ATACGGGG             1     :N   :0          :AGTAAACA+ACTTAAGC
-	#               @A01685             :281          :H5JN3DSXC          :1      :1101  :1515  :1047                      1     :N   :0          :TCTCATGC+ACTTCGAC
 	if [[ "${_firstReadID}" =~ ${_regex} ]]
 	then
 		local _sequencer="${BASH_REMATCH[1]}"
@@ -174,7 +169,6 @@ function _RenameFastQ() {
 	#      (assuming the yield was high enough; otherwise you get the last 1000 reads).
 	#   B. Next we parse the barcodes from the read ID lines, sort, count and determine the most abundant barcode.
 	#
-	#local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 440000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ':' '{print $10}' | sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
 	local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 440000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ' ' '{print $2}' | awk -F ':' '{print $4}'| sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
 
 	local _barcodeRegex='^([ATCG][ATCG+]*)$'
