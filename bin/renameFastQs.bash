@@ -174,7 +174,9 @@ function _RenameFastQ() {
 	#      (assuming the yield was high enough; otherwise you get the last 1000 reads).
 	#   B. Next we parse the barcodes from the read ID lines, sort, count and determine the most abundant barcode.
 	#
-	local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 440000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ':' '{print $10}' | sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
+	#local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 440000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ':' '{print $10}' | sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
+	local _mostAbundandBarcode=$(zcat "${_fastqPath}" | head -n 440000 | tail -n 4000 | awk 'NR % 4 == 1' | awk -F ' ' '{print $2}' | awk -F ':' '{print $4}'| sort | uniq -c | sort -k 1,1nr | head -1 | awk '{print $2}' | tr -d '\n')
+
 	local _barcodeRegex='^([ATCG][ATCG+]*)$'
 	if [[ "${_mostAbundandBarcode}" =~ ${_barcodeRegex} ]]
 	then
