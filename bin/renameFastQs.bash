@@ -122,7 +122,7 @@ function _RenameFastQ() {
 		echo "DEBUG:    Found _firstReadID ............ = ${_firstReadID}"
 	fi
 	#local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
-	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]*([0-9]*[0-9]*|[0-9]*:[ATCGN+]) ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
+	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:([0-9]*|[0-9]*:[ATCGN+]) ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
 	if [[ "${_firstReadID}" =~ ${_regex} ]]
 	then
 		local _sequencer="${BASH_REMATCH[1]}"
