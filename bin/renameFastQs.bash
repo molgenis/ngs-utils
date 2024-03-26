@@ -122,7 +122,8 @@ function _RenameFastQ() {
 		echo "DEBUG:    Found _firstReadID ............ = ${_firstReadID}"
 	fi
 	#local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
-	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:+([0-9]*|[0-9]*:[ATCGN+]) ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
+	local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:[0-9]*:[ATCGN+]* ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
+	#local _regex='^@([A-Z0-9][A-Z0-9]*):([0-9][0-9]*):([A-Z0-9][A-Z0-9]*):([1-8]):[0-9]*:[0-9]*:([0-9]*|[0-9]*:[ATCGN+]) ([1-2]):[YN]:[0-9][0-9]*:[ATCGN][ATCGN+]*'
 	#               @A01685             :224          :HJ5C5DSX7          :2      :1101  :1524  :1094:ATACGGGG             1     :N   :0          :AGTAAACA+ACTTAAGC
 	#               @A01685             :281          :H5JN3DSXC          :1      :1101  :1515  :1047                      1     :N   :0          :TCTCATGC+ACTTCGAC
 	if [[ "${_firstReadID}" =~ ${_regex} ]]
