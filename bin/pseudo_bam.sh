@@ -132,7 +132,7 @@ then
 			
 			if [[ "${filePath}" == *"GAVIN"* ]]
 			then
-				resultsDir=$(dirname $(dirname "$(dirname ${filePath})")
+				resultsDir=$(dirname $(dirname "$(dirname ${filePath})"))
 			else
 				resultsDir=$(dirname "$(dirname ${filePath})")
 			fi
@@ -193,5 +193,6 @@ then
 			reheader "${workDir}" "${sampleName}" "${fileName}" "${pseudo}"
 		else
 			echo "bam is not found"
+		fi
 	done<"${mapping}"
 fi
