@@ -183,7 +183,7 @@ then
 	do
 		oldKey=$(echo "${line}" | awk '{print $1}')	 ## DNA12345
 		pseudo=$(echo "${line}" | awk '{print $2}')	 ##sample1
-		if [[ -f "${workDir}/input/"*"${oldKey}"*".bam" ]]
+		if ls "${workDir}/input/"*"${oldKey}"*".bam"
 		then
 			bam=$(ls "${workDir}/input/"*"${oldKey}"*".bam") ## 20000_DNA12345_000_12312.merged.bam
 			fileName=$(basename "${bam}") ## 20000000_DNA12345_0000000_1231244
