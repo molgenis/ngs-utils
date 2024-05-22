@@ -40,7 +40,8 @@ function showHelp() {
 	#
 	cat <<EOH
 ===============================================================================================================
-Script to do (many-to-many) ConcordanceChecks manually. 
+Script to do ConcordanceChecks for array vs array manually. (see instructions:
+https://github.com/molgenis/analysis-team-documents/blob/master/sops/GH-09-ConcordanceCheckArrayVsArray.md)
 Usage:
 	$(basename $0) OPTIONS
 Options:
