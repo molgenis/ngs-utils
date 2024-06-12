@@ -23,7 +23,7 @@ def get_format_value(record, format_field, sample_idx):
             return record.QUAL
         return None
     if record.QUAL is not None and gq_arr is not None:
-        return min(int(gq_arr[sample_idx][0]), record.QUAL)
+        return int(gq_arr[sample_idx][0])
     elif gq_arr is not None:
         return gq_arr[sample_idx][0]
     elif record.QUAL is not None:
