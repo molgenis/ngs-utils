@@ -24,7 +24,7 @@ Options:
 	-s   search database (in combination with -d) (file containing DNA numbers and mapping in second column, tab seperated) (not in combination with -m)
 	-d   database file (containing all the variant vcf files) (default is /groups/umcg-gd/tmp06/pseudo/AllVcfs.txt)
 	-i   input folder containing vcf files (vcf.gz extension necessary) (not in combination with -s) 
-	-f   mapping file (in combination with -i)
+	-f   mapping file (in combination with -i), format: DNAnumber\tpseudoID (optional third column [alternativeHeader] only contains family and umcgnumber, fill in third column:yes) 
 	-g   which group (default = umcg-gd)
 
     optional:
@@ -43,7 +43,7 @@ EOH
 
 while getopts "i:g:d:s:f:mp:h" opt;
 do
-		case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";; m)mantaBool='-m';;  p)prm="${OPTARG}";;w)workDir="${OPTARG}";;
+		case $opt in h)showHelp;; i)input="${OPTARG}";; g)group="${OPTARG}";; s)search="${OPTARG}";; d)database="${OPTARG}";; f)mapping="${OPTARG}";; m)mantaBool='-m';;  p)prm="${OPTARG}";;w)workDir="${OPTARG}";;o)genomescanData="${OPTARG}";;
 		esac
 done
 
@@ -87,6 +87,7 @@ else
 		workDir="${workDir}/pseudoTmp/"
 fi
 
+
 mkdir -p "${workDir}/"{variants,manta}"/"{output,tmp,input}"/"
 
 if [[ "${pathway}" == "input" ]]
@@ -98,6 +99,7 @@ then
 		dnaNumber=$(echo "${line}" | awk '{print $1}')
 		# get pseudo id from second column
 		pseudo=$(echo "${line}" | awk '{print $2}')
+		alternativeHeader=$(echo "${line}" | awk '{print $3}')
 
 		echo "working on:"
 		if ls "${input}/"*"${dnaNumber}"*
@@ -110,6 +112,11 @@ then
 
 		vcfFile=$(basename "${vcfFilePath}")
 		sampleName=${vcfFile%%.*}
+		
+		if [[ "${alternativeHeader}" == "yes" ]]
+		then
+			sampleName=$(echo "${sampleName}" | awk 'BEGIN {FS="_"}{print $1"_"$2}')
+		fi
 		
 		bcftools view -h "${vcfFilePath}" > "${workDir}/variants/tmp/header.txt"
 		## pseudo anonimize sample
