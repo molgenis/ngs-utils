@@ -8,7 +8,7 @@ bamLocation="/groups/umcg-genomescan/tmp06/projects/NGS_DNA/GS_558G-WGS_v1/run01
 count=0
 while read line
 do
-	if [[ ${count} == 0 ]]
+	if [[ "${count}" == 0 ]]
 	then
 		echo "first line"
 		count=1
