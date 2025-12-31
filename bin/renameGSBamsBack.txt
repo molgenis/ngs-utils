@@ -1,0 +1,26 @@
+#!/bin/bash
+set -eu
+
+gsBatch='106463-097'
+
+oldPath="/groups/umcg-genomescan/tmp06/${gsBatch}/Analysis/"
+bamLocation="/groups/umcg-genomescan/tmp06/projects/NGS_DNA/GS_558G-WGS_v1/run01/results/alignment/"
+count=0
+while read line
+do
+	if [[ "${count}" == 0 ]]
+	then
+		echo "first line"
+		count=1
+	else 
+		GSID=$(echo "${line}" | awk 'BEGIN {FS=","}{print $1}')
+		identifier=$(echo "${line}" | awk 'BEGIN {FS=","}{print $2}')
+		sampleprocessStepid=$(echo ${identifier} | awk 'BEGIN {FS="-"}{print $3}')
+		oldID="${GSID}-${identifier}"
+	
+		for i in bam bam.bai bam.md5 bam.md5sum
+		do
+			mv -vf "${bamLocation}/"*"${sampleprocessStepid}.${i}" "${oldPath}/${oldID}/${oldID}.${i}"
+		done
+	fi
+done<"UMCG_CSV_${gsBatch}.csv"
