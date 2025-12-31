@@ -15,8 +15,8 @@ Options:
 	-h   Show this help.
 
    required:
-	-o   filetype of file one (OPENARRAY/VCF)
-	-t   filetype of file two (OPENARRAY/VCF)
+	-o   filetype of file one: OPENARRAY (default) or VCF
+	-t   filetype of file two: OPENARRAY (default) or VCF
 	-s   samplesheet; format: projectname1\tprojectname2\tdnanumber1\tdnanumber2\tsampleprocessstepid (default: ./samplesheet.txt)
 	-p   path to files (file 1)
 	-c   path to files (file 2)
@@ -42,17 +42,17 @@ fi
 
 if [[ -z "${f1concordancePath:-}" &&  -z "${f2concordancePath:-}" ]]
 then
-        f1concordancePath='/groups/umcg-atd/tmp07/concordance/ngs/'
+	f1concordancePath='/groups/umcg-atd/tmp07/concordance/ngs/'
 	f1concordancePath="${f2concordancePath}"
 	filetypeone="OPENARRAY"
-        filetypetwo="VCF"
+	filetypetwo="VCF"
 fi
 
 
 
 if [[ -z "${samplesheet:-}" ]]
 then
-        samplesheet="samplesheet.txt"
+	samplesheet="samplesheet.txt"
 fi
 
 
@@ -78,13 +78,13 @@ fi
 
 if [[ ${filetypetwo} == "OPENARRAY" ]]
 then
-        f2Extension='.oarray.txt'
+	f2Extension='.oarray.txt'
 elif [[ ${filetypetwo} == "VCF" ]]
 then
-        f2Extension='.concordanceCheckCalls.vcf'
+	f2Extension='.concordanceCheckCalls.vcf'
 else
-        echo "unknown filetype"
-        exit 1
+	echo "unknown filetype"
+	exit 1
 fi
 
 count=0
@@ -112,31 +112,26 @@ f2Id=$(basename "${f2Sample}" "${f2Extension}")
 filePrefix="${sampleProcess}_${f1project}_${f1sample}_${f2project}_${f2sample}"
 
 
-echo -e "${f1Id}\t${f2Id}\t${f1Sample}\t${f2Sample}\t${filetypeone}\t${filetypetwo}\t${f1refGenome}\t${f2refGenome}\t${f1project}\t${f2project}\t${filePrefix}\t${sampleProcess}" >> newSamplesheetje.txt
+echo -e "${f1Id}\t${f2Id}\t${f1Sample}\t${f2Sample}\t${filetypeone}\t${filetypetwo}\t${f1refGenome}\t${f2refGenome}\t${f1project}\t${f2project}\t${filePrefix}\t${sampleProcess}" >> 'newSamplesheetje.txt'
 
 
 done<"${samplesheet}"
 
 
-
-
-
-
-mkdir -p ./output
-input=newSamplesheetje.txt
-# lees de headerregel
+mkdir -p './output'
+input='newSamplesheetje.txt'
 header=$(head -n 1 "${input}")
 
-# sla de header over en loop door de rest
+#skip header
 tail -n +2 "$input" | while IFS=$'\t' read -r data1Id data2Id location1 location2 fileType1 fileType2 build1 build2 project1 project2 fileprefix processStepId; do
-    # maak een bestandsnaam op basis van de prefix
-    filename="${fileprefix}.sampleId.txt"
+	# maak een bestandsnaam op basis van de prefix
+	filename="${fileprefix}.sampleId.txt"
 
     # schrijf header en de regel naar het bestand
-    {
-     	echo "$header"
-        echo -e "${data1Id}\t${data2Id}\t${location1}\t${location2}\t${fileType1}\t${fileType2}\t${build1}\t${build2}\t${project1}\t${project2}\t${fileprefix}\t${processStepId}"
-    } > "output/$filename"
+	{
+		echo "$header"
+		echo -e "${data1Id}\t${data2Id}\t${location1}\t${location2}\t${fileType1}\t${fileType2}\t${build1}\t${build2}\t${project1}\t${project2}\t${fileprefix}\t${processStepId}"
+	} > "output/$filename"
 done
 
 
