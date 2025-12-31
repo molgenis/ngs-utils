@@ -23,4 +23,4 @@ do
 			mv -vf "${bamLocation}/"*"${sampleprocessStepid}.${i}" "${oldPath}/${oldID}/${oldID}.${i}"
 		done
 	fi
-done<UMCG_CSV_${gsBatch}.csv
+done<"UMCG_CSV_${gsBatch}.csv"
