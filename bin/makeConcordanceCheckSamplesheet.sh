@@ -65,25 +65,25 @@ echo "filetypeone=${filetypeone}"
 echo "filetypetwo=${filetypetwo}"
 
 
-if [[ ${filetypeone} == "OPENARRAY" ]]
+if [[ "${filetypeone}" == "OPENARRAY" ]]
 then
 	f1Extension='.oarray.txt'
-elif [[ ${filetypeone} == "VCF" ]]
+elif [[ "${filetypeone}" == "VCF" ]]
 then
 	f1Extension='.concordanceCheckCalls.vcf'
 else
-	echo "unknown filetype"
+	echo "FATAL: unknown filetype: ${filetypeone}"
 	exit 1
 fi
 
-if [[ ${filetypetwo} == "OPENARRAY" ]]
+if [[ "${filetypetwo}" == "OPENARRAY" ]]
 then
 	f2Extension='.oarray.txt'
-elif [[ ${filetypetwo} == "VCF" ]]
+elif [[ "${filetypetwo}" == "VCF" ]]
 then
 	f2Extension='.concordanceCheckCalls.vcf'
 else
-	echo "unknown filetype"
+	echo "FATAL: unknown filetype: ${filetypetwo}"
 	exit 1
 fi
 
@@ -96,27 +96,20 @@ do
 		count=1
 	fi
 
-echo "${line}"
+	f1project=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $1}')
+	f2project=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $2}')
+	f1sample=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $3}')
+	f2sample=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $4}')
+	sampleProcess=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $5}')
+	f1Sample=$(ls "${f1concordancePath}/"*"${f1sample}"*"${f1Extension}")
+	f2Sample=$(ls "${f2concordancePath}/"*"${f2sample}"*"${f2Extension}")
+	f1Id=$(basename "${f1Sample}" "${f1Extension}")
+	f2Id=$(basename "${f2Sample}" "${f2Extension}")
+	filePrefix="${sampleProcess}_${f1project}_${f1sample}_${f2project}_${f2sample}"
 
-
-f1project=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $1}')
-f2project=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $2}')
-f1sample=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $3}')
-f2sample=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $4}')
-sampleProcess=$(echo "${line}" | awk 'BEGIN {FS="\t"}{print $5}')
-f1Sample=$(ls "${f1concordancePath}/"*"${f1sample}"*"${f1Extension}")
-f2Sample=$(ls "${f2concordancePath}/"*"${f2sample}"*"${f2Extension}")
-
-f1Id=$(basename "${f1Sample}" "${f1Extension}")
-f2Id=$(basename "${f2Sample}" "${f2Extension}")
-filePrefix="${sampleProcess}_${f1project}_${f1sample}_${f2project}_${f2sample}"
-
-
-echo -e "${f1Id}\t${f2Id}\t${f1Sample}\t${f2Sample}\t${filetypeone}\t${filetypetwo}\t${f1refGenome}\t${f2refGenome}\t${f1project}\t${f2project}\t${filePrefix}\t${sampleProcess}" >> 'newSamplesheetje.txt'
-
+	echo -e "${f1Id}\t${f2Id}\t${f1Sample}\t${f2Sample}\t${filetypeone}\t${filetypetwo}\t${f1refGenome}\t${f2refGenome}\t${f1project}\t${f2project}\t${filePrefix}\t${sampleProcess}" >> 'newSamplesheetje.txt'
 
 done<"${samplesheet}"
-
 
 mkdir -p './output'
 input='newSamplesheetje.txt'
@@ -131,7 +124,6 @@ tail -n +2 "$input" | while IFS=$'\t' read -r data1Id data2Id location1 location
 	{
 		echo "$header"
 		echo -e "${data1Id}\t${data2Id}\t${location1}\t${location2}\t${fileType1}\t${fileType2}\t${build1}\t${build2}\t${project1}\t${project2}\t${fileprefix}\t${processStepId}"
-	} > "output/$filename"
-done
+} > "output/$filename"
 
 
