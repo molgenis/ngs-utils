@@ -17,7 +17,7 @@ Options:
 
    required:
 	-o   filetype of file one: OPENARRAY (default) or VCF
-	-t   filetype of file two: OPENARRAY (default) or VCF
+	-t   filetype of file two: OPENARRAY or VCF (default)
 	-s   samplesheet; format: projectname1\tprojectname2\tdnanumber1\tdnanumber2\tsampleprocessstepid (default: ./samplesheet.txt)
 	-p   path to files (file 1)
 	-c   path to files (file 2)
