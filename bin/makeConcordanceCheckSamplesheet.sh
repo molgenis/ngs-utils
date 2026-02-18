@@ -27,7 +27,7 @@ EOH
         exit 0
 }
 
-echo -e"example Usage:\n\tbash makeSamplesheet.sh -o OPENARRAY -t OPENARRAY -p /groups/umcg-atd/tmp07/concordance/ngs/OA99/ -c /groups/umcg-atd/tmp07/concordance/ngs/OA99/compareWith/"
+echo -e "example Usage:\n\tbash makeConcordanceCheckSamplesheet.sh -o OPENARRAY -t VCF -p /groups/umcg-atd/tmp07/concordance/ngs/OA99/ -c /groups/umcg-atd/tmp07/concordance/ngs/OA99/compareWith/"
 sleep 2
 while getopts "ho:t:s:c:p:" opt;
 do
@@ -44,7 +44,7 @@ fi
 if [[ -z "${f1concordancePath:-}" &&  -z "${f2concordancePath:-}" ]]
 then
 	f1concordancePath='/groups/umcg-atd/tmp07/concordance/ngs/'
-	f1concordancePath="${f2concordancePath}"
+	f2concordancePath="${f1concordancePath}"
 	filetypeone="OPENARRAY"
 	filetypetwo="VCF"
 fi
@@ -57,8 +57,7 @@ then
 fi
 
 
-f1refGenome="GRCh37"
-f2refGenome="GRCh37"
+
 f1Extension=''
 f2Extension=''
 
@@ -91,6 +90,8 @@ fi
 count=0
 while read line 
 do
+	f1refGenome="GRCh37"
+	f2refGenome="GRCh37"
 	if [[ "${count}" == 0 ]]
 	then
 		echo -e "data1Id\tdata2Id\tlocation1\tlocation2\tfileType1\tfileType2\tbuild1\tbuild2\tproject1\tproject2\tfileprefix\tprocessStepId" > newSamplesheetje.txt
@@ -107,7 +108,16 @@ do
 	f1Id=$(basename "${f1Sample}" "${f1Extension}")
 	f2Id=$(basename "${f2Sample}" "${f2Extension}")
 	filePrefix="${sampleProcess}_${f1project}_${f1sample}_${f2project}_${f2sample}"
-
+	
+	regex="^GS"
+	if [[ "${f1project}" =~ ${regex} ]]
+	then
+		f1refGenome="GRCh38"
+	fi
+	if [[ "${f2project}" =~ ${regex} ]]
+	then
+		f2refGenome="GRCh38"
+	fi
 	echo -e "${f1Id}\t${f2Id}\t${f1Sample}\t${f2Sample}\t${filetypeone}\t${filetypetwo}\t${f1refGenome}\t${f2refGenome}\t${f1project}\t${f2project}\t${filePrefix}\t${sampleProcess}" >> 'newSamplesheetje.txt'
 
 done<"${samplesheet}"
@@ -117,14 +127,14 @@ input='newSamplesheetje.txt'
 header=$(head -n 1 "${input}")
 
 #skip header
-tail -n +2 "$input" | while IFS=$'\t' read -r data1Id data2Id location1 location2 fileType1 fileType2 build1 build2 project1 project2 fileprefix processStepId; do
+tail -n +2 "${input}" | while IFS=$'\t' read -r data1Id data2Id location1 location2 fileType1 fileType2 build1 build2 project1 project2 fileprefix processStepId; do
 	# maak een bestandsnaam op basis van de prefix
 	filename="${fileprefix}.sampleId.txt"
 
     # schrijf header en de regel naar het bestand
 	{
-		echo "$header"
+		echo "${header}"
 		echo -e "${data1Id}\t${data2Id}\t${location1}\t${location2}\t${fileType1}\t${fileType2}\t${build1}\t${build2}\t${project1}\t${project2}\t${fileprefix}\t${processStepId}"
-} > "output/$filename"
-
-
+	} > "output/${filename}"
+done
+echo "output is written to $(pwd)/output, these files can now be copied to the samplesheetsfolder to run the actual concordancecheck"

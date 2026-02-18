@@ -153,7 +153,7 @@ echo '' > "${outputFolder}/output.txt"
 
 echo "starting giab hc callset"
 mapfile -t giabSample < <(find "${inputFile}")
-if [[ "${#giabSample[@]:-0}" -eq '0' ]]
+if [[ "${#giabSample[@]}" -eq '0' ]]
 then
 	echo "${inputFile} not found" 
 	echo "${inputFile} not found" >> "${outputFolder}/output.txt"

@@ -6,22 +6,25 @@ set -eu
 #path2="${2:-/groups/umcg-atd/tmp07/concordance/ngs/OA99/compareWith/}"
 path1="${1:-0}"
 path2="${2:-0}"
+extension1="${3:-oarray.txt}"
+extension2="${4:-oarray.txt}"
 
 
 if [[ "${path1}" == "0" || "${path2}" == "0" ]]
 then
 	echo "FATAL: please use 2 arguments for the input folders. \$1 are the the vcf files that you want to compare. \$2 is the folder the vcf files you want to COMPARE WITH"
+	exit 1
 fi
 
 rm -f 'samplesheet.txt'
 
 count=1
-for i in $(ls "${path1}/"*oarray.txt)
+for i in $(ls "${path1}/"*.${extension1})
 do
 	f1filename=$(basename "${i}")
 	f1dnaNumber=$(echo "${f1filename}" | awk 'BEGIN {FS="_"}{print $3}')
 	f1projectName=$(echo "${f1filename}" | awk 'BEGIN {FS="_"}{print $5}')
-	for j in $(ls "${path2}/"*oarray.txt)
+	for j in $(ls "${path2}/"*.${extension2})
 	do
 		f2filename=$(basename "${j}")
 		f2dnaNumber=$(echo "${f2filename}" | awk 'BEGIN {FS="_"}{print $3}')
