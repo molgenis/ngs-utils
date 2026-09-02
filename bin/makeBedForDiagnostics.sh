@@ -36,15 +36,15 @@ then
 	echo -e '\nERROR: Must specify a BED file!\n'
 
 	showHelp
-	exit 1
+        exit 1
 fi
 
 if [[ -z "${name:-}" ]]
 then
 	echo -e '\nERROR: Must specify a Name for the new Bed file!\n'
 
-	showHelp
-	exit 1
+        showHelp
+        exit 1
 fi
 
 if [[ -z "${exome:-}" ]]
@@ -59,41 +59,44 @@ fi
 
 if [ -d "/apps/data/Agilent/${name}" ]
 then
-	echo "WARNING: /apps/data/Agilent/${name} already exists, removing old one"
-	rm -rf "/apps/data/Agilent/${name}"
-fi	
-if [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
+	echo "/apps/data/Agilent/${name} already exists"
+	exit 1
+elif [ -d "/apps/data/UMCG/Diagnostics/${name}" ]
 then
-	echo "WARNING: /apps/data/UMCG/Diagnostics/${name} already exists, removing old one"
-	rm -rf "/apps/data/UMCG/Diagnostics/${name}"
+	echo "/apps/data/UMCG/Diagnostics/${name} already exists"
+	exit 1
 fi
 
 umcgDir=/apps/data/UMCG/Diagnostics/
 
 mkdir -p "${workdir}/${name}/human_g1k_v37/"
 echo "created ${name}/human_g1k_v37/"
+echo "cp ${bedfile} ${workdir}/${name}/"
 cp "${bedfile}" "${workdir}/${name}"/
 echo "copied ${bedfile} ${workdir}/${name}/"
 ## navigate to folder
+echo "NAVIGEER cd ${workdir}/${name}"
 cd ${workdir}/"${name}"
 
-
-cp "${bedfile}" "human_g1k_v37/captured.bed"
-echo "copied ${bedfile} to human_g1k_v37/captured.bed"
+updatedbedfile=$(basename "${bedfile}")
+cp "${updatedbedfile}" "human_g1k_v37/captured.bed"
+echo "copied ${updatedbedfile} to human_g1k_v37/captured.bed"
 
 module load ngs-utils
-cd 'human_g1k_v37' || exit
+cd human_g1k_v37/
 
 ## Run the prepare step
 
 if [[ "${exome}" == 'true' ]]
 then
 	echo "Creating bedfiles for a new exomekit ${name}"
-	prepare_NGS_Bedfiles.sh -n 'captured'
+	bash ${EBROOTNGSMINUTILS}/bin/prepare_NGS_Bedfiles.sh -n captured
+#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured
 elif [[ "${exome}" == 'false' ]]
 then
 	echo "Creating bedfiles for a new kit ${name}"
-	prepare_NGS_Bedfiles.sh -n 'captured' -c 'true' -d 'targeted'
+	bash ${EBROOTNGSMINUTILS}/bin/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
+#	sh ~/github/ngs-utils/prepare_NGS_Bedfiles.sh -n captured -c true -d targeted
 else
 	echo "please fill in true or false"
 	exit 1
@@ -108,6 +111,8 @@ cd "${umcgDir}/${name}/human_g1k_v37/"
 echo "renaming captured into ${name}"
 rename "captured" "${name}" "captured."*
 
+
+
 #perbase
 cd "${umcgDir}/CoveragePerBase/"
 mkdir -p "${name}"
@@ -115,7 +120,7 @@ mkdir -p "${name}"
 
 if [[ "${exome}" == 'false' ]]
 then
-	cd "${umcgDir}/CoveragePerBase/${name}" || exit
+	cd "${name}"
 	ln -sf "../../${name}"/
 fi
 
@@ -125,7 +130,7 @@ mkdir -p "${name}"
 
 if [[ "${exome}" == 'false' ]]
 then
-	cd "${umcgDir}/CoveragePerTarget/${name}" || exit
+	cd "${name}"
 	ln -sf "../../${name}"/
 fi
 

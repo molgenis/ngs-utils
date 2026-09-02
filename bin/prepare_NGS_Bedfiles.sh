@@ -181,18 +181,16 @@ fi
 
 if [[ "${COVPERBASE}" == "true" ]]
 then
-	if [ ! -f "${baits}.uniq.per_base.bed" ]
+	if [ ! -f "${baits}.uniq.per_base.intervals" ]
 	then
-		echo "starting to create_per_base_bed, this may take a while"
-		create_per_base_bed.pl -input "${baits}.merged.bed" -output "${NAME}" -outputfolder "${TMP}"
-		awk '{print $1"\t"$2"\t"($3+1)"\t"$5}' "${TMP}/${NAME}.per_base.bed" > "${baits}.uniq.per_base.bed"
-		wc -l "${TMP}/${NAME}.per_base.bed"
-		#
+		echo "starting to create_per_base_intervals, this may take a while"
+		create_per_base_intervals.pl -input "${baits}.merged.bed" -output "${NAME}" -outputfolder "${TMP}"
+		wc -l "${TMP}/${NAME}.per_base.intervals"
 
-		#sort -V -k1 -k2 -k3 "${TMP}/${NAME}.per_base.intervals" | uniq > "${baits}.uniq.per_base.intervals.tmp"
-		#head -n 86 "${baits}.interval_list" > "${baits}.uniq.per_base.interval_list"
-		#sort -V "${baits}.uniq.per_base.intervals.tmp" >> "${baits}.uniq.per_base.interval_list"
-		#tail -n+87 "${baits}.uniq.per_base.interval_list" |  awk '{print $1"\t"$2"\t"($3+1)"\t"$5}' > "${baits}.uniq.per_base.bed"
+		sort -V -k1 -k2 -k3 "${TMP}/${NAME}.per_base.intervals" | uniq > "${baits}.uniq.per_base.intervals.tmp"
+		head -n 86 "${baits}.interval_list" > "${baits}.uniq.per_base.interval_list"
+		sort -V "${baits}.uniq.per_base.intervals.tmp" >> "${baits}.uniq.per_base.interval_list"
+		tail -n+87 "${baits}.uniq.per_base.interval_list" |  awk '{print $1"\t"($2-1)"\t"$3"\t"$5}' > "${baits}.uniq.per_base.bed"
 	fi
 fi
 
