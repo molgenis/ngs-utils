@@ -1,12 +1,37 @@
 set -eu
 
-rm -f '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.tsv'
+
+
+year='2026'
+if [[ $(hostname) == 'copperfist' ]]
+then
+	tmp_dir='tmp16'
+	prm_dir='prm06'
+else if [[ $(hostname) == 'betabarrel' ]]
+then
+	tmp_dir='tmp15'
+	prm_dir='prm05'
+else if [[ $(hostname) == 'wingedhelix' ]]
+then
+	tmp_dir='tmp07'
+	prm_dir='prm07'
+else
+	echo "unknown host"
+	exit 1
+fi
+
+tmp_root_dir="/groups/umcg-genomescan/${tmp_dir}/"
+archive="${tmp_root_dir}/logs/archive_${year}/"
+echo -e "#\n##\n###\n Script that will calculate runtimes of genomescan runs"
+echo -e "Files that will be used are the rsync-from-195.log from ${archive}"
+echo -e "###\n##\n#\n"
+rm -f "${archive}/rsyncToPrmTiming/totalTimes.tsv"
 
 count=0
-for i in $(ls -d '/groups/umcg-genomescan/tmp16/logs/archive_2026/10'*)
+for i in $(ls -d "${archive}/10"*)
 do
 	projectName=$(head -5 "${i}/rsync-from-195.log" | tail -1  | awk 'BEGIN {FS=" "}{print $5}' | awk 'BEGIN {FS="/"}{print $3}' | awk 'BEGIN {FS="-"}{print $4"-"$5}')
-	if [[ ! -f  "/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished" ]]
+	if [[ ! -f  "${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished" ]]
 	then
 		if [[ ${count} == 0 ]]
 		then
@@ -14,7 +39,7 @@ do
 			count=1
 		fi
 
-		echo "rsync -rv \"/groups/umcg-gd/prm06/logs/${projectName}/run01.rsyncProjectRun.finished\" \"cf-porch+copperfist:/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished\""
+		echo "rsync -rv \"/groups/umcg-gd/${prm_dir}/logs/${projectName}/run01.rsyncProjectRun.finished\" \"cf-porch+copperfist:${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished\""
 	fi
 done
 
@@ -29,7 +54,7 @@ then
 	fi
 fi
 
-for i in $(ls -d '/groups/umcg-genomescan/tmp16/logs/archive_2026/10'*)
+for i in $(ls -d "${archive}/10"*)
 do
 	gsBatch=$(basename $i)
 
@@ -62,7 +87,7 @@ do
 
 	#
 	## Copy to prm
-	copyToPrmFile="/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished"
+	copyToPrmFile="${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished"
 	startdateC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $1}')
         starttimeC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $2}')
 	enddateC=$(tail -1 "${copyToPrmFile}"  | awk 'BEGIN {FS=" "}{print $1}')
@@ -81,7 +106,7 @@ do
 	##
 	#
 
-	finishedFile="/groups/umcg-genomescan/tmp16/logs/archive_2026/${projectName}/run01.projectDataCopiedToPrm.finished"
+	finishedFile="${archive}/${projectName}/run01.projectDataCopiedToPrm.finished"
 
 	#
 	## finish
@@ -92,9 +117,9 @@ do
 	durationSec=$((endEpoch - startEpoch))
 	durationSecPerSample=$((durationSec / numberOfSamples))
 	#totaltime
-        hours=$((durationSec / 3600))
-        minutes=$(( (durationSec % 3600) / 60 ))
-        seconds=$((durationSec % 60))
+	hours=$((durationSec / 3600))
+	minutes=$(( (durationSec % 3600) / 60 ))
+	seconds=$((durationSec % 60))
 
 	#total time per sample
 	hoursPerSample=$((durationSecPerSample / 3600))
@@ -102,10 +127,14 @@ do
 	secondsPerSample=$((durationSecPerSample % 60))
 	duration="${hours}h:${minutes}m:${seconds}s"
 	durationPerSample="${hoursPerSample}h:${minutesPerSample}m:${secondsPerSample}s"
-	echo -e "${gsBatch}\t${projectName}\t${numberOfSamples}\t${startdate} - ${starttime}\t${endDate} - ${endTime}\t${duration}\t${durationPerSample}\t${durationT}\t${durationPerSampleT}\t${durationC}\t${durationPerSampleC}" >> '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.tsv'
+	echo -e "${gsBatch}\t${projectName}\t${numberOfSamples}\t${startdate} - ${starttime}\t${endDate} - ${endTime}\t${duration}\t${durationPerSample}\t${durationT}\t${durationPerSampleT}\t${durationC}\t${durationPerSampleC}" >> '/groups/umcg-genomescan/tmp16/logs/archive/rsyncToPrmTiming/totalTimes.tsv'
 	##
 	#
 done
 echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.sorted.tsv'
-sort -rV -k11 '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.tsv' >> '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.sorted.tsv'
-echo "total times file can be found here: /groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.sorted.tsv"
+sort -rV -k10 "${archive}/rsyncToPrmTiming/totalTimes.tsv" >> "${archive}/rsyncToPrmTiming/totalTimes.sorted.tsv"
+echo "total times file can be found here: ${archive}/rsyncToPrmTiming/totalTimes.sorted.tsv"
+echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.tsv.tmp2'
+cat "${archive}/rsyncToPrmTiming/totalTimes.tsv" >> "${archive}/rsyncToPrmTiming/totalTimes.tsv.tmp2"
+mv "${archive}/rsyncToPrmTiming/totalTimes.tsv.tmp2" "${archive}/rsyncToPrmTiming/totalTimes.tsv"
+echo "run: column -t -s $'\t' ${archive}/rsyncToPrmTiming/totalTimes.tsv to see runtimes"
