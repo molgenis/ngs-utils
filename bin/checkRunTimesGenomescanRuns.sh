@@ -1,19 +1,20 @@
 set -eu
 
-
-
 year='2026'
 if [[ $(hostname) == 'copperfist' ]]
 then
 	tmp_dir='tmp16'
+	hostname_datastaging='cf-porch+copperfist'
 	prm_dir='prm06'
-else if [[ $(hostname) == 'betabarrel' ]]
+elif [[ $(hostname) == 'betabarrel' ]]
 then
 	tmp_dir='tmp15'
+	hostname_datastaging='bb-porch+betabarrel'
 	prm_dir='prm05'
-else if [[ $(hostname) == 'wingedhelix' ]]
+elif [[ $(hostname) == 'wingedhelix' ]]
 then
 	tmp_dir='tmp07'
+	hostname_datastaging='wh-porch+wingedhelix'
 	prm_dir='prm07'
 else
 	echo "unknown host"
@@ -39,7 +40,7 @@ do
 			count=1
 		fi
 
-		echo "rsync -rv \"/groups/umcg-gd/${prm_dir}/logs/${projectName}/run01.rsyncProjectRun.finished\" \"cf-porch+copperfist:${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished\""
+		echo "rsync -rv \"/groups/umcg-gd/${prm_dir}/logs/${projectName}/run01.rsyncProjectRun.finished\" \"${hostname_datastaging}:${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished\""
 	fi
 done
 
@@ -88,21 +89,28 @@ do
 	#
 	## Copy to prm
 	copyToPrmFile="${archive}/rsyncToPrmTiming/${projectName}.rsyncProjectRun.finished"
-	startdateC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $1}')
-        starttimeC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $2}')
-	enddateC=$(tail -1 "${copyToPrmFile}"  | awk 'BEGIN {FS=" "}{print $1}')
-        endtimeC=$(tail -1 "${copyToPrmFile}"  | awk 'BEGIN {FS=" "}{print $2}')
-        startEpochC=$(date -d "${startdateC} ${starttimeC}" +%s 2>/dev/null)
-        endEpochC=$(date -d "${enddateC} ${endtimeC}" +%s 2>/dev/null)
-        durationSecC=$((endEpochC - startEpochC))
-        hoursC=$((durationSecC / 3600))
-        minutesC=$(( (durationSecC % 3600) / 60 ))
-        secondsC=$((durationSecC % 60))
-        durationSecPerSampleC=$((durationSecC / numberOfSamples))
-	durationC="${hoursC}h:${minutesC}m:${secondsC}s"
-        minutesPerSampleC=$(( (durationSecPerSampleC % 3600) / 60 ))
-        secondsPerSampleC=$((durationSecPerSampleC % 60))
-        durationPerSampleC="${minutesPerSampleC}m:${secondsPerSampleC}s"
+	if [[ -f "${copyToPrmFile}" ]]
+	then
+		startdateC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $1}')
+		starttimeC=$(head -3 "${copyToPrmFile}" | tail -1  | awk 'BEGIN {FS=" "}{print $2}')
+		enddateC=$(tail -1 "${copyToPrmFile}"  | awk 'BEGIN {FS=" "}{print $1}')
+		endtimeC=$(tail -1 "${copyToPrmFile}"  | awk 'BEGIN {FS=" "}{print $2}')
+		startEpochC=$(date -d "${startdateC} ${starttimeC}" +%s 2>/dev/null)
+		endEpochC=$(date -d "${enddateC} ${endtimeC}" +%s 2>/dev/null)
+		durationSecC=$((endEpochC - startEpochC))
+		hoursC=$((durationSecC / 3600))
+		minutesC=$(( (durationSecC % 3600) / 60 ))
+		secondsC=$((durationSecC % 60))
+		durationSecPerSampleC=$((durationSecC / numberOfSamples))
+		durationC="${hoursC}h:${minutesC}m:${secondsC}s"
+		minutesPerSampleC=$(( (durationSecPerSampleC % 3600) / 60 ))
+		secondsPerSampleC=$((durationSecPerSampleC % 60))
+		durationPerSampleC="${minutesPerSampleC}m:${secondsPerSampleC}s"
+	else
+		echo "rsyncToPrm file not found for ${projectName}, skipping copy to prm calculation for this sample"
+		durationPerSampleC="NA"
+		durationC="NA"
+	fi
 	##
 	#
 
@@ -127,14 +135,14 @@ do
 	secondsPerSample=$((durationSecPerSample % 60))
 	duration="${hours}h:${minutes}m:${seconds}s"
 	durationPerSample="${hoursPerSample}h:${minutesPerSample}m:${secondsPerSample}s"
-	echo -e "${gsBatch}\t${projectName}\t${numberOfSamples}\t${startdate} - ${starttime}\t${endDate} - ${endTime}\t${duration}\t${durationPerSample}\t${durationT}\t${durationPerSampleT}\t${durationC}\t${durationPerSampleC}" >> '/groups/umcg-genomescan/tmp16/logs/archive/rsyncToPrmTiming/totalTimes.tsv'
+	echo -e "${gsBatch}\t${projectName}\t${numberOfSamples}\t${startdate} - ${starttime}\t${endDate} - ${endTime}\t${duration}\t${durationPerSample}\t${durationT}\t${durationPerSampleT}\t${durationC}\t${durationPerSampleC}" >> "${archive}/rsyncToPrmTiming/totalTimes.tsv"
 	##
 	#
 done
-echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.sorted.tsv'
+echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > "${archive}/rsyncToPrmTiming/totalTimes.sorted.tsv"
 sort -rV -k10 "${archive}/rsyncToPrmTiming/totalTimes.tsv" >> "${archive}/rsyncToPrmTiming/totalTimes.sorted.tsv"
 echo "total times file can be found here: ${archive}/rsyncToPrmTiming/totalTimes.sorted.tsv"
-echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > '/groups/umcg-genomescan/tmp16/logs/archive_2026/rsyncToPrmTiming/totalTimes.tsv.tmp2'
+echo -e "gsBatch\tprojectName\tnumberofsamples\tstartdatetime\tenddatetime\tduration\tdurationpersample\tdurationTransfer\tdurationPerSampleTransfer\tdurationCopy\tdurationPerSampleCopy" > "${archive}/rsyncToPrmTiming/totalTimes.tsv.tmp2"
 cat "${archive}/rsyncToPrmTiming/totalTimes.tsv" >> "${archive}/rsyncToPrmTiming/totalTimes.tsv.tmp2"
 mv "${archive}/rsyncToPrmTiming/totalTimes.tsv.tmp2" "${archive}/rsyncToPrmTiming/totalTimes.tsv"
 echo "run: column -t -s $'\t' ${archive}/rsyncToPrmTiming/totalTimes.tsv to see runtimes"
